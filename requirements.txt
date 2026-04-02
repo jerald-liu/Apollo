@@ -1,0 +1,26 @@
+# Core ML
+torch>=2.0
+numpy
+
+# MIDI processing
+pretty_midi
+mido
+
+# Audio / spectral analysis (for future FFT pipeline)
+librosa
+
+# Data & analysis
+pandas
+matplotlib
+seaborn
+
+# Jupyter
+jupyter
+ipywidgets
+
+# Real-time inference (Phase 2)
+# onnxruntime
+
+# Utilities
+tqdm
+pyyaml

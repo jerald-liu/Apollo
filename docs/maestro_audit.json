@@ -1,0 +1,26 @@
+{
+  "dataset": "MAESTRO v3.0.0",
+  "total_files": 1276,
+  "sample_size": 200,
+  "total_duration_hours": 198.653207402237,
+  "velocity": {
+    "mean": 64.68908171632928,
+    "std": 18.821243441498954,
+    "min": 1,
+    "max": 126
+  },
+  "pitch": {
+    "mean": 64.73343550277235,
+    "min": 21,
+    "max": 108
+  },
+  "timing": {
+    "median_ioi_ms": 58.333333333393966,
+    "p10_ioi_ms": 3.90625,
+    "median_duration_ms": 86.45833333333997
+  },
+  "density": {
+    "mean_notes_per_sec": 10.841230190249867
+  },
+  "pedal_usage_fraction": 0.5977040266312413
+}

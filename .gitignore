@@ -1,0 +1,38 @@
+# Data
+data/raw/
+data/processed/
+*.mid
+*.midi
+*.wav
+*.mp3
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+venv/
+.venv/
+env/
+
+# Models
+models/*.pt
+models/*.onnx
+models/*.bin
+*.checkpoint
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
