@@ -80,7 +80,17 @@ class TrainConfig:
     def from_yaml(cls, path: str) -> 'TrainConfig':
         with open(path) as f:
             data = yaml.safe_load(f)
-        return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
+        # Cast values to declared field types (YAML reads e.g. 3e-4 as string)
+        typed = {}
+        for k, v in data.items():
+            if k in cls.__dataclass_fields__:
+                expected_type = cls.__dataclass_fields__[k].type
+                if expected_type == float and isinstance(v, str):
+                    v = float(v)
+                elif expected_type == int and isinstance(v, str):
+                    v = int(v)
+                typed[k] = v
+        return cls(**typed)
 
 
 # --- Dataset ---
