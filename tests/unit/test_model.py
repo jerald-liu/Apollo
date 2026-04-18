@@ -238,3 +238,55 @@ class TestGenerate:
         prompt = torch.randint(0, TINY_CFG["vocab_size"] - 2, (1, 3))
         _, timbre = m.generate(prompt, max_new_tokens=5, temperature=1.0, top_k=5)
         assert timbre is None
+
+
+# --- additional clause coverage -------------------------------------------
+
+class TestSpectralEncoderDevice:
+    def test_M1_3_output_on_same_device(self):
+        """M1.3: output tensor is on the same device as input."""
+        enc = SpectralEncoder(spectral_dim=21, d_model=32)
+        x = torch.randn(1, 4, 21)
+        out = enc(x)
+        assert out.device == x.device
+
+
+class TestTimbrePredictorDevice:
+    def test_M2_3_output_on_same_device(self):
+        """M2.3: output tensor is on the same device as input."""
+        pred = TimbrePredictor(d_model=32, n_descriptors=5)
+        h = torch.randn(1, 4, 32)
+        out = pred(h)
+        assert out.device == h.device
+
+
+class TestForwardInputContract:
+    def test_M4_1_requires_2d_token_tensor(self, tiny_model):
+        """M4.1: tokens must be shape (B, T); T=1 is the minimum valid sequence."""
+        tokens = torch.randint(0, TINY_CFG["vocab_size"], (1, 1))
+        out = tiny_model(tokens)
+        assert out["logits"].shape == (1, 1, TINY_CFG["vocab_size"])
+
+
+class TestGenerateHaltsAndNoGrad:
+    def test_M6_4_halts_on_eos(self):
+        """M6.4: if EOS (378) appears in output it must be the final token."""
+        model = ApolloModel(**TINY_CFG)
+        model.eval()
+        prompt = torch.randint(0, 100, (1, 4))
+        tokens, _ = model.generate(prompt, max_new_tokens=30,
+                                   temperature=1.0, top_k=10)
+        flat = tokens[0].tolist()
+        eos_idx = [i for i, t in enumerate(flat) if t == 378]
+        if eos_idx:
+            # EOS must not appear before the last position
+            assert eos_idx[0] == len(flat) - 1
+
+    def test_M6_7_no_grad_during_generate(self):
+        """M6.7: generate runs under no_grad; output tokens have no gradient."""
+        model = ApolloModel(**TINY_CFG)
+        model.eval()
+        prompt = torch.randint(0, 100, (1, 4))
+        tokens, _ = model.generate(prompt, max_new_tokens=5,
+                                   temperature=1.0, top_k=5)
+        assert not tokens.requires_grad

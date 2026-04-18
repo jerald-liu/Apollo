@@ -341,3 +341,34 @@ class TestEventsToMidi:
         starts = [n.start for n in pm.instruments[0].notes]
         expected = np.cumsum([e.delta_time for e in events])
         np.testing.assert_allclose(starts, expected, atol=1e-4)
+
+
+class TestMidiToEventsDrums:
+    def test_R4_6_skips_drum_instruments(self, tmp_path):
+        """R4.6: drum instruments produce no events."""
+        import pretty_midi
+        pm = pretty_midi.PrettyMIDI(initial_tempo=120)
+        drum = pretty_midi.Instrument(program=0, is_drum=True, name="drums")
+        for i in range(5):
+            drum.notes.append(pretty_midi.Note(
+                velocity=80, pitch=38, start=i * 0.1, end=i * 0.1 + 0.05))
+        pm.instruments.append(drum)
+        path = tmp_path / "drums.mid"
+        pm.write(str(path))
+        events = midi_to_events(str(path))
+        assert len(events) == 0
+
+
+class TestEventsToMidiPedal:
+    def test_R8_5_pedal_cc_emitted(self, tmp_path):
+        """R8.5: events with pedal > 0 produce CC #64 at onset time."""
+        events = [
+            ApolloEvent(pitch=60, velocity=0.5, delta_time=0.0, duration=0.2, pedal=3),
+            ApolloEvent(pitch=62, velocity=0.5, delta_time=0.5, duration=0.2, pedal=0),
+        ]
+        out = tmp_path / "pedal.mid"
+        events_to_midi(events, str(out))
+        pm = pretty_midi.PrettyMIDI(str(out))
+        ccs = [cc for cc in pm.instruments[0].control_changes if cc.number == 64]
+        assert len(ccs) == 1
+        assert ccs[0].time == pytest.approx(0.0, abs=1e-4)

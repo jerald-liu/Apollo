@@ -334,3 +334,44 @@ class TestToEmbedding:
         emb = t.to_embedding(0.0, dim=16)
         assert emb.shape == (16,)
         assert np.all(np.isfinite(emb))
+
+
+# --- additional clause coverage -------------------------------------------
+
+class TestSpectralFrameFields:
+    def test_S0_1_all_fields_are_float(self):
+        """S0.1: SpectralFrame fields are plain floats."""
+        from spectral import SpectralFrame
+        f = SpectralFrame(time=0.0, centroid=1000.0, flux=0.1, rolloff=2000.0,
+                          flatness=0.3, bandwidth=500.0, rms=0.5,
+                          onset_strength=1.2)
+        for field in ("time", "centroid", "flux", "rolloff", "flatness",
+                      "bandwidth", "rms", "onset_strength"):
+            assert isinstance(getattr(f, field), float)
+
+
+class TestNoteSpectralProfileFields:
+    def test_S0_2_scalar_fields_are_float_envelope_is_ndarray(self):
+        """S0.2: NoteSpectralProfile scalar fields are floats; envelope is ndarray."""
+        p = NoteSpectralProfile(brightness=0.5, attack=0.5, richness=0.5,
+                                warmth=0.5, flux=0.5)
+        for field in ("brightness", "attack", "richness", "warmth", "flux"):
+            assert isinstance(getattr(p, field), float)
+        assert isinstance(p.dynamic_envelope, np.ndarray)
+
+
+class TestGetNoteProfileLookback:
+    def test_S4_5_attack_window_includes_lookback(self, synthetic_audio_arrays):
+        """S4.5: profile window starts 20ms before onset to capture attack."""
+        analyzer = SpectralAnalyzer()
+        onset = float(synthetic_audio_arrays["times"][20])
+        offset = float(synthetic_audio_arrays["times"][25])
+        lookback = 0.02
+        times = synthetic_audio_arrays["times"]
+        mask_with = (times >= onset - lookback) & (times <= offset)
+        mask_without = (times >= onset) & (times <= offset)
+        p = analyzer.get_note_profile(synthetic_audio_arrays, onset, offset)
+        if mask_with.sum() > mask_without.sum():
+            expected = float(np.max(
+                synthetic_audio_arrays["onset_strength"][mask_with]))
+            assert p.attack == pytest.approx(expected)

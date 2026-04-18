@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: spec-coverage
+        name: Spec clause coverage
+        entry: python scripts/check_spec_coverage.py
+        language: python
+        pass_filenames: false
+        always_run: true
