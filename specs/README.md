@@ -23,6 +23,7 @@ back to a specific contractual clause.
 | `spectral.md`       | `src/spectral.py`       | `tests/unit/test_spectral.py` |
 | `model.md`          | `src/model.py`          | `tests/unit/test_model.py` |
 | `preprocess.md`     | `scripts/preprocess.py` | `tests/integration/test_preprocess.py` |
+| `interfaces.md`     | module boundaries       | `tests/integration/test_interfaces.py` |
 
 ## Clause ID prefixes
 
@@ -30,6 +31,7 @@ back to a specific contractual clause.
 - `S*` — spectral
 - `M*` — model
 - `P*` — preprocess
+- `IR→M.*`, `IR→P.*`, `IS→R.*`, `IM→G.*` — interface contracts
 
 ## Workflow
 
