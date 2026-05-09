@@ -1,0 +1,33 @@
+# Apollo Inference Server Config
+# Used by src/inference_server.py for real-time M4L serving
+
+# OSC networking
+listen_port: 7401       # Receives events from M4L
+m4l_host: "127.0.0.1"
+m4l_port: 7400          # Sends responses to M4L
+
+# Compute device: "auto", "mps", "cuda", or "cpu"
+device: auto
+
+# Model checkpoint to load
+checkpoint: models/checkpoint_best.pt
+
+# Model architecture (must match checkpoint)
+# These mirror base.yaml training config
+d_model: 384
+nhead: 6
+num_layers: 6
+max_seq_len: 512
+user_embed_dim: 0
+spectral_dim: 21
+n_timbre_outputs: 5
+
+# Generation defaults (overridden at runtime via OSC)
+temperature: 0.9
+top_k: 50
+density: 0.5
+timbre_influence: 0.7
+
+# Buffer & generation limits
+max_buffer_events: 64     # Rolling input event buffer size
+max_gen_tokens: 50        # Max tokens per generation call
