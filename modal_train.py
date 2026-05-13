@@ -56,7 +56,7 @@ image = (
     .add_local_dir("src",     "/workspace/src")
     .add_local_dir("scripts", "/workspace/scripts")
     .add_local_dir("configs", "/workspace/configs")
-    .env({"PYTHONPATH": "/workspace"})
+    .env({"PYTHONPATH": "/workspace", "PYTHONUNBUFFERED": "1"})
 )
 
 # ---------------------------------------------------------------------------
@@ -161,9 +161,10 @@ def main(
     spectral: bool = False,
     resume: str = None,
 ):
-    if action == "preprocess":
-        preprocess.remote(spectral=spectral)
-    elif action == "train":
-        train.remote(config=config, resume=resume)
-    else:
-        raise ValueError(f"Unknown action '{action}'. Use 'preprocess' or 'train'.")
+    with modal.enable_output():
+        if action == "preprocess":
+            preprocess.remote(spectral=spectral)
+        elif action == "train":
+            train.remote(config=config, resume=resume)
+        else:
+            raise ValueError(f"Unknown action '{action}'. Use 'preprocess' or 'train'.")
