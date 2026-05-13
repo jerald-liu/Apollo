@@ -1,4 +1,6 @@
-.PHONY: smoke preprocess train build modal-preprocess modal-train pull-checkpoints help
+.PHONY: smoke preprocess train build modal-preprocess modal-train pull-checkpoints install-m4l help
+
+M4L_DIR     ?= $(HOME)/Music/Ableton/User Library/Presets/MIDI Effects/Max MIDI Effect/Apollo
 
 VENV        := venv/bin
 PYTHON      := $(VENV)/python
@@ -23,6 +25,10 @@ help:
 	@echo "  make pull-checkpoints   Download best checkpoint from Modal volume"
 	@echo ""
 	@echo "Overrides: make modal-train CONFIG=configs/large.yaml RESUME=checkpoint_latest.pt"
+	@echo ""
+	@echo "Max for Live:"
+	@echo "  make install-m4l        Install device to Ableton User Library (needs Live Suite)"
+	@echo "  Override: make install-m4l M4L_DIR=/path/to/custom/dir"
 
 # ---------------------------------------------------------------------------
 # Local
@@ -61,3 +67,21 @@ pull-checkpoints:
 	$(MODAL) volume get apollo-checkpoints checkpoint_best.pt   models/checkpoint_best.pt   2>/dev/null || true
 	$(MODAL) volume get apollo-checkpoints checkpoint_latest.pt models/checkpoint_latest.pt 2>/dev/null || true
 	@echo "Checkpoints pulled to models/"
+
+# ---------------------------------------------------------------------------
+# Max for Live device install
+# Copies patcher + JS files to Ableton User Library.
+# Requires Ableton Live Suite (or Live + M4L add-on).
+# ---------------------------------------------------------------------------
+
+install-m4l:
+	@echo "Installing Apollo M4L device to:"
+	@echo "  $(M4L_DIR)"
+	@mkdir -p "$(M4L_DIR)"
+	@cp m4l/patchers/apollo_engine.maxpat "$(M4L_DIR)/Apollo.maxpat"
+	@cp m4l/code/apollo_bridge.js         "$(M4L_DIR)/"
+	@cp m4l/code/apollo_status.js         "$(M4L_DIR)/"
+	@cp m4l/code/apollo_activity.js       "$(M4L_DIR)/"
+	@cp m4l/code/apollo_timbre_meters.js  "$(M4L_DIR)/"
+	@echo "Done. Restart Ableton and find Apollo in:"
+	@echo "  Browser → User Library → Presets → MIDI Effects → Max MIDI Effect → Apollo"
