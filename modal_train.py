@@ -46,6 +46,7 @@ image = (
     )
     .pip_install(
         "numpy==1.26.4",
+        "pandas==2.2.2",
         "pretty_midi==0.2.10",
         "mido==1.3.2",
         "librosa==0.10.2",
