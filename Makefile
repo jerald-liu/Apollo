@@ -1,6 +1,8 @@
 .PHONY: smoke preprocess train build modal-preprocess modal-train pull-checkpoints help
 
-PYTHON      := python
+VENV        := venv/bin
+PYTHON      := $(VENV)/python
+MODAL       := $(VENV)/modal
 CONFIG      ?= configs/base.yaml
 RESUME      ?=
 SPECTRAL    ?= false
@@ -49,13 +51,13 @@ build:
 # ---------------------------------------------------------------------------
 
 modal-preprocess:
-	modal run modal_train.py --action preprocess --spectral $(SPECTRAL)
+	$(MODAL) run modal_train.py --action preprocess --spectral $(SPECTRAL)
 
 modal-train:
-	modal run modal_train.py --action train --config $(CONFIG) $(if $(RESUME),--resume $(RESUME),)
+	$(MODAL) run modal_train.py --action train --config $(CONFIG) $(if $(RESUME),--resume $(RESUME),)
 
 pull-checkpoints:
 	@mkdir -p models
-	modal volume get apollo-checkpoints checkpoint_best.pt   models/checkpoint_best.pt   2>/dev/null || true
-	modal volume get apollo-checkpoints checkpoint_latest.pt models/checkpoint_latest.pt 2>/dev/null || true
+	$(MODAL) volume get apollo-checkpoints checkpoint_best.pt   models/checkpoint_best.pt   2>/dev/null || true
+	$(MODAL) volume get apollo-checkpoints checkpoint_latest.pt models/checkpoint_latest.pt 2>/dev/null || true
 	@echo "Checkpoints pulled to models/"
