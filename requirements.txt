@@ -18,8 +18,8 @@ seaborn
 jupyter
 ipywidgets
 
-# Real-time inference (Phase 2)
-# onnxruntime
+# Real-time inference
+python-osc          # OSC server for M4L bridge
 
 # Utilities
 tqdm

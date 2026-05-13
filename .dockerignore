@@ -1,0 +1,11 @@
+data/
+models/
+venv/
+notebooks/
+.git/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+*.egg-info/
+.pytest_cache/
