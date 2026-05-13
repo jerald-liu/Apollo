@@ -34,7 +34,7 @@
    - SpectralTrajectory: phrase-level timbral arcs (smoothed over 2s windows)
    - Spectral-aware model trained: 4.7M params, token loss 3.41, timbre MSE 0.048
 
-## Phase 1: Scale Up — IN PROGRESS (training active)
+## Phase 1: Scale Up — COMPLETE
 
 ### Done
 - **Full MAESTRO preprocessing** (`data/processed/` + Modal `apollo-data` volume)
@@ -55,17 +55,22 @@
 
 - **MPS bug fixed**: `fused` AdamW kwarg and `pin_memory` both CUDA-gated — confirmed clean
 
-- **A100 training run ACTIVE** (Modal `ap-tjjeenMpIwH5VGcyIq1x7L`)
-  - Started: 2026-05-13
-  - At step ~10,000: train loss 1.96, val loss 2.27 — healthy descent, no overfitting
-  - Speed: ~530K tok/s on A100 (vs 165K on MPS)
-  - ETA: ~5–6 hours remaining
+- **A100 training run COMPLETE** (Modal `ap-tjjeenMpIwH5VGcyIq1x7L`)
+  - 50,000 steps, ~6 hours, ~530K tok/s
+  - **Best val loss: 2.2683** (step 6,999) — checkpoint: `models/checkpoint_a100_best.pt`
+  - Final train loss: 1.70 / Final val loss: 2.44
+  - Overfitting onset ~step 7K — more data (GiantMIDI-Piano) would push this further
+  - Timbre head disabled (MIDI-only data); outputs near-neutral defaults (0.5)
 
-### Not Done Yet
-- **Spectral preprocessing**: Full MAESTRO audio (~101GB) not downloaded. Current data is
-  MIDI-only — timbre head disabled during this run. Phase 2 target.
-- **GiantMIDI-Piano**: 10K+ additional piano files (CC BY 4.0) — planned for next training run
-- **Evaluate trained model**: `make pull-checkpoints` then `python scripts/generate.py`
+- **Generation evaluated** (`scripts/generate.py`)
+  - Realistic pitch range (33–46 semitones across temperatures)
+  - Velocity variation (std ~0.13) and pedal usage (~58–97%) matching MAESTRO statistics
+  - Sample MIDI files: `data/processed/generated/step6999_t{08,09,11}.mid`
+
+### Next Steps
+- **Phase 2**: Real-time inference engine — wire M4L device to `inference_server.py`, validate <20ms latency
+- **Next training run**: Add GiantMIDI-Piano (10K files), enable spectral features with full MAESTRO audio
+- **Listen to generated MIDI**: open `data/processed/generated/` samples in a DAW
 
 ## File Tree (key files)
 
