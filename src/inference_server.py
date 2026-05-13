@@ -68,6 +68,7 @@ class ApolloInferenceServer:
         # Load model
         self.device = self._resolve_device(config.get("device", "auto"))
         self.model = self._load_model(config)
+        self._warmup()
 
         # CC mapping: timbral descriptor index -> MIDI CC number
         self.cc_map = {
@@ -95,37 +96,58 @@ class ApolloInferenceServer:
         return torch.device(device_str)
 
     def _load_model(self, config: dict) -> ApolloModel:
-        model_config = {
-            "vocab_size": config.get("vocab_size", 380),
-            "d_model": config.get("d_model", 384),
-            "nhead": config.get("nhead", 6),
-            "num_layers": config.get("num_layers", 6),
-            "max_seq_len": config.get("max_seq_len", 512),
-            "user_embed_dim": config.get("user_embed_dim", 0),
-            "spectral_dim": config.get("spectral_dim", 21),
-            "n_timbre_outputs": config.get("n_timbre_outputs", 5),
-            "dropout": 0.0,  # no dropout at inference
-        }
-
-        model = ApolloModel(**model_config)
-
         checkpoint_path = PROJECT_ROOT / config.get("checkpoint", "models/checkpoint_best.pt")
+
         if checkpoint_path.exists():
             print(f"[Apollo] Loading checkpoint: {checkpoint_path}")
-            state = torch.load(checkpoint_path, map_location=self.device, weights_only=True)
-            # Handle checkpoints saved with 'model_state_dict' key
-            state_dict = state["model_state_dict"] if "model_state_dict" in state else state
-            # strict=False handles checkpoints trained without spectral/timbre heads
-            missing, unexpected = model.load_state_dict(state_dict, strict=False)
-            if missing:
-                print(f"[Apollo] Note: {len(missing)} keys not in checkpoint "
-                      f"(spectral/timbre heads will use random init)")
+            ckpt = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
+            # Prefer architecture from checkpoint — avoids config mismatch
+            saved_cfg = ckpt.get("config", {})
+            model_config = {
+                "vocab_size":       saved_cfg.get("vocab_size",        config.get("vocab_size", 380)),
+                "d_model":          saved_cfg.get("d_model",            config.get("d_model", 384)),
+                "nhead":            saved_cfg.get("nhead",              config.get("nhead", 6)),
+                "num_layers":       saved_cfg.get("num_layers",         config.get("num_layers", 6)),
+                "max_seq_len":      saved_cfg.get("max_seq_len",        config.get("max_seq_len", 512)),
+                "user_embed_dim":   saved_cfg.get("user_embed_dim",     0),
+                "spectral_dim":     saved_cfg.get("spectral_dim", 0) if saved_cfg.get("spectral") else 0,
+                "n_timbre_outputs": saved_cfg.get("n_timbre_outputs", 0) if saved_cfg.get("spectral") else 0,
+                "dropout": 0.0,
+            }
+            step = ckpt.get("step", 0)
+            val_loss = ckpt.get("best_val_loss", float("inf"))
+            print(f"[Apollo] step={step:,}  best_val_loss={val_loss:.4f}  "
+                  f"d_model={model_config['d_model']}  layers={model_config['num_layers']}")
+
+            model = ApolloModel(**model_config)
+            model.load_state_dict(ckpt["model_state_dict"])
         else:
             print(f"[Apollo] WARNING: No checkpoint at {checkpoint_path}, using random weights")
+            model_config = {
+                "vocab_size": 380, "d_model": config.get("d_model", 384),
+                "nhead": config.get("nhead", 6), "num_layers": config.get("num_layers", 6),
+                "max_seq_len": config.get("max_seq_len", 512),
+                "user_embed_dim": 0, "spectral_dim": 0, "n_timbre_outputs": 0, "dropout": 0.0,
+            }
+            model = ApolloModel(**model_config)
 
         model = model.to(self.device)
         model.eval()
         return model
+
+    def _warmup(self):
+        """Run a dummy forward pass to trigger MPS/CUDA JIT compilation.
+        Eliminates the ~280ms cold-start penalty on the first real inference call.
+        """
+        import time
+        t = time.perf_counter()
+        dummy = torch.zeros(1, 32, dtype=torch.long, device=self.device)
+        with torch.no_grad():
+            self.model(dummy, tokens_per_event=TOKENS_PER_EVENT)
+        if self.device.type == "mps":
+            torch.mps.synchronize()
+        elapsed = (time.perf_counter() - t) * 1000
+        print(f"[Apollo] Warmup complete ({elapsed:.0f}ms) — inference ready")
 
     # --- OSC Handlers ---
 
@@ -220,89 +242,97 @@ class ApolloInferenceServer:
 
     # --- Generation ---
 
+    def _stream_generate(self, prompt: torch.Tensor, n_gen: int):
+        """Token-streaming generator: yields (event, timbre_row | None) as each
+        complete event (TOKENS_PER_EVENT tokens) is decoded.  Sending starts
+        after the first 5 tokens rather than waiting for the full sequence.
+        """
+        import torch.nn.functional as F
+        tokens = prompt.clone()
+        token_batch: list[int] = []
+
+        for _ in range(n_gen):
+            context = tokens[:, -self.model.max_seq_len:]
+            with torch.no_grad():
+                output = self.model(context, tokens_per_event=TOKENS_PER_EVENT)
+
+            logits = output["logits"][:, -1, :] / self.temperature
+            if self.top_k > 0:
+                v, _ = torch.topk(logits, min(self.top_k, logits.size(-1)))
+                logits[logits < v[:, [-1]]] = float("-inf")
+            probs = F.softmax(logits, dim=-1)
+            next_tok = torch.multinomial(probs, 1)
+            tokens = torch.cat([tokens, next_tok], dim=1)
+
+            tok_id = next_tok.item()
+            if tok_id == TOKEN_OFFSETS["eos"]:
+                break
+
+            token_batch.append(tok_id)
+
+            if len(token_batch) == TOKENS_PER_EVENT:
+                events = tokens_to_events(token_batch)
+                timbre_row = None
+                if events and "timbre" in output:
+                    # timbre at position of last token in this event
+                    pos = tokens.shape[1] - prompt.shape[1] - 1
+                    pos = min(pos, output["timbre"].shape[1] - 1)
+                    if pos >= 0:
+                        timbre_row = output["timbre"][0, pos].cpu().numpy()
+                yield (events[0] if events else None), timbre_row
+                token_batch = []
+
     def _generate_response(self):
-        """Run model inference on the current event buffer and send results."""
-        t_start = time.time()
+        """Run streaming inference and send each event to M4L as it's ready."""
+        t_start = time.perf_counter()
 
         with self.lock:
             if len(self.event_buffer) < 2:
                 return
             events = list(self.event_buffer)
 
-        # Tokenize input events
         tokens = events_to_tokens(events)
-        # Append SEP token to signal "now generate a response"
-        tokens.append(TOKEN_OFFSETS["sep"])
-
+        # Strip trailing EOS — model was trained on sequences without EOS at the
+        # context boundary, and SEP was never in training data, so just let the
+        # model continue naturally after the last event.
+        while tokens and tokens[-1] in (TOKEN_OFFSETS["eos"], TOKEN_OFFSETS["sep"]):
+            tokens = tokens[:-1]
         prompt = torch.tensor([tokens], dtype=torch.long, device=self.device)
 
-        # Determine how many tokens to generate based on density
-        # density 0.0 = ~1 event (5 tokens), density 1.0 = max_gen_tokens
-        n_gen = max(5, int(self.max_gen_tokens * self.density))
+        n_gen = max(TOKENS_PER_EVENT, int(self.max_gen_tokens * self.density))
 
-        # Run inference
+        first_event = True
         try:
-            gen_tokens, timbre_out = self.model.generate(
-                prompt=prompt,
-                max_new_tokens=n_gen,
-                temperature=self.temperature,
-                top_k=self.top_k,
-                tokens_per_event=TOKENS_PER_EVENT,
-            )
+            for event, timbre_row in self._stream_generate(prompt, n_gen):
+                if event is None:
+                    continue
+
+                if first_event:
+                    ttfe_ms = (time.perf_counter() - t_start) * 1000
+                    self.osc_client.send_message("/apollo/status", ["ok", ttfe_ms])
+                    first_event = False
+
+                scaled_vel = event.velocity * 127 * self.velocity_scale
+                self.osc_client.send_message("/apollo/gen/note", [
+                    event.pitch,
+                    int(np.clip(scaled_vel, 1, 127)),
+                    event.delta_time * 1000,
+                    event.duration * 1000,
+                    event.pedal,
+                ])
+
+                if timbre_row is not None:
+                    self.osc_client.send_message("/apollo/gen/timbre",
+                                                 [float(v) for v in timbre_row])
+                    for desc_idx, cc_num in self.cc_map.items():
+                        val = timbre_row[desc_idx] * self.timbre_influence
+                        if desc_idx < len(self.timbre_offsets):
+                            val += self.timbre_offsets[desc_idx]
+                        cc_val = int(np.clip(val, 0.0, 1.0) * 127)
+                        self.osc_client.send_message("/apollo/gen/cc", [cc_num, cc_val])
+
         except Exception as e:
             self.osc_client.send_message("/apollo/error", [str(e)])
-            return
-
-        # Extract only the newly generated tokens (after our prompt + SEP)
-        prompt_len = len(tokens)
-        new_tokens = gen_tokens[0, prompt_len:].cpu().tolist()
-
-        # Decode generated tokens back to events
-        gen_events = tokens_to_events(new_tokens)
-
-        # Extract timbre predictions for the generated events
-        # timbre_out shape: (1, N_new_tokens, 5)
-        # We need per-event timbre, sampled every TOKENS_PER_EVENT steps
-        timbre_values = None
-        if timbre_out is not None:
-            timbre_np = timbre_out[0].cpu().numpy()
-            # Sample timbre at event boundaries (every TOKENS_PER_EVENT tokens)
-            event_indices = list(range(0, len(timbre_np), TOKENS_PER_EVENT))
-            timbre_values = timbre_np[event_indices[:len(gen_events)]]
-
-        latency_ms = (time.time() - t_start) * 1000
-
-        # Send generated events back to M4L
-        for i, event in enumerate(gen_events):
-            # Send note (apply velocity scaling)
-            scaled_vel = event.velocity * 127 * self.velocity_scale
-            self.osc_client.send_message("/apollo/gen/note", [
-                event.pitch,
-                int(np.clip(scaled_vel, 1, 127)),
-                event.delta_time * 1000,  # convert to ms
-                event.duration * 1000,    # convert to ms
-                event.pedal,
-            ])
-
-            # Send timbral CCs
-            if timbre_values is not None and i < len(timbre_values):
-                timbre = timbre_values[i]  # [brightness, attack, richness, warmth, flux]
-
-                # Send raw timbre for display
-                self.osc_client.send_message("/apollo/gen/timbre",
-                                             [float(v) for v in timbre])
-
-                # Apply influence scaling + offsets, then send as MIDI CC
-                for desc_idx, cc_num in self.cc_map.items():
-                    val = timbre[desc_idx] * self.timbre_influence
-                    if desc_idx < len(self.timbre_offsets):
-                        val += self.timbre_offsets[desc_idx]
-                    val = np.clip(val, 0.0, 1.0)
-                    cc_val = int(val * 127)
-                    self.osc_client.send_message("/apollo/gen/cc", [cc_num, cc_val])
-
-        # Send status with latency
-        self.osc_client.send_message("/apollo/status", ["ok", latency_ms])
 
     # --- Server Lifecycle ---
 

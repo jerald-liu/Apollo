@@ -10,17 +10,8 @@ m4l_port: 7400          # Sends responses to M4L
 device: auto
 
 # Model checkpoint to load
-checkpoint: models/checkpoint_best.pt
-
-# Model architecture (must match checkpoint)
-# These mirror base.yaml training config
-d_model: 384
-nhead: 6
-num_layers: 6
-max_seq_len: 512
-user_embed_dim: 0
-spectral_dim: 21
-n_timbre_outputs: 5
+# Architecture is read directly from the checkpoint — no need to mirror training config here
+checkpoint: models/checkpoint_a100_best.pt
 
 # Generation defaults (overridden at runtime via OSC)
 temperature: 0.9
