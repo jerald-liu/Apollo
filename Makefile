@@ -51,7 +51,7 @@ build:
 # ---------------------------------------------------------------------------
 
 modal-preprocess:
-	$(MODAL) run modal_train.py --action preprocess --spectral $(SPECTRAL)
+	$(MODAL) run modal_train.py --action preprocess $(if $(filter true,$(SPECTRAL)),--spectral,)
 
 modal-train:
 	$(MODAL) run modal_train.py --action train --config $(CONFIG) $(if $(RESUME),--resume $(RESUME),)
