@@ -53,10 +53,11 @@ image = (
         "PyYAML==6.0.1",
         "wandb==0.17.0",
     )
+    .env({"PYTHONPATH": "/workspace", "PYTHONUNBUFFERED": "1"})
+    # add_local_dir must be last — no build steps allowed after it
     .add_local_dir("src",     "/workspace/src")
     .add_local_dir("scripts", "/workspace/scripts")
     .add_local_dir("configs", "/workspace/configs")
-    .env({"PYTHONPATH": "/workspace", "PYTHONUNBUFFERED": "1"})
 )
 
 # ---------------------------------------------------------------------------
