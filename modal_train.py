@@ -32,9 +32,9 @@ from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Image
-# Two-layer pip install so Modal caches the heavy torch layer independently
-# from the lighter ML libs. Code is mounted at runtime (not baked in), so
-# changing train.py or model.py doesn't trigger an image rebuild.
+# Two-layer pip install: torch (heavy, CUDA index) cached independently from
+# lighter ML libs. Code injected at container startup via add_local_dir
+# (copy=False default) — no image rebuild when src/scripts/configs change.
 # ---------------------------------------------------------------------------
 
 image = (
@@ -53,6 +53,9 @@ image = (
         "PyYAML==6.0.1",
         "wandb==0.17.0",
     )
+    .add_local_dir("src",     "/workspace/src")
+    .add_local_dir("scripts", "/workspace/scripts")
+    .add_local_dir("configs", "/workspace/configs")
     .env({"PYTHONPATH": "/workspace"})
 )
 
@@ -65,22 +68,6 @@ ckpt_vol = modal.Volume.from_name("apollo-checkpoints", create_if_missing=True)
 
 DATA_DIR = "/data"
 CKPT_DIR = "/checkpoints"
-
-# ---------------------------------------------------------------------------
-# Code mount (local src/scripts/configs → /workspace at runtime)
-# Changing code is instant; only dep changes rebuild the image layer.
-# ---------------------------------------------------------------------------
-
-REPO_ROOT = Path(__file__).parent
-code_mount = modal.Mount.from_local_dir(
-    REPO_ROOT,
-    remote_path="/workspace",
-    # exclude data, checkpoints, and anything not needed at runtime
-    condition=lambda p: not any(
-        p.startswith(x)
-        for x in ["data/", "models/", "venv/", "notebooks/", ".git/", "__pycache__/"]
-    ),
-)
 
 app = modal.App("apollo")
 
@@ -97,7 +84,6 @@ app = modal.App("apollo")
     memory=32768,
     timeout=60 * 60 * 6,
     volumes={DATA_DIR: data_vol},
-    mounts=[code_mount],
 )
 def preprocess(spectral: bool = False):
     import subprocess
@@ -146,7 +132,6 @@ def preprocess(spectral: bool = False):
         DATA_DIR: data_vol,
         CKPT_DIR: ckpt_vol,
     },
-    mounts=[code_mount],
 )
 def train(config: str = "configs/base.yaml", resume: str = None):
     import subprocess
