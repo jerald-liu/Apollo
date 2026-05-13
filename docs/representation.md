@@ -36,10 +36,13 @@ Each musical event is a vector with the following fields:
 | `brightness` | Float | 0.0–1.0 | Spectral centroid (normalized). Maps to synth filter cutoff |
 | `attack` | Float | 0.0–1.0 | Attack sharpness. 0=soft onset, 1=percussive. Maps to amp envelope |
 | `richness` | Float | 0.0–1.0 | Spectral flatness / harmonic density. Maps to oscillator mix |
+| `warmth` | Float | 0.0–1.0 | Inverse spectral rolloff. Low rolloff = warm/bass-heavy. Maps to tone |
+| `flux` | Float | 0.0–1.0 | Spectral change rate. High = vibrato/tremolo. Maps to modulation |
 
-These timbral descriptors are **output-side only** in v1.0 (MIDI input doesn't carry timbre info).
+These timbral descriptors are **output-side only** in Phase 1 (MIDI input doesn't carry timbre info).
 They represent what Apollo *wants* the response to sound like. Mapped to MIDI CC messages
-for synth parameter control.
+for synth parameter control. Derived from FFT analysis of paired MAESTRO audio when
+`--spectral` preprocessing is enabled; default to 0.5 in MIDI-only mode.
 
 ### Context Fields (per-step, derived)
 
@@ -90,7 +93,7 @@ This is deliberately small — keeps embedding tables compact and inference fast
 | Velocity | Not modeled | 32-level VELOCITY tokens |
 | Duration | Not modeled (implicit from grid) | 64-level DURATION tokens |
 | Pedal | Not modeled | 4-level PEDAL tokens |
-| Timbre | Not modeled | 3 descriptors × 16 bins each |
+| Timbre | Not modeled | 5 continuous descriptors (brightness, attack, richness, warmth, flux) |
 | Harmony | Explicit chord labels (Western theory) | Emergent from pitch patterns (no hardcoded theory) |
 | Texture | Rule-based patterns | Learned generation |
 | User adaptation | None | 32–64d user embedding |
@@ -104,6 +107,8 @@ When Apollo outputs events, the timbral descriptors are sent as MIDI CC:
 | `brightness` | CC 74 (Filter Cutoff) | Low-pass filter frequency |
 | `attack` | CC 73 (Attack Time) | Amplitude envelope attack |
 | `richness` | CC 71 (Resonance) | Filter resonance / oscillator detune |
+| `warmth` | CC 70 (Sound Variation) | Tone/timbre warmth — inverse brightness |
+| `flux` | CC 1 (Modulation) | Vibrato / tremolo depth |
 
 These are user-remappable in the Apollo UI.
 
@@ -114,8 +119,8 @@ These are user-remappable in the Apollo UI.
    - Sequential: simpler model, but multiple passes per event
    - **Leaning toward**: compound token with factored output heads
 
-2. How many timbral descriptor dimensions in v1? Starting with 3 (brightness, attack, richness)
-   and expanding based on user feedback.
+2. **Resolved:** 5 timbral descriptors implemented — brightness, attack, richness, warmth, flux.
+   All derived from FFT analysis (spectral.py). Warmth and flux added beyond initial design.
 
 3. Beat/bar position: derive from tempo detection on the input, or learn implicitly?
    - **Leaning toward**: simple onset-based beat tracker on input, explicit encoding

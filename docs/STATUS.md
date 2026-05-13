@@ -1,5 +1,5 @@
 # Apollo — Project Status Report
-**Date:** 2026-04-02
+**Date:** 2026-05-13
 
 ## Phase 0: Research & PoC — COMPLETE
 
@@ -34,83 +34,102 @@
    - SpectralTrajectory: phrase-level timbral arcs (smoothed over 2s windows)
    - Spectral-aware model trained: 4.7M params, token loss 3.41, timbre MSE 0.048
 
-## Phase 1: Scale Up — IN PROGRESS
+## Phase 1: Scale Up — IN PROGRESS (training active)
 
 ### Done
-- **Full MAESTRO preprocessing** (`data/processed/`)
-  - All 1,276 files tokenized (zero errors)
+- **Full MAESTRO preprocessing** (`data/processed/` + Modal `apollo-data` volume)
+  - All 1,276 files tokenized (zero errors, 60s on Modal CPU)
   - Train: 35,886 windows × 512 tokens (962 files, 9.45M tokens)
   - Validation: 4,902 windows (137 files, 1.30M tokens)
   - Test: 6,351 windows (177 files, 1.68M tokens)
   - Saved as memory-mapped .npy for fast loading
 
-- **GPU training infrastructure** (`scripts/`)
-  - `scripts/preprocess.py` — multiprocessing MIDI→token pipeline, supports spectral
-  - `scripts/train.py` — full training script with DDP, AMP, cosine LR, checkpointing, wandb
-  - `scripts/setup_gpu.sh` — cloud instance setup
-  - `scripts/run_training.sh` — one-command download→preprocess→train pipeline
+- **Training infrastructure** (`Dockerfile`, `modal_train.py`, `Makefile`)
+  - `Dockerfile` — CUDA 12.1 + PyTorch 2.3 image, code-only (data/checkpoints mounted)
+  - `modal_train.py` — Modal IaC: persistent volumes, preprocess + train functions
+  - `Makefile` — `make smoke / modal-preprocess / modal-train / pull-checkpoints`
+  - `configs/smoke.yaml` — local MPS correctness check (validated: loss 6.04→3.94, 200 steps)
   - `configs/base.yaml` — 6L/384d, 14.8M params, 50K steps
   - `configs/large.yaml` — 8L/512d, ~50M params, 100K steps
+  - `scripts/generate.py` — generation + evaluation script for post-training analysis
+
+- **MPS bug fixed**: `fused` AdamW kwarg and `pin_memory` both CUDA-gated — confirmed clean
+
+- **A100 training run ACTIVE** (Modal `ap-tjjeenMpIwH5VGcyIq1x7L`)
+  - Started: 2026-05-13
+  - At step ~10,000: train loss 1.96, val loss 2.27 — healthy descent, no overfitting
+  - Speed: ~530K tok/s on A100 (vs 165K on MPS)
+  - ETA: ~5–6 hours remaining
 
 ### Not Done Yet
-- **Fix minor bug**: `train.py` was running on CPU instead of MPS locally — fixed `fused` kwarg and `pin_memory`, but haven't verified the fix runs clean
-- **Spectral preprocessing at scale**: Full MAESTRO with audio (~101GB download) not yet done. Current preprocessed data is MIDI-only (no spectral features). Need to either:
-  - Download full MAESTRO (audio) and preprocess locally (slow, ~hours)
-  - Or do it on the GPU instance (recommended — faster I/O)
-- **Actual GPU training run**: Scripts are ready but haven't been executed on cloud GPU yet
-- **GiantMIDI-Piano**: Not downloaded yet (10K+ additional piano files, CC BY 4.0). Good for more training data.
+- **Spectral preprocessing**: Full MAESTRO audio (~101GB) not downloaded. Current data is
+  MIDI-only — timbre head disabled during this run. Phase 2 target.
+- **GiantMIDI-Piano**: 10K+ additional piano files (CC BY 4.0) — planned for next training run
+- **Evaluate trained model**: `make pull-checkpoints` then `python scripts/generate.py`
 
 ## File Tree (key files)
 
 ```
-~/Projects/apollo/
+apollo/
+├── Dockerfile                 # CUDA 12.1 + PyTorch 2.3 training image
+├── Makefile                   # smoke / modal-preprocess / modal-train / pull-checkpoints
+├── modal_train.py             # Modal IaC — persistent volumes, preprocess + train
+├── requirements.txt           # Dev deps
+├── requirements-gpu.txt       # Pinned GPU training deps (used by Dockerfile + Modal)
 ├── configs/
-│   ├── base.yaml              # 6L/384d, 50K steps
-│   └── large.yaml             # 8L/512d, 100K steps
+│   ├── base.yaml              # 6L/384d, 50K steps (active training run)
+│   ├── large.yaml             # 8L/512d, ~50M params
+│   └── smoke.yaml             # Local MPS correctness check (2L/128d, 200 steps)
 ├── data/
-│   ├── processed/
-│   │   ├── train_tokens.npy   # 70MB, 35K windows
+│   ├── processed/             # Local + Modal apollo-data volume
+│   │   ├── train_tokens.npy   # 35,886 × 513, int32
 │   │   ├── validation_tokens.npy
 │   │   ├── test_tokens.npy
 │   │   └── meta.json
 │   └── raw/
 │       └── maestro-v3.0.0/    # MIDI files
 ├── docs/
+│   ├── architecture.html      # System architecture + workload flow diagrams
 │   ├── maestro_audit.json
 │   ├── latency_benchmark.json
 │   ├── representation.md
-│   └── STATUS.md              # ← this file
-├── models/
-│   ├── apollo_poc.pt          # PoC checkpoint
-│   └── apollo_spectral.pt     # Spectral-aware checkpoint
-├── notebooks/
-│   ├── 00_dataset_audit.ipynb
-│   ├── 01_latency_benchmark.ipynb
-│   └── 02_poc_generation.ipynb
+│   └── STATUS.md
+├── models/                    # Local checkpoints (pull with make pull-checkpoints)
 ├── scripts/
-│   ├── preprocess.py
-│   ├── train.py
-│   ├── setup_gpu.sh
-│   └── run_training.sh
+│   ├── preprocess.py          # MIDI + audio → .npy pipeline
+│   ├── train.py               # GPU training (DDP, AMP, cosine LR, checkpointing)
+│   ├── generate.py            # Generation + evaluation (post-training)
+│   └── run_training.sh        # Legacy one-shot pipeline
 ├── src/
-│   ├── model.py               # ApolloModel (spectral-aware Transformer)
+│   ├── model.py               # ApolloModel (Transformer + spectral encoder + timbre head)
 │   ├── representation.py      # Event tokenization + continuous features
-│   └── spectral.py            # FFT analysis pipeline
-├── requirements.txt
-└── .gitignore
+│   ├── spectral.py            # FFT analysis pipeline
+│   └── inference_server.py    # OSC bridge for M4L real-time inference
+└── m4l/                       # Max For Live device
+    ├── patchers/apollo_engine.maxpat
+    └── code/                  # JS modules (bridge, status, timbre meters)
 ```
 
 ## Next Steps (Priority Order)
 
-1. **Verify `train.py` runs locally on MPS** (5 min) — just run 50 steps to confirm fixes work
-2. **Git commit everything** — repo is not yet committed
-3. **Push to cloud GPU and run `base.yaml` training** (~$5-15, 6-8 hours on A100)
-   - Upload preprocessed data (92MB) or let the script download + preprocess on GPU
-   - For spectral: download full MAESTRO audio on the GPU instance
-4. **Evaluate trained model** — generate samples, compare to PoC
-5. **Then**: Phase 2 (real-time inference engine) or Phase 3 (user embeddings)
+1. **Wait for training to complete** — A100 run active, ~5-6 hours remaining
+2. **Evaluate**: `make pull-checkpoints && python scripts/generate.py --checkpoint models/checkpoint_best.pt`
+   - Listen to generated MIDI, check musical coherence
+   - Run `--eval` mode for aggregate stats across 16 samples
+3. **If generations are good**: proceed to Phase 2 real-time inference engine
+   - Wire M4L device to inference_server.py
+   - Validate <20ms latency end-to-end
+4. **Next training run**: add GiantMIDI-Piano (10K files), re-run with `--spectral` once audio downloaded
 
-## Cost So Far
-- GPU compute: $0 (all local on Apple Silicon)
+## Architectural Direction (Phase 3–5)
+
+Decisions made 2026-05-13 — not yet implemented:
+- **Multi-scale audio encoder**: mel+CQT at fine/mid/coarse temporal granularity replaces hand-crafted 5-scalar spectral features
+- **Dual-channel I/O**: audio (always) + MIDI (optional) in; waveform + CC out
+- **Soft pitch head**: on-the-fly continuous pitch salience when MIDI unavailable — avoids 12-TET quantization bias
+- **Waveform output**: neural codec decoder (DAC/EnCodec) replaces MIDI-only output
+- See `docs/architecture.html` for full diagrams
+
+## Cost
+- GPU compute: ~$5-15 for current A100 run (Modal)
 - Data: $0 (MAESTRO is free)
-- Estimated next spend: $5-15 for one A100 training run (6-8 hours at ~$1-2/hr)
