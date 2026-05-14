@@ -84,22 +84,29 @@ app = modal.App("apollo")
     image=image,
     cpu=8.0,
     memory=32768,
-    timeout=60 * 60 * 6,
+    timeout=60 * 60 * 12,  # 12h — mel extraction on full MAESTRO needs headroom
     volumes={DATA_DIR: data_vol},
 )
-def preprocess(spectral: bool = False):
+def preprocess(spectral: bool = False, mel: bool = False):
     import subprocess
 
     raw_dir = f"{DATA_DIR}/raw/maestro-v3.0.0"
+    need_audio = spectral or mel
 
-    if not Path(raw_dir).exists():
+    # Determine whether we need to (re-)download.
+    # Audio (.wav) files are only present in the full zip, not the MIDI-only zip.
+    # If audio is required and no .wav exists, download even if the directory exists.
+    has_audio = need_audio and bool(list(Path(raw_dir).rglob("*.wav"))) if Path(raw_dir).exists() else False
+    needs_download = not Path(raw_dir).exists() or (need_audio and not has_audio)
+
+    if needs_download:
         Path(f"{DATA_DIR}/raw").mkdir(parents=True, exist_ok=True)
         url = (
             "https://storage.googleapis.com/magentadata/datasets/maestro/v3.0.0/maestro-v3.0.0.zip"
-            if spectral
+            if need_audio
             else "https://storage.googleapis.com/magentadata/datasets/maestro/v3.0.0/maestro-v3.0.0-midi.zip"
         )
-        print(f"Downloading MAESTRO ({'full ~101GB' if spectral else 'MIDI-only ~56MB'})...")
+        print(f"Downloading MAESTRO ({'full ~101GB' if need_audio else 'MIDI-only ~56MB'})...")
         subprocess.run(
             ["wget", "-q", "--show-progress", "-O", f"{DATA_DIR}/raw/maestro.zip", url],
             check=True,
@@ -116,6 +123,8 @@ def preprocess(spectral: bool = False):
     ]
     if spectral:
         args += ["--audio-dir", raw_dir, "--spectral"]
+    if mel:
+        args += ["--audio-dir", raw_dir, "--mel"]
 
     subprocess.run(args, cwd="/workspace", check=True)
     data_vol.commit()
@@ -136,20 +145,35 @@ def preprocess(spectral: bool = False):
     },
 )
 def train(config: str = "configs/base.yaml", resume: str = None):
-    import subprocess
+    import subprocess, yaml as _yaml
+
+    # Derive the volume-mounted data path from the config's data_dir field.
+    # Config says e.g. "data/processed_streaming"; on Modal that lives at
+    # /data/processed_streaming  (DATA_DIR = /data, strip leading "data/").
+    with open(f"/workspace/{config}") as _f:
+        _cfg = _yaml.safe_load(_f)
+    _local_data_dir = _cfg.get("data_dir", "data/processed")   # e.g. "data/processed_streaming"
+    _sub = _local_data_dir.split("/", 1)[-1]                    # "processed_streaming"
+    _remote_data_dir = f"{DATA_DIR}/{_sub}"                     # "/data/processed_streaming"
+
+    _run_name = _cfg.get("run_name", "apollo_run")
+    _run_ckpt_dir = f"{CKPT_DIR}/{_run_name}"
+
+    import subprocess as _sp
+    _sp.run(["mkdir", "-p", _run_ckpt_dir], check=True)
 
     args = [
         "python", "/workspace/scripts/train.py",
         "--config", f"/workspace/{config}",
-        "--data-dir", f"{DATA_DIR}/processed",
-        "--output-dir", CKPT_DIR,
+        "--data-dir", _remote_data_dir,
+        "--output-dir", _run_ckpt_dir,
     ]
     if resume:
-        args += ["--resume", f"{CKPT_DIR}/{resume}"]
+        args += ["--resume", f"{_run_ckpt_dir}/{resume}"]
 
     subprocess.run(args, cwd="/workspace", check=True)
     ckpt_vol.commit()
-    print(f"Done. Checkpoints at {CKPT_DIR}/")
+    print(f"Done. Checkpoints at {_run_ckpt_dir}/")
 
 
 # ---------------------------------------------------------------------------
@@ -161,11 +185,12 @@ def main(
     action: str = "train",
     config: str = "configs/base.yaml",
     spectral: bool = False,
+    mel: bool = False,
     resume: str = None,
 ):
     with modal.enable_output():
         if action == "preprocess":
-            preprocess.remote(spectral=spectral)
+            preprocess.remote(spectral=spectral, mel=mel)
         elif action == "train":
             train.remote(config=config, resume=resume)
         else:
