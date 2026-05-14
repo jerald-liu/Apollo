@@ -37,3 +37,6 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Training logs (runtime output from Modal launches)
+logs/
