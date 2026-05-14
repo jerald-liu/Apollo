@@ -1,4 +1,4 @@
-.PHONY: smoke preprocess train build modal-preprocess modal-train pull-checkpoints install-m4l help
+.PHONY: smoke preprocess train build modal-preprocess modal-preprocess-mel modal-train pull-checkpoints install-m4l help
 
 M4L_DIR     ?= $(HOME)/Music/Ableton/User Library/Presets/MIDI Effects/Max MIDI Effect/Apollo
 
@@ -8,6 +8,7 @@ MODAL       := $(VENV)/modal
 CONFIG      ?= configs/base.yaml
 RESUME      ?=
 SPECTRAL    ?= false
+MEL         ?= false
 IMAGE_TAG   ?= apollo:latest
 
 help:
@@ -57,16 +58,22 @@ build:
 # ---------------------------------------------------------------------------
 
 modal-preprocess:
-	$(MODAL) run modal_train.py --action preprocess $(if $(filter true,$(SPECTRAL)),--spectral,)
+	$(MODAL) run modal_train.py --action preprocess $(if $(filter true,$(SPECTRAL)),--spectral,) $(if $(filter true,$(MEL)),--mel,)
+
+modal-preprocess-mel:
+	$(MODAL) run modal_train.py --action preprocess --mel
 
 modal-train:
 	$(MODAL) run modal_train.py --action train --config $(CONFIG) $(if $(RESUME),--resume $(RESUME),)
 
 pull-checkpoints:
 	@mkdir -p models
-	$(MODAL) volume get apollo-checkpoints checkpoint_best.pt   models/checkpoint_best.pt   2>/dev/null || true
-	$(MODAL) volume get apollo-checkpoints checkpoint_latest.pt models/checkpoint_latest.pt 2>/dev/null || true
+	$(MODAL) volume get apollo-checkpoints apollo_v3_mel/checkpoint_best.pt    models/checkpoint_v3_best.pt    2>/dev/null || true
+	$(MODAL) volume get apollo-checkpoints apollo_v3_mel/checkpoint_latest.pt  models/checkpoint_v3_latest.pt  2>/dev/null || true
+	$(MODAL) volume get apollo-checkpoints apollo_v4_streaming/checkpoint_best.pt    models/checkpoint_v4_best.pt    2>/dev/null || true
+	$(MODAL) volume get apollo-checkpoints apollo_v4_streaming/checkpoint_latest.pt  models/checkpoint_v4_latest.pt  2>/dev/null || true
 	@echo "Checkpoints pulled to models/"
+	@ls -lh models/checkpoint_v*.pt 2>/dev/null || echo "Warning: no checkpoint_v*.pt files found"
 
 # ---------------------------------------------------------------------------
 # Max for Live device install
