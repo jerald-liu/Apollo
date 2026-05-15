@@ -24,9 +24,9 @@ This milestone takes the two configured-but-stalled training runs (v3 mel condit
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Fix checkpoint isolation and launch both training runs in parallel
-- [ ] 01-02-PLAN.md — Monitor training progress and intervene if needed
-- [ ] 01-03-PLAN.md — Pull and verify checkpoints from Modal volume
+- [x] 01-01-PLAN.md — Fix checkpoint isolation and launch both training runs in parallel
+- [x] 01-02-PLAN.md — Monitor training progress and intervene if needed
+- [x] 01-03-PLAN.md — Pull and verify checkpoints from Modal volume
 
 ### Phase 2: Evaluation
 **Goal**: Both checkpoints are pulled locally and their audio output is assessed against quality targets
