@@ -18,6 +18,7 @@ from .artifact import SCHEMA_VERSION, ingest, load_artifact, save_artifact
 from .audio import MelExtractor
 from .errors import IngestError
 from .midi import load_notes
+from .mock import synthesize_pair
 from .pairs import PairPath, discover_pairs
 from .split import is_heldout, normalize_nnn
 
@@ -33,4 +34,5 @@ __all__ = [
     "save_artifact",
     "load_artifact",
     "SCHEMA_VERSION",
+    "synthesize_pair",
 ]
