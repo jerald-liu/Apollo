@@ -31,3 +31,10 @@ Thumbs.db
 
 # Tooling / session local
 .claude/
+
+# Build / packaging
+build/
+dist/
+
+# Apollo runtime artifacts
+artifacts/
