@@ -51,3 +51,10 @@ save_interval: 2000
 output_dir: models
 run_name: apollo_v3_mel
 use_wandb: false
+
+# Validation efficiency
+# v3 best landed at step ~33K; full 80K run wasted ~58% of compute.
+# Patience of 15K steps catches plateau without flagging normal variance.
+# val_subset_batches caps in-training eval at 50 batches (full val still on best-save).
+val_subset_batches: 50
+early_stop_patience: 15000

@@ -53,3 +53,11 @@ save_interval: 2000
 output_dir: models
 run_name: apollo_v4_streaming
 use_wandb: false
+
+# Validation efficiency
+# v4 best landed at step ~3.5K and rose thereafter — 76K steps wasted.
+# A 15K patience would have cut the run by ~62K steps (~$23 saved).
+# When re-running v4 with a tamed LR (lr=3e-4, warmup_steps=2000), keep these on
+# so a second LR misfire bails out quickly instead of burning the full budget.
+val_subset_batches: 50
+early_stop_patience: 15000

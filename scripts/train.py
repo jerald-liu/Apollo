@@ -89,6 +89,10 @@ class TrainConfig:
     run_name: str = 'apollo_phase1'
     use_wandb: bool = False
 
+    # Validation efficiency
+    val_subset_batches: int = 0     # 0 = full val set; >0 = cap each in-training val pass
+    early_stop_patience: int = 0    # steps without val improvement before halt; 0 = disabled
+
     @classmethod
     def from_yaml(cls, path: str) -> 'TrainConfig':
         with open(path) as f:
@@ -325,6 +329,7 @@ def train(config: TrainConfig):
     # Resume
     start_step = 0
     best_val_loss = float('inf')
+    steps_since_best = 0
 
     # --- Training loop ---
     model.train()
@@ -455,6 +460,9 @@ def train(config: TrainConfig):
                     val_timbre_loss += vti_loss.item()
                     n_val += 1
 
+                    if config.val_subset_batches > 0 and n_val >= config.val_subset_batches:
+                        break
+
             avg_val = val_loss / max(n_val, 1)
             avg_val_tok = val_token_loss / max(n_val, 1)
             avg_val_tim = val_timbre_loss / max(n_val, 1)
@@ -470,10 +478,21 @@ def train(config: TrainConfig):
 
             if avg_val < best_val_loss:
                 best_val_loss = avg_val
+                steps_since_best = 0
                 save_checkpoint(raw_model, optimizer, step, best_val_loss, config, 'best')
                 print(f'  New best model saved (val_loss={avg_val:.4f})')
+            else:
+                steps_since_best += config.eval_interval
 
             model.train()
+
+            if config.early_stop_patience > 0 and steps_since_best >= config.early_stop_patience:
+                print(
+                    f'  Early stop at step {step+1}: no val improvement for '
+                    f'{steps_since_best} steps (patience={config.early_stop_patience}, '
+                    f'best={best_val_loss:.4f})'
+                )
+                break
 
         # Save checkpoint
         if master and (step + 1) % config.save_interval == 0:

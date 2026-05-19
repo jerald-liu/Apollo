@@ -182,6 +182,8 @@ def main():
     parser.add_argument('--audio',        action='store_true',        help='Render generated MIDI to WAV')
     parser.add_argument('--encodec',      action='store_true',        help='Apply EnCodec neural polish (requires: pip install encodec)')
     parser.add_argument('--sample-rate',  type=int, default=44100,    help='Audio sample rate for --audio output')
+    parser.add_argument('--compile',      action='store_true',        help='torch.compile for ~1.5-2x faster decoding (30s warmup)')
+    parser.add_argument('--bf16',         action='store_true',        help='Cast model to bfloat16 (Apple Silicon M2+ or A100)')
     args = parser.parse_args()
 
     # Device
@@ -198,6 +200,15 @@ def main():
 
     # Load model
     model, cfg, step = load_checkpoint(args.checkpoint, device)
+
+    # Optional inference accelerators
+    if args.bf16:
+        model = model.to(torch.bfloat16)
+        print('Model cast to bfloat16')
+    if args.compile and hasattr(torch, 'compile'):
+        # mode='reduce-overhead' tunes for low-latency single-token decode
+        model = torch.compile(model, mode='reduce-overhead')
+        print('torch.compile enabled (first call will warm up the kernel cache)')
 
     # Output dir
     out_dir = Path(args.output_dir)
