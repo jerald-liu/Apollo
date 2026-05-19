@@ -17,8 +17,8 @@
 
 - [ ] **TOK-01**: A monophonic MIDI event tokenizer encodes pitch + velocity + timing + duration as discrete tokens
 - [ ] **TOK-02**: Time and duration use quantized-grid bins (coarse resolution suitable for grid-locked authoring)
-- [ ] **TOK-03**: The vocab includes BOS, EOS, and SEP special tokens with SEP placed between call and response in training samples
-- [ ] **TOK-04**: The vocab layout reserves contiguous ranges (or a versioned offset scheme) for later pitch bend / mod wheel / CC tokens, so adding them does not invalidate existing checkpoints
+- [x] **TOK-03**: The vocab includes BOS, EOS, and SEP special tokens with SEP placed between call and response in training samples
+- [x] **TOK-04**: The vocab layout reserves contiguous ranges (or a versioned offset scheme) for later pitch bend / mod wheel / CC tokens, so adding them does not invalidate existing checkpoints
 - [ ] **TOK-05**: Round-trip test: a tokenizer applied to mock pairs decodes back to MIDI semantically equivalent to the input (pitches, velocities, onsets preserved within quantization tolerance)
 
 ### Audio Conditioning (COND)
@@ -102,8 +102,8 @@ Deferred to a later milestone. Tracked here so they don't get lost.
 | DATA-05 | Phase 3: Corpus & Inference | Pending |
 | TOK-01 | Phase 1: Tokenizer & Ingest | Pending |
 | TOK-02 | Phase 1: Tokenizer & Ingest | Pending |
-| TOK-03 | Phase 1: Tokenizer & Ingest | Pending |
-| TOK-04 | Phase 1: Tokenizer & Ingest | Pending |
+| TOK-03 | Phase 1: Tokenizer & Ingest | Done (01-01) |
+| TOK-04 | Phase 1: Tokenizer & Ingest | Done (01-01) |
 | TOK-05 | Phase 1: Tokenizer & Ingest | Pending |
 | COND-01 | Phase 1: Tokenizer & Ingest | Pending |
 | COND-02 | Phase 2: Model & Training | Pending |

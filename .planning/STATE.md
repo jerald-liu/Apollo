@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 1 context gathered
-last_updated: "2026-05-19T22:02:12.590Z"
-last_activity: 2026-05-19 -- Phase 01 planning complete
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-05-19T22:09:44Z"
+last_activity: 2026-05-19 -- Completed Phase 01 Plan 01 (scaffold + vocab/bins/IngestError)
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 5
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 5
 ---
 
 # Project State
@@ -21,34 +21,34 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-19)
 
 **Core value:** Given a short MIDI call played through an Operator preset, the model produces a response that feels like the user responding to themselves — and the active-learning loop demonstrably improves it over consecutive iterations.
-**Current focus:** Phase 1 — Tokenizer & Ingest
+**Current focus:** Phase 01 — tokenizer-ingest
 
 ## Current Position
 
-Phase: 1 of 4 (Tokenizer & Ingest)
-Plan: 0 of TBD in current phase
-Status: Ready to execute
-Last activity: 2026-05-19 -- Phase 01 planning complete
+Phase: 01 (tokenizer-ingest) — EXECUTING
+Plan: 2 of 5
+Status: Executing Phase 01
+Last activity: 2026-05-19 -- Completed Phase 01 Plan 01 (scaffold + vocab/bins/IngestError)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 5%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 0
-- Average duration: —
-- Total execution time: 0 hours
+- Total plans completed: 1
+- Average duration: 3.5 min
+- Total execution time: 0.06 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01    | 1     | 3.5m  | 3.5m     |
 
 **Recent Trend:**
 
-- Last 5 plans: —
+- Last 5 plans: 01-01 (3.5m)
 - Trend: —
 
 *Updated after each plan completion*
@@ -66,6 +66,8 @@ Recent decisions affecting current work:
 - Phase 1: Pitch vocab stays narrow (3 octaves, default C2–C5) — FM does the overtone work, not the MIDI model
 - Phase 1: 32 quantized time bins, 16 velocity bins, explicit duration token (4 tokens/note)
 - Phase 1: Mel = 22050 Hz, n_mels=128 / n_fft=2048 / hop=512, fixed-shape (96, 128)
+- 01-01: Locked N_DURATION = 24 (log-spaced from 30 ms to 1.5 s); VOCAB_SIZE = 256 with 144 reserved tail slots
+- 01-01: Corrected `quantize_time_shift` bin_width formula to `(60/bpm)*2/n_bins` (plan snippet had inconsistent `/8` formula)
 
 ### Pending Todos
 
@@ -86,5 +88,5 @@ Items acknowledged and carried forward from previous milestone close:
 ## Session Continuity
 
 Last session: 2026-05-19
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-tokenizer-ingest/01-CONTEXT.md
+Stopped at: Completed 01-01-PLAN.md
+Resume file: .planning/phases/01-tokenizer-ingest/01-02-PLAN.md
