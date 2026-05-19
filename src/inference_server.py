@@ -33,6 +33,18 @@ from representation import (
     events_to_continuous,
     tokens_to_events,
 )
+from streaming_representation import (
+    OFFSETS as STREAM_OFFSETS,
+    VOCAB_SIZE as STREAM_VOCAB_SIZE,
+    TOKENS_PER_NOTE_ON,
+    TOKENS_PER_NOTE_OFF,
+    MEDIAN_DURATION_S,
+    StreamNoteOn,
+    StreamNoteOff,
+    encode_note_on,
+    encode_note_off,
+    streaming_tokens_to_events,
+)
 
 
 class ApolloInferenceServer:
@@ -51,10 +63,20 @@ class ApolloInferenceServer:
         # Timbral offsets from M4L UI (-1 to +1)
         self.timbre_offsets = [0.0, 0.0, 0.0]  # brightness, attack, richness
 
-        # Rolling buffer of recent input events
+        # Streaming mode: use note_on/note_off split (immediate dispatch)
+        # vs legacy: wait for full event with duration before dispatching
+        self.streaming_mode = config.get("streaming_mode", True)
+
+        # Rolling buffer of recent input tokens (streaming) or events (legacy)
         self.max_buffer_events = config.get("max_buffer_events", 64)
-        self.event_buffer = deque(maxlen=self.max_buffer_events)
+        self.event_buffer = deque(maxlen=self.max_buffer_events)  # legacy: ApolloEvents
+        self.token_buffer  = deque(maxlen=self.max_buffer_events * 5)  # streaming: raw tokens
         self.last_note_time = time.time()
+
+        # Streaming: track pending note-ons for latency measurement and note_off matching
+        # {pitch: (onset_wall_time, note_on_token_index)}
+        self._pending_note_ons: dict = {}
+        self._stream_prev_time: float = 0.0   # wall-clock time of last streamed event
 
         # Lock for thread-safe buffer access
         self.lock = threading.Lock()
@@ -172,6 +194,54 @@ class ApolloInferenceServer:
         # Run generation in a separate thread to avoid blocking the OSC server
         threading.Thread(target=self._generate_response, daemon=True).start()
 
+    def handle_note_on(self, address, *args):
+        """Handle /apollo/note_on [pitch, velocity] — emitted immediately on keypress.
+
+        This is the streaming-mode handler. The note_on triplet is added to the
+        token buffer right away; no waiting for key release.  delta_time is
+        computed from wall-clock so the caller doesn't need to track it.
+        """
+        if self.bypassed or len(args) < 2:
+            return
+
+        pitch    = int(args[0])
+        velocity = float(args[1]) / 127.0  # normalise if raw MIDI velocity
+
+        now = time.time()
+        with self.lock:
+            delta = now - self._stream_prev_time
+            self._stream_prev_time = now
+            self._pending_note_ons[pitch] = now
+
+            ev     = StreamNoteOn(pitch=pitch, velocity=velocity, delta_time=delta)
+            tokens = encode_note_on(ev)        # 3 tokens: [time_shift, note_on, velocity]
+            self.token_buffer.extend(tokens)
+            self.last_note_time = now
+
+        threading.Thread(target=self._generate_response_streaming, daemon=True).start()
+
+    def handle_note_off(self, address, *args):
+        """Handle /apollo/note_off [pitch] — emitted on key release.
+
+        Adds the note_off 2-token pair to the token buffer.  No generation is
+        triggered — note_offs are context for the model but the note_on already
+        triggered generation.
+        """
+        if self.bypassed or len(args) < 1:
+            return
+
+        pitch = int(args[0])
+        now   = time.time()
+
+        with self.lock:
+            delta = now - self._stream_prev_time
+            self._stream_prev_time = now
+            self._pending_note_ons.pop(pitch, None)
+
+            ev     = StreamNoteOff(pitch=pitch, delta_time=delta)
+            tokens = encode_note_off(ev)       # 2 tokens: [time_shift, note_off]
+            self.token_buffer.extend(tokens)
+
     def handle_pedal(self, address, *args):
         """Handle /apollo/pedal [value]."""
         if args:
@@ -242,43 +312,137 @@ class ApolloInferenceServer:
 
     # --- Generation ---
 
-    def _stream_generate(self, prompt: torch.Tensor, n_gen: int):
-        """Token-streaming generator: yields (event, timbre_row | None) as each
-        complete event (TOKENS_PER_EVENT tokens) is decoded.  Sending starts
-        after the first 5 tokens rather than waiting for the full sequence.
+    def _generate_response_streaming(self):
+        """Run inference from the streaming token buffer.
+
+        Uses the token_buffer (streaming note-on/note-off tokens) directly as
+        the model prompt.  Generation output is decoded back to note events and
+        sent via OSC.  Requires a model trained on streaming_representation vocab.
         """
+        t_start = time.perf_counter()
+
+        with self.lock:
+            if len(self.token_buffer) < TOKENS_PER_NOTE_ON:
+                return
+            tokens = [STREAM_OFFSETS['bos']] + list(self.token_buffer)
+
+        prompt = torch.tensor([tokens], dtype=torch.long, device=self.device)
+        n_gen  = max(TOKENS_PER_NOTE_ON, int(self.max_gen_tokens * self.density))
+
+        first_event = True
+        token_acc: list[int] = []
+
+        try:
+            for tok_id, output in self._stream_generate_raw(prompt, n_gen):
+                token_acc.append(tok_id)
+
+                # Decode eagerly: note_on completes after 3 tokens (ts, pitch, vel)
+                # note_off completes after 2 tokens (ts, pitch_off)
+                decoded = False
+                if len(token_acc) >= 3:
+                    notes = streaming_tokens_to_events(token_acc)
+                    if notes:
+                        for n in notes:
+                            if first_event:
+                                ttfe = (time.perf_counter() - t_start) * 1000
+                                self.osc_client.send_message("/apollo/status", ["ok", ttfe])
+                                first_event = False
+                            vel = int(np.clip(n['velocity'] * 127 * self.velocity_scale, 1, 127))
+                            dur = (n.get('offset', n['onset'] + MEDIAN_DURATION_S) - n['onset']) * 1000
+                            self.osc_client.send_message("/apollo/gen/note", [
+                                n['pitch'], vel, 0.0, dur, 0,
+                            ])
+                        token_acc = []
+
+        except Exception as e:
+            self.osc_client.send_message("/apollo/error", [str(e)])
+
+    def _stream_generate_raw(self, prompt: torch.Tensor, n_gen: int):
+        """Low-level token generator — yields (tok_id, output) one token at a time."""
         import torch.nn.functional as F
-        tokens = prompt.clone()
-        token_batch: list[int] = []
+
+        with torch.no_grad():
+            output = self.model(prompt, tokens_per_event=TOKENS_PER_EVENT,
+                                return_past_kvs=True, position_offset=0)
+        past_kvs = output['past_kvs']
+        tokens   = prompt.clone()
+        offset   = prompt.shape[1]
 
         for _ in range(n_gen):
-            context = tokens[:, -self.model.max_seq_len:]
+            last = tokens[:, -1:]
             with torch.no_grad():
-                output = self.model(context, tokens_per_event=TOKENS_PER_EVENT)
+                output = self.model(last, past_kvs=past_kvs,
+                                    return_past_kvs=True, position_offset=offset)
+            past_kvs = output['past_kvs']
+            offset  += 1
 
-            logits = output["logits"][:, -1, :] / self.temperature
+            logits   = output['logits'][:, -1, :] / self.temperature
             if self.top_k > 0:
                 v, _ = torch.topk(logits, min(self.top_k, logits.size(-1)))
-                logits[logits < v[:, [-1]]] = float("-inf")
-            probs = F.softmax(logits, dim=-1)
+                logits[logits < v[:, [-1]]] = float('-inf')
+            probs    = torch.softmax(logits, dim=-1)
             next_tok = torch.multinomial(probs, 1)
-            tokens = torch.cat([tokens, next_tok], dim=1)
+            tokens   = torch.cat([tokens, next_tok], dim=1)
 
             tok_id = next_tok.item()
-            if tok_id == TOKEN_OFFSETS["eos"]:
+            if tok_id in (STREAM_OFFSETS['eos'], TOKEN_OFFSETS['eos']):
+                break
+            yield tok_id, output
+
+    def _stream_generate(self, prompt: torch.Tensor, n_gen: int):
+        """Token-streaming generator with KV-cache (O(T) per step after prefill).
+
+        Yields (event | None, timbre_row | None) for each decoded event.
+        """
+        import torch.nn.functional as F
+
+        # ── Prefill ───────────────────────────────────────────────────────
+        with torch.no_grad():
+            output = self.model(
+                prompt,
+                tokens_per_event=TOKENS_PER_EVENT,
+                return_past_kvs=True,
+                position_offset=0,
+            )
+        past_kvs = output['past_kvs']
+        tokens   = prompt.clone()
+        offset   = prompt.shape[1]
+        token_batch: list[int] = []
+
+        # ── Decode ────────────────────────────────────────────────────────
+        for _ in range(n_gen):
+            last = tokens[:, -1:]
+
+            with torch.no_grad():
+                output = self.model(
+                    last,
+                    past_kvs=past_kvs,
+                    return_past_kvs=True,
+                    position_offset=offset,
+                )
+            past_kvs = output['past_kvs']
+            offset  += 1
+
+            logits = output['logits'][:, -1, :] / self.temperature
+            if self.top_k > 0:
+                v, _ = torch.topk(logits, min(self.top_k, logits.size(-1)))
+                logits[logits < v[:, [-1]]] = float('-inf')
+
+            probs   = F.softmax(logits, dim=-1)
+            next_tok = torch.multinomial(probs, 1)
+            tokens   = torch.cat([tokens, next_tok], dim=1)
+
+            tok_id = next_tok.item()
+            if tok_id == TOKEN_OFFSETS['eos']:
                 break
 
             token_batch.append(tok_id)
 
             if len(token_batch) == TOKENS_PER_EVENT:
-                events = tokens_to_events(token_batch)
+                events    = tokens_to_events(token_batch)
                 timbre_row = None
-                if events and "timbre" in output:
-                    # timbre at position of last token in this event
-                    pos = tokens.shape[1] - prompt.shape[1] - 1
-                    pos = min(pos, output["timbre"].shape[1] - 1)
-                    if pos >= 0:
-                        timbre_row = output["timbre"][0, pos].cpu().numpy()
+                if events and 'timbre' in output:
+                    timbre_row = output['timbre'][0, 0].cpu().numpy()
                 yield (events[0] if events else None), timbre_row
                 token_batch = []
 
@@ -339,8 +503,10 @@ class ApolloInferenceServer:
     def start(self):
         """Start the OSC server."""
         disp = dispatcher.Dispatcher()
-        disp.map("/apollo/note", self.handle_note)
-        disp.map("/apollo/pedal", self.handle_pedal)
+        disp.map("/apollo/note",     self.handle_note)      # legacy: full event w/ duration
+        disp.map("/apollo/note_on",  self.handle_note_on)   # streaming: immediate on keypress
+        disp.map("/apollo/note_off", self.handle_note_off)  # streaming: on key release
+        disp.map("/apollo/pedal",    self.handle_pedal)
         disp.map("/apollo/config", self.handle_config)
         disp.map("/apollo/transport", self.handle_transport)
         disp.map("/apollo/model/load", self.handle_model_load)
