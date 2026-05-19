@@ -46,7 +46,7 @@ def load_checkpoint(checkpoint_path: str, device: str):
     cfg = ckpt['config']
 
     model = ApolloModel(
-        vocab_size=VOCAB_SIZE,
+        vocab_size=cfg.get('vocab_size', VOCAB_SIZE),
         d_model=cfg['d_model'],
         nhead=cfg['nhead'],
         num_layers=cfg['num_layers'],
@@ -55,6 +55,7 @@ def load_checkpoint(checkpoint_path: str, device: str):
         spectral_dim=cfg['spectral_dim'] if cfg.get('spectral', False) else 0,
         n_timbre_outputs=cfg['n_timbre_outputs'] if cfg.get('spectral', False) else 0,
         dropout=0.0,
+        n_mels=cfg.get('n_mels', 0) if cfg.get('mel', False) else 0,
     ).to(device)
 
     model.load_state_dict(ckpt['model_state_dict'])
@@ -178,6 +179,9 @@ def main():
     parser.add_argument('--eval',         action='store_true',        help='Batch eval mode')
     parser.add_argument('--n-samples',    type=int, default=8,        help='Samples for --eval mode')
     parser.add_argument('--device',       type=str, default='auto',   help='auto | cpu | mps | cuda')
+    parser.add_argument('--audio',        action='store_true',        help='Render generated MIDI to WAV')
+    parser.add_argument('--encodec',      action='store_true',        help='Apply EnCodec neural polish (requires: pip install encodec)')
+    parser.add_argument('--sample-rate',  type=int, default=44100,    help='Audio sample rate for --audio output')
     args = parser.parse_args()
 
     # Device
@@ -246,6 +250,14 @@ def main():
             midi_path = out_dir / f'{stem}_t{str(temp).replace(".", "")}.mid'
             events_to_midi(events, str(midi_path))
             print(f'Saved: {midi_path}')
+
+            if args.audio:
+                sys.path.insert(0, str(Path(__file__).parent))
+                from synthesize import synthesize_midi
+                wav_path = midi_path.with_suffix('.wav')
+                synthesize_midi(midi_path, wav_path,
+                                sample_rate=args.sample_rate,
+                                use_encodec=args.encodec)
 
             if timbre_preds is not None:
                 tp = timbre_preds[0].cpu().numpy()
