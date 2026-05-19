@@ -8,8 +8,13 @@ Public surface:
     - load_notes           (mid_path, pair_path -> List[Note])
     - is_heldout           (nnn -> bool, deterministic via sha1)
     - normalize_nnn        (nnn -> canonical str)
+    - ingest               (root -> artifact dict)
+    - save_artifact        (dict, out_path -> None)
+    - load_artifact        (in_path -> dict)
+    - SCHEMA_VERSION       (int constant; current = 1)
 """
 
+from .artifact import SCHEMA_VERSION, ingest, load_artifact, save_artifact
 from .audio import MelExtractor
 from .errors import IngestError
 from .midi import load_notes
@@ -24,4 +29,8 @@ __all__ = [
     "load_notes",
     "is_heldout",
     "normalize_nnn",
+    "ingest",
+    "save_artifact",
+    "load_artifact",
+    "SCHEMA_VERSION",
 ]
