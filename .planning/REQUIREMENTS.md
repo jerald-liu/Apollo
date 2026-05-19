@@ -93,17 +93,43 @@ Deferred to a later milestone. Tracked here so they don't get lost.
 
 ## Traceability
 
-Empty until roadmap is created.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (populated by roadmapper) | | |
+| DATA-01 | Phase 1: Tokenizer & Ingest | Pending |
+| DATA-02 | Phase 1: Tokenizer & Ingest | Pending |
+| DATA-03 | Phase 1: Tokenizer & Ingest | Pending |
+| DATA-04 | Phase 1: Tokenizer & Ingest | Pending |
+| DATA-05 | Phase 3: Corpus & Inference | Pending |
+| TOK-01 | Phase 1: Tokenizer & Ingest | Pending |
+| TOK-02 | Phase 1: Tokenizer & Ingest | Pending |
+| TOK-03 | Phase 1: Tokenizer & Ingest | Pending |
+| TOK-04 | Phase 1: Tokenizer & Ingest | Pending |
+| TOK-05 | Phase 1: Tokenizer & Ingest | Pending |
+| COND-01 | Phase 1: Tokenizer & Ingest | Pending |
+| COND-02 | Phase 2: Model & Training | Pending |
+| COND-03 | Phase 2: Model & Training | Pending |
+| COND-04 | Phase 1: Tokenizer & Ingest | Pending |
+| TRAIN-01 | Phase 2: Model & Training | Pending |
+| TRAIN-02 | Phase 2: Model & Training | Pending |
+| TRAIN-03 | Phase 2: Model & Training | Pending |
+| TRAIN-04 | Phase 2: Model & Training | Pending |
+| TRAIN-05 | Phase 2: Model & Training | Pending |
+| TRAIN-06 | Phase 2: Model & Training | Pending |
+| INFER-01 | Phase 3: Corpus & Inference | Pending |
+| INFER-02 | Phase 3: Corpus & Inference | Pending |
+| INFER-03 | Phase 3: Corpus & Inference | Pending |
+| INFER-04 | Phase 3: Corpus & Inference | Pending |
+| EVAL-01 | Phase 4: Evaluation Loop | Pending |
+| EVAL-02 | Phase 4: Evaluation Loop | Pending |
+| EVAL-03 | Phase 4: Evaluation Loop | Pending |
+| EVAL-04 | Phase 4: Evaluation Loop | Pending |
+| EVAL-05 | Phase 4: Evaluation Loop | Pending |
 
 **Coverage:**
 - v1 requirements: 29 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 29 ⚠️ (expected until roadmap commits)
+- Mapped to phases: 29
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-05-19*
-*Last updated: 2026-05-19 after initial definition*
+*Last updated: 2026-05-19 after roadmap creation*
