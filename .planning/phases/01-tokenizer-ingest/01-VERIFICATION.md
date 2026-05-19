@@ -1,24 +1,19 @@
 ---
 phase: 01-tokenizer-ingest
 verified: 2026-05-19T22:26:29Z
-status: gaps_found
-score: 5/5 success criteria verified; 1 latent import-ordering bug found outside the success-criteria contract
-re_verification: false
-gaps:
-  - truth: "All public modules import cleanly regardless of import order"
-    status: failed
-    reason: "`apollo.tokenizer` and `apollo.ingest` form a circular import. Importing `apollo.tokenizer` (e.g. `from apollo.tokenizer import Vocab`) BEFORE any `apollo.ingest` import raises `ImportError: cannot import name 'Note' from partially initialized module 'apollo.tokenizer.encoder'`. The full pytest suite passes only because earlier-collected modules (`test_error_handling`, `test_ingest_smoke`, `test_split_determinism`) import `apollo.ingest` first and prime sys.modules. Running `pytest tests/test_vocab_layout.py` in isolation fails at collection. Phase 2 trainers / any downstream code that does `from apollo.tokenizer import Vocab` as a first import will hit this."
-    artifacts:
-      - path: "apollo/tokenizer/__init__.py"
-        issue: "Re-exports `Note, Tokenizer` from `.encoder`, which imports `apollo.ingest.errors`, which triggers `apollo/ingest/__init__.py`, which imports `.midi`, which re-imports `apollo.tokenizer.encoder` mid-init."
-      - path: "apollo/ingest/__init__.py"
-        issue: "Top-level imports `.artifact` → `.midi` → `apollo.tokenizer.encoder` early; sibling `apollo.tokenizer` package may still be partially initialized."
-      - path: "apollo/ingest/midi.py:26"
-        issue: "`from apollo.tokenizer.encoder import Note` at module top — the closing loop of the cycle."
-    missing:
-      - "Either: hoist `Note` into a small leaf module (e.g. `apollo/tokenizer/types.py`) that imports nothing from `apollo.ingest`, and have both encoder.py and midi.py import Note from there."
-      - "Or: in `apollo/ingest/midi.py`, defer the `Note` import to inside `load_notes` (lazy import pattern already used by `Tokenizer.decode`)."
-      - "Add a regression test: `subprocess.run([sys.executable, '-c', 'from apollo.tokenizer import Vocab'])` should exit 0."
+status: passed
+score: 5/5 success criteria verified; 1 latent import-ordering bug found and closed in-phase (see Resolution log)
+re_verification: true
+gaps: []
+resolved:
+  - issue: "apollo.tokenizer ↔ apollo.ingest circular import (Note imported from apollo.tokenizer.encoder by apollo.ingest.midi while encoder.py was mid-init via apollo.ingest.errors → apollo.ingest.__init__ → artifact → midi)."
+    fix_commit: "see `fix(01): break apollo.tokenizer ↔ apollo.ingest circular import`"
+    changes:
+      - "Hoisted Note dataclass into leaf module apollo/tokenizer/types.py."
+      - "Lazy-imported IngestError inside Tokenizer.encode() so apollo.tokenizer no longer triggers apollo.ingest at module-load time."
+      - "Re-exported Note from apollo.tokenizer.encoder for backward compatibility."
+      - "Added tests/test_import_hygiene.py — 3 subprocess regression tests covering standalone import of apollo.tokenizer, apollo.ingest, and legacy encoder.Note path."
+    test_evidence: "49/49 pytest pass (was 46/46 + 3 new regression tests); `python -c 'from apollo.tokenizer import Vocab; print(Vocab.VOCAB_SIZE)'` exits 0 in a clean subprocess."
 human_verification: []
 ---
 
