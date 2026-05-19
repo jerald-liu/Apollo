@@ -23,7 +23,7 @@ from typing import List
 import pretty_midi
 
 from apollo.ingest.errors import IngestError
-from apollo.tokenizer.encoder import Note
+from apollo.tokenizer.types import Note
 
 
 # Maximum number of notes accepted from a single `.mid` file. Threat model

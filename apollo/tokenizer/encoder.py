@@ -15,33 +15,26 @@ model has no representation for durations outside the 30 ms..1.5 s band.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import List
+from typing import TYPE_CHECKING, List
 
-from apollo.ingest.errors import IngestError
 from apollo.tokenizer.bins import (
     quantize_duration,
     quantize_time_shift,
     quantize_velocity,
 )
+from apollo.tokenizer.types import Note
 from apollo.tokenizer.vocab import Vocab
 
+# `IngestError` is imported lazily inside `encode()` to keep
+# `apollo.tokenizer` decoupled from `apollo.ingest`'s package init at module
+# load time. Eagerly importing it here triggers `apollo.ingest.__init__`,
+# which re-exports `apollo.ingest.artifact` — and artifact.py imports back
+# into `apollo.tokenizer`, producing a partially-initialized import error.
+if TYPE_CHECKING:  # pragma: no cover
+    from apollo.ingest.errors import IngestError
 
-@dataclass
-class Note:
-    """A single MIDI note event in seconds-time, raw (un-quantized) values.
-
-    `pitch` is the MIDI number (not a bin index). `velocity` is 1..127.
-    `start` and `end` are absolute seconds within the local pair (call or
-    response side); the tokenizer turns the inter-onset delta into a
-    time_shift token at encode time and reconstructs absolute time via a
-    cursor at decode time.
-    """
-
-    pitch: int
-    velocity: int
-    start: float
-    end: float
+# Re-export so legacy imports `from apollo.tokenizer.encoder import Note` keep working.
+__all__ = ["Note", "Tokenizer"]
 
 
 class Tokenizer:
@@ -72,6 +65,8 @@ class Tokenizer:
           - pitch outside `[Vocab.PITCH_MIN, Vocab.PITCH_MAX]`
           - any other quantizer ValueError (wrapped, path attached)
         """
+        from apollo.ingest.errors import IngestError  # lazy; see module docstring
+
         v = self.vocab
         prev_onset = 0.0
         tokens: List[int] = []

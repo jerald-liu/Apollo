@@ -20,7 +20,8 @@ from .bins import (
     quantize_time_shift,
     quantize_velocity,
 )
-from .encoder import Note, Tokenizer
+from .encoder import Tokenizer
+from .types import Note
 from .vocab import Vocab
 
 __all__ = [
