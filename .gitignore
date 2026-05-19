@@ -1,6 +1,7 @@
 # Data
 data/raw/
 data/processed/
+data/processed_streaming/
 *.mid
 *.midi
 *.wav
