@@ -1,0 +1,53 @@
+# Apollo v3 — Mel spectrogram conditioning (Phase 3)
+# Requires: make modal-preprocess SPECTRAL=true  (101GB audio download)
+# then:      modal run modal_train.py --action preprocess --mel
+#
+# Changes vs v2:
+#   - MelEncoder (2-layer CNN) replaces 5-scalar SpectralEncoder as primary conditioning
+#   - n_mels=128, mel_frames=256 (~5.9s context per window at hop=512)
+#   - batch_size halved (mel arrays double per-sample memory)
+#   - spectral_dim=0 (scalar features off; mel is the audio pathway now)
+
+# Data
+data_dir: data/processed
+spectral: false
+mel: true
+n_mels: 128
+mel_frames: 256
+
+# Model
+d_model: 384
+nhead: 6
+num_layers: 6
+max_seq_len: 512
+user_embed_dim: 0
+spectral_dim: 0
+n_timbre_outputs: 0
+dropout: 0.15
+
+# Training
+# batch_size 32→64: sqrt-scaled lr (3e-4 × √2 = 4.2e-4)
+# mel Conv2d activations (B × 32 × 256 × 128) cap safe batch at ~64 on A100
+batch_size: 64
+lr: 4.2e-4
+min_lr: 1.4e-5
+warmup_steps: 1000       # same token count as 2000 steps @ batch 32
+max_steps: 80000
+weight_decay: 0.1
+grad_clip: 1.0
+timbre_loss_weight: 0.0
+label_smoothing: 0.1
+pitch_aug_max: 6
+velocity_aug_range: 2
+
+# Mixed precision (no compile — compile + mel encoder OOMs on A100)
+use_amp: true
+use_compile: false
+
+# Logging
+log_interval: 50
+eval_interval: 500
+save_interval: 2000
+output_dir: models
+run_name: apollo_v3_mel
+use_wandb: false

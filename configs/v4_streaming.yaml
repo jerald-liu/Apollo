@@ -1,0 +1,55 @@
+# Apollo v4 — Streaming note-on/note-off representation
+#
+# Uses streaming_representation.py vocabulary (259 tokens):
+#   note_on  → [time_shift, note_on_pitch, velocity]   = 3 tokens (immediate)
+#   note_off → [time_shift, note_off_pitch]             = 2 tokens (on release)
+#
+# At 512 tokens/window: ~200 note events vs ~102 in v2/v3.
+# No duration-wait latency for streaming input.
+#
+# Preprocess:
+#   modal run modal_train.py --action preprocess --streaming
+# Train:
+#   make modal-train CONFIG=configs/v4_streaming.yaml
+
+# Data
+data_dir: data/processed_streaming
+spectral: false
+mel: false
+
+# Model — same capacity, new vocab
+vocab_size: 259
+d_model: 384
+nhead: 6
+num_layers: 6
+max_seq_len: 512
+user_embed_dim: 0
+spectral_dim: 0
+n_timbre_outputs: 0
+dropout: 0.15
+
+# Training
+# batch_size 64→256: sqrt-scaled lr (3e-4 × √4 = 6.0e-4), warmup proportionally reduced
+batch_size: 256
+lr: 6.0e-4
+min_lr: 2.0e-5
+warmup_steps: 500        # same token count as 2000 steps @ batch 64
+max_steps: 80000
+weight_decay: 0.1
+grad_clip: 1.0
+timbre_loss_weight: 0.0
+label_smoothing: 0.1
+pitch_aug_max: 0        # TODO: re-enable once augment_tokens is streaming-vocab-aware
+velocity_aug_range: 0   # (old ranges 100-227/228-259 are wrong for streaming vocab 0-258)
+
+# Mixed precision + compile
+use_amp: true
+use_compile: true
+
+# Logging
+log_interval: 50
+eval_interval: 500
+save_interval: 2000
+output_dir: models
+run_name: apollo_v4_streaming
+use_wandb: false
