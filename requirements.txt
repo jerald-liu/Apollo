@@ -21,9 +21,9 @@ ipywidgets
 # Real-time inference
 python-osc          # OSC server for M4L bridge
 
-# Audio synthesis & codec
+# Audio synthesis
 soundfile          # WAV I/O for synthesis pipeline
-encodec            # EnCodec neural polish (optional — pip install encodec)
+# encodec          # Neural polish (optional) — pip install encodec
 
 # Utilities
 tqdm

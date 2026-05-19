@@ -35,4 +35,4 @@ jobs:
       - name: Install deps
         run: pip install -r requirements-dev.txt
       - name: Run ${{ matrix.marker }} tests
-        run: pytest tests/ -m ${{ matrix.marker }} -v
+        run: pytest tests/ -m ${{ matrix.marker }} -v --tb=short
