@@ -11,8 +11,8 @@ See: .planning/PROJECT.md (updated 2026-05-19)
 
 Phase: 1 of 4 (Tokenizer & Ingest)
 Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-05-19 — Roadmap created, STATE initialized
+Status: Context gathered, ready to plan
+Last activity: 2026-05-19 — Phase 1 context gathered (CONTEXT.md committed)
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -39,12 +39,15 @@ Progress: [░░░░░░░░░░] 0%
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
+Decisions are logged in PROJECT.md Key Decisions table and per-phase CONTEXT.md files.
 Recent decisions affecting current work:
 
 - Init: Train from scratch — no warm-start from prior checkpoint or MAESTRO pretrain
 - Init: Vocab must reserve space for pitch bend / CC tokens so future additions don't break checkpoints
 - Init: Mel encoder is jointly trained (not frozen pretrained); lives in the same checkpoint artifact
+- Phase 1: Pitch vocab stays narrow (3 octaves, default C2–C5) — FM does the overtone work, not the MIDI model
+- Phase 1: 32 quantized time bins, 16 velocity bins, explicit duration token (4 tokens/note)
+- Phase 1: Mel = 22050 Hz, n_mels=128 / n_fft=2048 / hop=512, fixed-shape (96, 128)
 
 ### Pending Todos
 
@@ -65,5 +68,5 @@ Items acknowledged and carried forward from previous milestone close:
 ## Session Continuity
 
 Last session: 2026-05-19
-Stopped at: Roadmap + STATE initialized — no plans written yet
-Resume file: None
+Stopped at: Phase 1 context gathered
+Resume file: .planning/phases/01-tokenizer-ingest/01-CONTEXT.md
