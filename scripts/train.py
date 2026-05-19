@@ -18,6 +18,7 @@ import argparse
 import json
 import math
 import os
+import random
 import sys
 import time
 from pathlib import Path
@@ -46,6 +47,7 @@ class TrainConfig:
     spectral: bool = True
 
     # Model
+    vocab_size: int = 380  # override for streaming vocab (259) or custom tokenizers
     d_model: int = 384
     nhead: int = 6
     num_layers: int = 6
@@ -64,6 +66,17 @@ class TrainConfig:
     weight_decay: float = 0.05
     grad_clip: float = 1.0
     timbre_loss_weight: float = 0.1
+    label_smoothing: float = 0.0
+    pitch_aug_max: int = 0       # max semitone shift for pitch augmentation (0 = off)
+    velocity_aug_range: int = 0  # max bin shift for velocity augmentation (0 = off)
+
+    # Mel spectrogram conditioning (Phase 3)
+    mel: bool = False
+    n_mels: int = 128
+    mel_frames: int = 256
+
+    # torch.compile (PyTorch 2.0+, ~15-30% speedup via Triton kernels)
+    use_compile: bool = False
 
     # Mixed precision
     use_amp: bool = True
@@ -95,43 +108,80 @@ class TrainConfig:
 
 # --- Dataset ---
 
+_PITCH_LO, _PITCH_HI = 100, 227   # TOKEN_OFFSETS['pitch'] + 0..127
+_VEL_LO,   _VEL_HI   = 228, 259   # TOKEN_OFFSETS['velocity'] + 0..31
+
+
+def augment_tokens(
+    tokens: torch.Tensor,
+    pitch_shift: int = 0,
+    velocity_shift: int = 0,
+) -> torch.Tensor:
+    """Apply pitch transposition and velocity jitter in token space."""
+    if pitch_shift == 0 and velocity_shift == 0:
+        return tokens
+    t = tokens.clone()
+    if pitch_shift != 0:
+        mask = (t >= _PITCH_LO) & (t <= _PITCH_HI)
+        t[mask] = (t[mask] + pitch_shift).clamp(_PITCH_LO, _PITCH_HI)
+    if velocity_shift != 0:
+        mask = (t >= _VEL_LO) & (t <= _VEL_HI)
+        t[mask] = (t[mask] + velocity_shift).clamp(_VEL_LO, _VEL_HI)
+    return t
+
+
 class PreprocessedDataset(Dataset):
     """Loads preprocessed .npy token arrays."""
 
-    def __init__(self, data_dir: str, split: str = 'train', spectral: bool = True):
+    def __init__(
+        self,
+        data_dir: str,
+        split: str = 'train',
+        spectral: bool = True,
+        pitch_aug_max: int = 0,
+        velocity_aug_range: int = 0,
+        mel: bool = False,
+    ):
         data_dir = Path(data_dir)
         self.tokens = np.load(data_dir / f'{split}_tokens.npy', mmap_mode='r')
+        self.pitch_aug_max = pitch_aug_max
+        self.velocity_aug_range = velocity_aug_range
+        self.augment = split == 'train' and (pitch_aug_max > 0 or velocity_aug_range > 0)
 
         cont_path = data_dir / f'{split}_continuous.npy'
-        if spectral and cont_path.exists():
-            self.continuous = np.load(cont_path, mmap_mode='r')
-        else:
-            self.continuous = None
+        self.continuous = np.load(cont_path, mmap_mode='r') if spectral and cont_path.exists() else None
+
+        mel_path = data_dir / f'{split}_mel.npy'
+        self.mel = np.load(mel_path, mmap_mode='r') if mel and mel_path.exists() else None
 
     def __len__(self):
         return len(self.tokens)
 
     def __getitem__(self, idx):
         tokens = torch.from_numpy(self.tokens[idx].astype(np.int64))
+
+        if self.augment:
+            p_shift = random.randint(-self.pitch_aug_max, self.pitch_aug_max) if self.pitch_aug_max else 0
+            v_shift = random.randint(-self.velocity_aug_range, self.velocity_aug_range) if self.velocity_aug_range else 0
+            tokens = augment_tokens(tokens, p_shift, v_shift)
+
         x = tokens[:-1]
         y = tokens[1:]
 
-        if self.continuous is not None:
-            cont = torch.from_numpy(self.continuous[idx].astype(np.float32))
-            return x, y, cont
-        return x, y, None
+        cont = torch.from_numpy(self.continuous[idx].astype(np.float32)) if self.continuous is not None else None
+        mel  = torch.from_numpy(self.mel[idx].astype(np.float32))        if self.mel  is not None else None
+
+        return x, y, cont, mel
 
 
 def collate_fn(batch):
-    """Custom collate that handles optional continuous features."""
-    xs, ys, conts = zip(*batch)
-    x = torch.stack(xs)
-    y = torch.stack(ys)
-    if conts[0] is not None:
-        cont = torch.stack(conts)
-    else:
-        cont = None
-    return x, y, cont
+    """Custom collate that handles optional continuous features and mel patches."""
+    xs, ys, conts, mels = zip(*batch)
+    x    = torch.stack(xs)
+    y    = torch.stack(ys)
+    cont = torch.stack(conts) if conts[0] is not None else None
+    mel  = torch.stack(mels)  if mels[0]  is not None else None
+    return x, y, cont, mel
 
 
 # --- Learning rate schedule ---
@@ -184,8 +234,16 @@ def train(config: TrainConfig):
             config.use_wandb = False
 
     # Data
-    train_dataset = PreprocessedDataset(config.data_dir, 'train', config.spectral)
-    val_dataset = PreprocessedDataset(config.data_dir, 'validation', config.spectral)
+    train_dataset = PreprocessedDataset(
+        config.data_dir, 'train', config.spectral,
+        pitch_aug_max=config.pitch_aug_max,
+        velocity_aug_range=config.velocity_aug_range,
+        mel=config.mel,
+    )
+    val_dataset = PreprocessedDataset(
+        config.data_dir, 'validation', config.spectral,
+        mel=config.mel,
+    )
 
     if ddp:
         train_sampler = torch.utils.data.DistributedSampler(train_dataset, shuffle=True)
@@ -223,7 +281,7 @@ def train(config: TrainConfig):
 
     # Model
     model = ApolloModel(
-        vocab_size=VOCAB_SIZE,
+        vocab_size=config.vocab_size,
         d_model=config.d_model,
         nhead=config.nhead,
         num_layers=config.num_layers,
@@ -232,6 +290,7 @@ def train(config: TrainConfig):
         spectral_dim=config.spectral_dim if config.spectral else 0,
         n_timbre_outputs=config.n_timbre_outputs if config.spectral else 0,
         dropout=config.dropout,
+        n_mels=config.n_mels if config.mel else 0,
     ).to(device)
 
     n_params = sum(p.numel() for p in model.parameters())
@@ -241,6 +300,12 @@ def train(config: TrainConfig):
     if ddp:
         model = DDP(model, device_ids=[local_rank])
     raw_model = model.module if ddp else model
+
+    # torch.compile — fuses ops into Triton kernels, ~15-30% throughput gain
+    if config.use_compile and hasattr(torch, 'compile'):
+        model = torch.compile(model)
+        if master:
+            print('torch.compile enabled')
 
     # Optimizer
     # Separate weight decay for different parameter groups
@@ -272,16 +337,18 @@ def train(config: TrainConfig):
     for step in range(start_step, config.max_steps):
         # Get batch (cycle through data)
         try:
-            x, y, cont = next(train_iter)
+            x, y, cont, mel = next(train_iter)
         except StopIteration:
             if ddp:
                 train_sampler.set_epoch(step)
             train_iter = iter(train_loader)
-            x, y, cont = next(train_iter)
+            x, y, cont, mel = next(train_iter)
 
         x, y = x.to(device), y.to(device)
         if cont is not None:
             cont = cont.to(device)
+        if mel is not None:
+            mel = mel.to(device)
 
         # LR schedule
         lr = get_lr(step, config)
@@ -290,9 +357,12 @@ def train(config: TrainConfig):
 
         # Forward
         with torch.amp.autocast(device_type=device.split(':')[0], dtype=amp_dtype, enabled=config.use_amp):
-            output = model(x, spectral_features=cont, tokens_per_event=TOKENS_PER_EVENT)
+            output = model(x, spectral_features=cont, tokens_per_event=TOKENS_PER_EVENT, mel_patch=mel)
             logits = output['logits']
-            token_loss = F.cross_entropy(logits.reshape(-1, VOCAB_SIZE), y.reshape(-1))
+            token_loss = F.cross_entropy(
+                logits.reshape(-1, config.vocab_size), y.reshape(-1),
+                label_smoothing=config.label_smoothing,
+            )
 
             total_loss = token_loss
             timbre_loss = torch.tensor(0.0, device=device)
@@ -359,15 +429,17 @@ def train(config: TrainConfig):
             n_val = 0
 
             with torch.no_grad():
-                for vx, vy, vcont in val_loader:
+                for vx, vy, vcont, vmel in val_loader:
                     vx, vy = vx.to(device), vy.to(device)
                     if vcont is not None:
                         vcont = vcont.to(device)
+                    if vmel is not None:
+                        vmel = vmel.to(device)
 
                     with torch.amp.autocast(device_type=device.split(':')[0], dtype=amp_dtype, enabled=config.use_amp):
-                        vout = model(vx, spectral_features=vcont, tokens_per_event=TOKENS_PER_EVENT)
+                        vout = model(vx, spectral_features=vcont, tokens_per_event=TOKENS_PER_EVENT, mel_patch=vmel)
                         vlogits = vout['logits']
-                        vt_loss = F.cross_entropy(vlogits.reshape(-1, VOCAB_SIZE), vy.reshape(-1))
+                        vt_loss = F.cross_entropy(vlogits.reshape(-1, config.vocab_size), vy.reshape(-1))
 
                         vti_loss = torch.tensor(0.0, device=device)
                         if 'timbre' in vout and vcont is not None:
@@ -382,9 +454,6 @@ def train(config: TrainConfig):
                     val_token_loss += vt_loss.item()
                     val_timbre_loss += vti_loss.item()
                     n_val += 1
-
-                    if n_val >= 50:  # Cap validation batches for speed
-                        break
 
             avg_val = val_loss / max(n_val, 1)
             avg_val_tok = val_token_loss / max(n_val, 1)
