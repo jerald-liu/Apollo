@@ -31,9 +31,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. The vocab layout includes BOS, EOS, SEP, and contiguous reserved ranges for future pitch bend / mod wheel / CC tokens
 **Plans**: 5 plans
 - [x] 01-01-PLAN.md — Project scaffold + Vocab dataclass + duration bins + IngestError + vocab-layout test
-- [ ] 01-02-PLAN.md — Tokenizer encoder + decoder + round-trip test (TOK-05)
-- [ ] 01-03-PLAN.md — MelExtractor (torchaudio Resample + MelSpectrogram, (96,128) log-mel) + tests
-- [ ] 01-04-PLAN.md — Pair discovery + MIDI load + hash split + artifact format + CLI script
+- [x] 01-02-PLAN.md — Tokenizer encoder + decoder + round-trip test (TOK-05)
+- [x] 01-03-PLAN.md — MelExtractor (torchaudio Resample + MelSpectrogram, (96,128) log-mel) + tests
+- [x] 01-04-PLAN.md — Pair discovery + MIDI load + hash split + artifact format + CLI script
 - [ ] 01-05-PLAN.md — Mock pair generator + end-to-end smoke test + error-handling tests (CLI exit codes)
 
 ### Phase 2: Model & Training
@@ -76,7 +76,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Tokenizer & Ingest | 1/5 | In progress | - |
+| 1. Tokenizer & Ingest | 4/5 | In progress | - |
 | 2. Model & Training | 0/TBD | Not started | - |
 | 3. Corpus & Inference | 0/TBD | Not started | - |
 | 4. Evaluation Loop | 0/TBD | Not started | - |

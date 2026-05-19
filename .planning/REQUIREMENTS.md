@@ -8,9 +8,9 @@
 ### Corpus (DATA)
 
 - [ ] **DATA-01**: User can author and export call/response pairs in Ableton with both tracks running Operator (potentially different presets per pair)
-- [ ] **DATA-02**: Each pair lives at `data/pairs/NNN/` with three files: `call.mid`, `call.wav` (manual Ableton bounce), `response.mid` (NNN zero-padded, sequential)
-- [ ] **DATA-03**: An ingestion pipeline reads `data/pairs/*/` and tokenizes pairs into training tensors (MIDI tokens + mel features per pair)
-- [ ] **DATA-04**: The pipeline reserves 20% of pairs as a held-out evaluation split, deterministically (same split every run)
+- [x] **DATA-02**: Each pair lives at `data/pairs/NNN/` with three files: `call.mid`, `call.wav` (manual Ableton bounce), `response.mid` (NNN zero-padded, sequential)
+- [x] **DATA-03**: An ingestion pipeline reads `data/pairs/*/` and tokenizes pairs into training tensors (MIDI tokens + mel features per pair)
+- [x] **DATA-04**: The pipeline reserves 20% of pairs as a held-out evaluation split, deterministically (same split every run)
 - [ ] **DATA-05**: Corpus reaches ≥30 authored pairs before first real training run
 
 ### Tokenizer (TOK)
@@ -96,9 +96,9 @@ Deferred to a later milestone. Tracked here so they don't get lost.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | DATA-01 | Phase 1: Tokenizer & Ingest | Pending |
-| DATA-02 | Phase 1: Tokenizer & Ingest | Pending |
-| DATA-03 | Phase 1: Tokenizer & Ingest | Pending |
-| DATA-04 | Phase 1: Tokenizer & Ingest | Pending |
+| DATA-02 | Phase 1: Tokenizer & Ingest | Done (01-04) |
+| DATA-03 | Phase 1: Tokenizer & Ingest | Done (01-04) |
+| DATA-04 | Phase 1: Tokenizer & Ingest | Done (01-04) |
 | DATA-05 | Phase 3: Corpus & Inference | Pending |
 | TOK-01 | Phase 1: Tokenizer & Ingest | Pending |
 | TOK-02 | Phase 1: Tokenizer & Ingest | Pending |
