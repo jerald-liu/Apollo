@@ -20,6 +20,7 @@ from .bins import (
     quantize_time_shift,
     quantize_velocity,
 )
+from .encoder import Note, Tokenizer
 from .vocab import Vocab
 
 __all__ = [
@@ -31,4 +32,6 @@ __all__ = [
     "decode_time_shift",
     "quantize_velocity",
     "decode_velocity",
+    "Note",
+    "Tokenizer",
 ]
