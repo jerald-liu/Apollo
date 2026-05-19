@@ -95,7 +95,7 @@ class TestRepresentationToPreprocess:
         """IR→P.2: tokens survive windowing with all values in vocab range."""
         r = process_file((str(synthetic_midi_path), None, False, 2048))
         seq_len = 20
-        tok_arr, _ = create_training_windows([r["tokens"]], None, seq_len, 10)
+        tok_arr, _, _, _ = create_training_windows([r["tokens"]], None, seq_len, 10)
         assert tok_arr.min() >= 0
         assert tok_arr.max() < VOCAB_SIZE
 
@@ -103,7 +103,7 @@ class TestRepresentationToPreprocess:
         """IR→P.3: windows are int32 with shape (N, seq_len+1)."""
         r = process_file((str(synthetic_midi_path), None, False, 2048))
         seq_len = 20
-        tok_arr, _ = create_training_windows([r["tokens"]], None, seq_len, 10)
+        tok_arr, _, _, _ = create_training_windows([r["tokens"]], None, seq_len, 10)
         assert tok_arr.dtype == np.int32
         assert tok_arr.shape[1] == seq_len + 1
         # Targets are window[:, 1:], inputs window[:, :-1] — must both be valid

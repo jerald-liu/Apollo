@@ -80,25 +80,25 @@ def _toy_tokens(length=200):
 class TestCreateTrainingWindows:
     def test_P2_1_returns_tuple(self):
         tokens = _toy_tokens(200)
-        tok_arr, cont_arr = create_training_windows([tokens], None, 50, 25)
+        tok_arr, cont_arr, _, _ = create_training_windows([tokens], None, 50, 25)
         assert isinstance(tok_arr, np.ndarray)
         assert cont_arr is None
 
     def test_P2_2_shape(self):
         tokens = _toy_tokens(200)
         seq_len = 50
-        tok_arr, _ = create_training_windows([tokens], None, seq_len, 25)
+        tok_arr, _, _, _ = create_training_windows([tokens], None, seq_len, 25)
         assert tok_arr.ndim == 2
         assert tok_arr.shape[1] == seq_len + 1
 
     def test_P2_3_dtype(self):
         tokens = _toy_tokens(200)
-        tok_arr, _ = create_training_windows([tokens], None, 50, 25)
+        tok_arr, _, _, _ = create_training_windows([tokens], None, 50, 25)
         assert tok_arr.dtype == np.int32
 
     def test_P2_4_tokens_in_vocab(self):
         tokens = _toy_tokens(200)
-        tok_arr, _ = create_training_windows([tokens], None, 50, 25)
+        tok_arr, _, _, _ = create_training_windows([tokens], None, 50, 25)
         assert tok_arr.min() >= 0
         assert tok_arr.max() < VOCAB_SIZE
 
@@ -106,20 +106,20 @@ class TestCreateTrainingWindows:
         """Window count matches range(0, L - seq_len, stride)."""
         tokens = _toy_tokens(200)
         seq_len, stride = 50, 25
-        tok_arr, _ = create_training_windows([tokens], None, seq_len, stride)
+        tok_arr, _, _, _ = create_training_windows([tokens], None, seq_len, stride)
         expected = len(range(0, len(tokens) - seq_len, stride))
         assert tok_arr.shape[0] == expected
 
     def test_P2_6_continuous_none_passthrough(self):
         tokens = _toy_tokens(200)
-        _, cont_arr = create_training_windows([tokens], None, 50, 25)
+        _, cont_arr, _, _ = create_training_windows([tokens], None, 50, 25)
         assert cont_arr is None
 
     def test_P2_7_continuous_dtype_and_alignment(self):
         tokens = _toy_tokens(200)
         n_events_approx = len(tokens) // 5 + 5
         continuous = [np.zeros((n_events_approx, 21), dtype=np.float32)]
-        tok_arr, cont_arr = create_training_windows(
+        tok_arr, cont_arr, _, _ = create_training_windows(
             [tokens], continuous, 50, 25
         )
         assert cont_arr is not None
@@ -137,7 +137,7 @@ class TestEndToEnd:
         # Synthetic MIDI has 20 notes → 2 + 20*5 = 102 tokens.
         # Pick a seq_len smaller than that.
         seq_len = 40
-        tok_arr, _ = create_training_windows([result["tokens"]], None, seq_len, 20)
+        tok_arr, _, _, _ = create_training_windows([result["tokens"]], None, seq_len, 20)
         assert tok_arr.shape[0] >= 1
         assert tok_arr.shape[1] == seq_len + 1
 

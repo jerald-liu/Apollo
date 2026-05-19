@@ -87,7 +87,7 @@ def process_file(args):
         return {'error': str(e), 'file': str(midi_path)}
 
 
-def create_training_windows(all_tokens, all_continuous, all_onset_times, seq_len, stride):
+def create_training_windows(all_tokens, all_continuous, seq_len, stride, *, all_onset_times=None):
     """Create fixed-length training windows from variable-length sequences.
 
     Returns:
@@ -413,7 +413,8 @@ def main():
         print(f'\n{split_name}: {len(all_tokens)} files, {total_toks:,} total tokens')
 
         token_arr, cont_arr, window_times_arr, file_idx_arr = create_training_windows(
-            all_tokens, all_continuous, all_onset_times, args.seq_len, args.stride
+            all_tokens, all_continuous, args.seq_len, args.stride,
+            all_onset_times=all_onset_times,
         )
         print(f'  Windows: {len(token_arr)} × seq_len={args.seq_len}')
 
