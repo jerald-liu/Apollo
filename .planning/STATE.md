@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 01-04-PLAN.md
-last_updated: "2026-05-19T22:19:39Z"
-last_activity: 2026-05-19 -- Completed Phase 01 Plan 04 (discovery + midi + split + artifact + CLI)
+status: phase-complete
+stopped_at: Completed 01-05-PLAN.md (Phase 01 done)
+last_updated: "2026-05-19T22:36:00Z"
+last_activity: 2026-05-19 -- Completed Phase 01 Plan 05 (mock pair + smoke + error tests) → Phase 01 done (46/46 tests passing)
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 5
-  completed_plans: 4
-  percent: 20
+  completed_plans: 5
+  percent: 25
 ---
 
 # Project State
@@ -25,31 +25,31 @@ See: .planning/PROJECT.md (updated 2026-05-19)
 
 ## Current Position
 
-Phase: 01 (tokenizer-ingest) — EXECUTING
-Plan: 5 of 5
-Status: Executing Phase 01
-Last activity: 2026-05-19 -- Completed Phase 01 Plan 04 (discovery + midi + split + artifact + CLI)
+Phase: 01 (tokenizer-ingest) — COMPLETE
+Plan: 5 of 5 (all done)
+Status: Phase 01 complete; ready for Phase 02 (Model & Training) planning
+Last activity: 2026-05-19 -- Completed Phase 01 Plan 05 (mock pair + smoke + error tests) → Phase 01 done (46/46 tests passing)
 
-Progress: [██░░░░░░░░] 20%
+Progress: [██▌░░░░░░░] 25%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 4
-- Average duration: ~7 min
-- Total execution time: ~0.45 hours
+- Total plans completed: 5
+- Average duration: ~8 min
+- Total execution time: ~0.65 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01    | 4     | ~27m  | ~7m      |
+| 01    | 5     | ~39m  | ~8m      |
 
 **Recent Trend:**
 
-- Last 5 plans: 01-01 (3.5m), 01-02 (~6m), 01-03 (12m), 01-04 (~5m)
-- Trend: steady; plan-04 was light because the plan handed concrete code snippets
+- Last 5 plans: 01-01 (3.5m), 01-02 (~6m), 01-03 (12m), 01-04 (~5m), 01-05 (~12m)
+- Trend: 01-05 ran long because both tasks hit a Rule-1 bug (pretty_midi estimate_tempo sensitivity to IOI grid). Both fixed inline; no scope creep.
 
 *Updated after each plan completion*
 
@@ -71,6 +71,9 @@ Recent decisions affecting current work:
 - 01-04: Ordered empty-MIDI check before tempo check in load_notes — pretty_midi.estimate_tempo() raises on zero-note files
 - 01-04: load_artifact uses weights_only=False (T-01-14 accept; trusted-local-only documented in module docstring)
 - 01-04: discover_pairs path-traversal mitigation via Path.resolve() + relative_to(root_path) (T-01-11)
+- 01-05: Mock pair default note durations = 0.5 s (quarter at 120 bpm) — 0.25 s tricks pretty_midi.estimate_tempo() into reporting 240 bpm and breaks the load_notes tempo guard
+- 01-05: Default audio_seconds = 1.5 in synthesize_pair to cover three quarter notes
+- 01-05: Phase 1 closed at 46/46 tests passing; 10-pair end-to-end ingest = 0.014 s on CPU (limit 10 s, 700× slack)
 
 ### Pending Todos
 
@@ -91,5 +94,5 @@ Items acknowledged and carried forward from previous milestone close:
 ## Session Continuity
 
 Last session: 2026-05-19
-Stopped at: Completed 01-04-PLAN.md
-Resume file: .planning/phases/01-tokenizer-ingest/01-05-PLAN.md
+Stopped at: Completed 01-05-PLAN.md (Phase 01 done)
+Resume file: Next — Phase 02 discussion or planning (.planning/phases/02-* not yet created)

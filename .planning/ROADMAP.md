@@ -12,7 +12,7 @@ Four phases take Apollo from an empty repo to a demonstrably improving active-le
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Tokenizer & Ingest** - Tokenizer, data pipeline, mel extraction, held-out split
+- [x] **Phase 1: Tokenizer & Ingest** - Tokenizer, data pipeline, mel extraction, held-out split
 - [ ] **Phase 2: Model & Training** - Mel encoder, transformer, masked loss, smoke train, checkpoints
 - [ ] **Phase 3: Corpus & Inference** - Author ≥30 pairs, generate.py, sampling controls
 - [ ] **Phase 4: Evaluation Loop** - Scoring rubric, grading workflow, iteration tracking, ship gate
@@ -34,7 +34,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 01-02-PLAN.md — Tokenizer encoder + decoder + round-trip test (TOK-05)
 - [x] 01-03-PLAN.md — MelExtractor (torchaudio Resample + MelSpectrogram, (96,128) log-mel) + tests
 - [x] 01-04-PLAN.md — Pair discovery + MIDI load + hash split + artifact format + CLI script
-- [ ] 01-05-PLAN.md — Mock pair generator + end-to-end smoke test + error-handling tests (CLI exit codes)
+- [x] 01-05-PLAN.md — Mock pair generator + end-to-end smoke test + error-handling tests (CLI exit codes)
 
 ### Phase 2: Model & Training
 **Goal**: The model trains from scratch on mock pairs, hits the smoke-train accuracy bar, and saves a complete checkpoint artifact
@@ -76,7 +76,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Tokenizer & Ingest | 4/5 | In progress | - |
+| 1. Tokenizer & Ingest | 5/5 | Complete | 2026-05-19 |
 | 2. Model & Training | 0/TBD | Not started | - |
 | 3. Corpus & Inference | 0/TBD | Not started | - |
 | 4. Evaluation Loop | 0/TBD | Not started | - |

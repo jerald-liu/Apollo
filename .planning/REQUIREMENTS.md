@@ -7,7 +7,7 @@
 
 ### Corpus (DATA)
 
-- [ ] **DATA-01**: User can author and export call/response pairs in Ableton with both tracks running Operator (potentially different presets per pair)
+- [x] **DATA-01**: User can author and export call/response pairs in Ableton with both tracks running Operator (potentially different presets per pair)
 - [x] **DATA-02**: Each pair lives at `data/pairs/NNN/` with three files: `call.mid`, `call.wav` (manual Ableton bounce), `response.mid` (NNN zero-padded, sequential)
 - [x] **DATA-03**: An ingestion pipeline reads `data/pairs/*/` and tokenizes pairs into training tensors (MIDI tokens + mel features per pair)
 - [x] **DATA-04**: The pipeline reserves 20% of pairs as a held-out evaluation split, deterministically (same split every run)
@@ -15,18 +15,18 @@
 
 ### Tokenizer (TOK)
 
-- [ ] **TOK-01**: A monophonic MIDI event tokenizer encodes pitch + velocity + timing + duration as discrete tokens
-- [ ] **TOK-02**: Time and duration use quantized-grid bins (coarse resolution suitable for grid-locked authoring)
+- [x] **TOK-01**: A monophonic MIDI event tokenizer encodes pitch + velocity + timing + duration as discrete tokens
+- [x] **TOK-02**: Time and duration use quantized-grid bins (coarse resolution suitable for grid-locked authoring)
 - [x] **TOK-03**: The vocab includes BOS, EOS, and SEP special tokens with SEP placed between call and response in training samples
 - [x] **TOK-04**: The vocab layout reserves contiguous ranges (or a versioned offset scheme) for later pitch bend / mod wheel / CC tokens, so adding them does not invalidate existing checkpoints
-- [ ] **TOK-05**: Round-trip test: a tokenizer applied to mock pairs decodes back to MIDI semantically equivalent to the input (pitches, velocities, onsets preserved within quantization tolerance)
+- [x] **TOK-05**: Round-trip test: a tokenizer applied to mock pairs decodes back to MIDI semantically equivalent to the input (pitches, velocities, onsets preserved within quantization tolerance)
 
 ### Audio Conditioning (COND)
 
-- [ ] **COND-01**: A mel-feature extractor reads `call.wav` and produces a fixed-shape mel-spectrogram tensor at a documented sample rate / hop / n_mels
+- [x] **COND-01**: A mel-feature extractor reads `call.wav` and produces a fixed-shape mel-spectrogram tensor at a documented sample rate / hop / n_mels
 - [ ] **COND-02**: A small mel encoder (CNN or equivalent) compresses the mel tensor into a conditioning embedding fed alongside MIDI tokens
 - [ ] **COND-03**: The mel encoder is part of the trained model graph (jointly trained, not frozen pretrained)
-- [ ] **COND-04**: If a pair's `call.wav` is missing or malformed, the pipeline reports the offending pair and aborts (no silent skipping)
+- [x] **COND-04**: If a pair's `call.wav` is missing or malformed, the pipeline reports the offending pair and aborts (no silent skipping)
 
 ### Training (TRAIN)
 
@@ -95,20 +95,20 @@ Deferred to a later milestone. Tracked here so they don't get lost.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-01 | Phase 1: Tokenizer & Ingest | Pending |
+| DATA-01 | Phase 1: Tokenizer & Ingest | Done (01-05) |
 | DATA-02 | Phase 1: Tokenizer & Ingest | Done (01-04) |
 | DATA-03 | Phase 1: Tokenizer & Ingest | Done (01-04) |
 | DATA-04 | Phase 1: Tokenizer & Ingest | Done (01-04) |
 | DATA-05 | Phase 3: Corpus & Inference | Pending |
-| TOK-01 | Phase 1: Tokenizer & Ingest | Pending |
-| TOK-02 | Phase 1: Tokenizer & Ingest | Pending |
+| TOK-01 | Phase 1: Tokenizer & Ingest | Done (01-02) |
+| TOK-02 | Phase 1: Tokenizer & Ingest | Done (01-02) |
 | TOK-03 | Phase 1: Tokenizer & Ingest | Done (01-01) |
 | TOK-04 | Phase 1: Tokenizer & Ingest | Done (01-01) |
-| TOK-05 | Phase 1: Tokenizer & Ingest | Pending |
-| COND-01 | Phase 1: Tokenizer & Ingest | Pending |
+| TOK-05 | Phase 1: Tokenizer & Ingest | Done (01-05) |
+| COND-01 | Phase 1: Tokenizer & Ingest | Done (01-03) |
 | COND-02 | Phase 2: Model & Training | Pending |
 | COND-03 | Phase 2: Model & Training | Pending |
-| COND-04 | Phase 1: Tokenizer & Ingest | Pending |
+| COND-04 | Phase 1: Tokenizer & Ingest | Done (01-05) |
 | TRAIN-01 | Phase 2: Model & Training | Pending |
 | TRAIN-02 | Phase 2: Model & Training | Pending |
 | TRAIN-03 | Phase 2: Model & Training | Pending |
