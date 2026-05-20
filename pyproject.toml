@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "apollo"
 version = "0.1.0"
 description = "Apollo v2.0 — Call-and-Response v1 (tokenizer + ingest)"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dependencies = [
     "torch>=2.8.0",
     "torchaudio>=2.8.0",
