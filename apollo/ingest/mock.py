@@ -22,8 +22,8 @@ from pathlib import Path
 
 import numpy as np
 import pretty_midi
+import soundfile as sf
 import torch
-import torchaudio
 
 
 def synthesize_pair(
@@ -70,7 +70,8 @@ def synthesize_pair(
     # 440 Hz sine — content doesn't matter, just shape/format for MelExtractor.
     t = np.arange(int(audio_seconds * audio_sr)) / audio_sr
     wav = (0.1 * np.sin(2 * np.pi * 440 * t)).astype(np.float32)
-    wav_tensor = torch.from_numpy(wav).unsqueeze(0)  # (1, samples)
-    torchaudio.save(str(pair_dir / "call.wav"), wav_tensor, audio_sr)
+    # Use soundfile directly — avoids torchaudio backend selection (torchcodec
+    # is the torchaudio 2.8+ default but is not a required dep for tests).
+    sf.write(str(pair_dir / "call.wav"), wav, audio_sr)
 
     return pair_dir
