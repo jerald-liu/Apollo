@@ -38,6 +38,12 @@ Each pair lives at `data/pairs/NNN/` with exactly three files:
 6. Export the response MIDI clip as `response.mid` inside `data/pairs/NNN/`.
 7. Verify: `data/pairs/NNN/` now contains exactly `call.mid`, `call.wav`, `response.mid`.
 
+## Known limitation: LFO/envelope-driven rhythm
+
+Operator patches can produce perceived rhythm through LFOs or amplitude envelopes (e.g. a filter LFO creating a pulse on a held note) without any MIDI note events. The model receives the mel spectrogram of `call.wav` and can "hear" this timbral rhythm, but **the response channel is MIDI-only** — the model can only answer with note events, not synthesis parameters. A call with strong LFO-driven pulse may not get a response that engages with that texture.
+
+**Practical guidance:** For v1, prefer calls where rhythmic intent is expressed primarily through note events rather than synthesis modulation. Calls that rely heavily on LFO/envelope rhythm will produce responses that are rhythmically "straight" relative to the call's timbral pulse. This asymmetry is a known v1 limitation, deferred to a later milestone.
+
 ## Validation
 
 The ingest pipeline (`apollo/scripts/ingest_corpus.py`) will fail loudly on any non-conforming pair:

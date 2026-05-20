@@ -41,6 +41,7 @@ Given a short MIDI call played through an Operator preset, the model produces a 
 - **Non-Operator instruments** — v1 is Operator-only. Reason: timbre space constrained to one FM synth family makes mel conditioning learnable on a small corpus.
 - **Pretraining on MAESTRO or other corpora** — train from scratch. Reason: prior piano-derived priors (pedal-active rate, piano dynamics envelope) actively conflict with FM/Operator material. Prior piano/MAESTRO code lives on the `deprecated` branch for reference only.
 - **Relationship-mode labels** (call-back / answer / continuation) — user authors naturally, model learns implicit distribution. Reason: zero labeling overhead; "Jerald-shape" is the target, not any specific mode.
+- **Synthesis-level rhythmic response** — calls can carry timbral rhythm via LFO/envelope (e.g. a filter LFO creating a perceived pulse on a held note). The mel spectrogram gives the model perceptual access to this, but the response channel is MIDI-only, so the model cannot answer with synthesis-level rhythm — only note-event rhythm. This is a fundamental asymmetry between call and response channels. Deferred to a future milestone (see Backlog 999.2).
 
 ## Context
 

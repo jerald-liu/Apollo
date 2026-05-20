@@ -91,6 +91,15 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 ## Backlog
 
+### Phase 999.2: Synthesis-Level Rhythmic Response (BACKLOG)
+
+**Goal:** Close the asymmetry between call and response rhythmic channels. In v1, calls can carry timbral rhythm via LFO/envelope (a filter LFO on a held note creates a perceived pulse), but the model can only answer with MIDI note events. A future milestone should either (a) extend the response channel to include synthesis parameter suggestions (LFO rate, envelope shape) or (b) augment the tokenizer with CC/mod-wheel tokens that can proxy synthesis-level rhythm.
+**Motivation:** Operator FM patches frequently use LFOs for rhythmic expression. Constraining corpus authoring to note-event rhythm (the v1 workaround) limits musical range and is unnatural for FM sound design.
+**Prerequisites:** Phase 4 complete; at least one corpus iteration showing clear note-rhythm call-response fit; Phase 999.1 (FM patch generation head) is a natural prerequisite.
+**Requirements:** TBD
+**Plans:** 0 plans
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ### Phase 999.1: FM Patch Generation Head (BACKLOG)
 
 **Goal:** Extend the model to suggest Operator FM patch parameters alongside response MIDI — the model outputs both notes *and* a timbre suggestion, giving complete call-and-response including sound design.
