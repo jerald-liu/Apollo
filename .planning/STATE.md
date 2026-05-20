@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-04-PLAN.md (masked CE loss + metrics + train_epoch — 15/15 tests, TDD RED/GREEN)
-last_updated: "2026-05-20T04:05:00Z"
-last_activity: 2026-05-20 -- Completed 02-04 masked loss + metrics + train_epoch (15/15 tests, j>=sep_pos boundary confirmed, MPS green)
+stopped_at: Completed 02-05-PLAN.md (checkpoint + smoke train — 12/12 tests, TRAIN-04 type_accuracy=1.0000, TRAIN-06 checkpoint 3.7MB, Phase 2 closed)
+last_updated: "2026-05-20T04:04:41Z"
+last_activity: 2026-05-20 -- Completed 02-05 checkpoint serialization + smoke train CLI (100/100 tests, type_accuracy=1.0000, wall_clock=1.88s, Phase 2 complete)
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 10
-  completed_plans: 9
-  percent: 90
+  completed_plans: 10
+  percent: 100
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-05-19)
 
 ## Current Position
 
-Phase: 02 (model-training) — EXECUTING
-Plan: 5 of 5
-Status: Ready to execute
+Phase: 02 (model-training) — COMPLETE
+Plan: 5 of 5 (all plans complete)
+Status: Phase 2 closed — ready for Phase 3 (Corpus & Inference)
 Last activity: 2026-05-20
 
-Progress: [████████░░] 80%
+Progress: [██████████] 100% (phases 1-2 complete)
 
 ## Performance Metrics
 
@@ -45,7 +45,7 @@ Progress: [████████░░] 80%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01    | 5     | ~39m  | ~8m      |
-| 02    | 2     | ~7m   | ~3.5m    |
+| 02    | 5     | ~22m  | ~4.4m    |
 
 **Recent Trend:**
 
@@ -87,6 +87,10 @@ Recent decisions affecting current work:
 - 02-04: train_epoch accepts scheduler=None as Phase 3 plug point — warmup+cosine injects without refactoring (D-16)
 - 02-04: No torch.compile in train.py — not supported on MPS in PyTorch 2.8 (RESEARCH §4)
 - 02-04: run_training uses AdamW(model.parameters()) — mel_enc covered via ApolloModel submodule, no separate instantiation needed
+- 02-05: enable_nested_tensor=False on TransformerEncoder — disables MPS-incompatible nested tensor fast path (aten::_nested_tensor_from_mask_left_aligned raises NotImplementedError in eval mode with src_key_padding_mask)
+- 02-05: load_checkpoint uses weights_only=False (D-24, trusted-local-only, documented in module docstring)
+- 02-05: mel_encoder_state_dict saved as separate top-level key (D-23) via model.mel_enc.state_dict() — preserves Phase 3 independent loading option
+- 02-05: Phase 2 closed: type_accuracy=1.0000 (gate >0.95), wall_clock=1.88s (budget 120s), checkpoint=3.7MB
 
 ### Pending Todos
 
@@ -106,6 +110,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-20T04:05:00Z
-Stopped at: Completed 02-04-PLAN.md (masked CE loss + metrics + train_epoch — 15/15 tests, TDD RED/GREEN)
-Resume file: .planning/phases/02-model-training/02-05-PLAN.md
+Last session: 2026-05-20T04:04:41Z
+Stopped at: Completed 02-05-PLAN.md (checkpoint + smoke train — 100/100 tests, Phase 2 closed)
+Resume file: None — Phase 2 complete, next: Phase 3 (Corpus & Inference)
