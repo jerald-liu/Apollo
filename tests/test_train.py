@@ -39,15 +39,18 @@ from apollo.model.metrics import token_category, compute_type_accuracy
 
 @pytest.fixture(scope="module")
 def mock_artifact(tmp_path_factory):
-    """Build a 6-pair mock artifact using synthesize_pair + ingest."""
+    """Build a 7-pair mock artifact using synthesize_pair + ingest.
+
+    synthesize_pair(root, nnn=...) creates <root>/<nnn>/{call.mid,call.wav,response.mid}.
+    NNNs 000-005 are non-heldout; 006 is heldout (deterministic from is_heldout logic).
+    """
     from apollo.ingest.mock import synthesize_pair
     from apollo.ingest.artifact import ingest
 
     root = tmp_path_factory.mktemp("pairs")
-    for i in range(7):
-        pair_dir = root / f"{i:03d}"
-        pair_dir.mkdir()
-        synthesize_pair(pair_dir)
+    for i in range(6):
+        synthesize_pair(root, nnn=f"{i:03d}")
+    synthesize_pair(root, nnn="006")  # heldout pair for coverage
 
     artifact = ingest(root)
     return artifact
@@ -150,24 +153,44 @@ class TestLossMaskBoundary:
         )
 
     def test_loss_mask_includes_first_response_token(self):
-        """Changing target of first response position changes loss (> 1e-6 difference)."""
+        """Changing target of first response position changes loss (> 1e-6 difference).
+
+        Uses non-uniform logits at j=sep_pos so the specific target token matters.
+        With uniform logits CE is identical for any target — that would be a tautology,
+        not a mask test.
+        """
         T, V = 16, 256
         sep_idx = 5
-        logits, token_ids = self._make_batch(sep_idx=sep_idx, T=T, V=V)
 
-        # Loss with original token at first response position (token_ids[sep_idx+1])
+        # Build token_ids with SEP at sep_idx
+        token_ids = torch.zeros(1, T, dtype=torch.long)
+        token_ids[0, sep_idx] = SEP
+        first_resp_token = 50  # arbitrary pitch token
+        token_ids[0, sep_idx + 1] = first_resp_token
+        for j in range(sep_idx + 2, T - 1):
+            token_ids[0, j] = 32 + (j % 37)
+        token_ids[0, T - 1] = EOS
+
+        # Non-uniform logits: at j=sep_pos, strongly score token 0 (NOT the correct target)
+        logits = torch.zeros(1, T, V)
+        logits[0, sep_idx, 0] = 10.0  # argmax=0, target=first_resp_token=50 → high loss
+
+        # Loss with original first response target (50) — high because logits point away
         loss_original = compute_masked_loss(logits, token_ids)
 
-        # Swap token at first response position to something different
+        # Swap first response target to token 0 — logits now point AT target → low loss
         token_ids_alt = token_ids.clone()
-        original_tok = token_ids_alt[0, sep_idx + 1].item()
-        token_ids_alt[0, sep_idx + 1] = (original_tok + 50) % V
+        token_ids_alt[0, sep_idx + 1] = 0  # logits score token 0 highly → low CE
 
         loss_alt = compute_masked_loss(logits, token_ids_alt)
 
-        assert abs(loss_original.item() - loss_alt.item()) > 1e-6, (
-            f"Changing first response token target must change loss. "
+        assert abs(loss_original.item() - loss_alt.item()) > 1e-3, (
+            f"Changing first response token target must change loss — proves j=sep_pos is INCLUDED. "
             f"Original={loss_original.item():.6f}, Alt={loss_alt.item():.6f}"
+        )
+        # Also verify direction: loss_original > loss_alt (wrong prediction → higher loss)
+        assert loss_original.item() > loss_alt.item(), (
+            "With logits pointing to token 0, loss targeting token 50 should be > loss targeting token 0"
         )
 
     def test_loss_mask_handles_variable_sep_position(self):
