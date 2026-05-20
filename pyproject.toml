@@ -12,10 +12,11 @@ dependencies = [
     "torchaudio>=2.8.0",
     "pretty_midi>=0.2.11",
     "numpy>=1.24",
+    "soundfile>=0.12",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0", "soundfile>=0.12"]
+dev = ["pytest>=7.0"]
 
 [tool.setuptools.packages.find]
 where = ["."]
