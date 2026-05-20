@@ -11,16 +11,17 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+import soundfile as sf
 import torch
-import torchaudio
 
 from apollo.ingest import IngestError, MelExtractor
 
 
 def _write_silence(path, seconds: float, sr: int, channels: int = 1):
     """Synthesize and write a silent wav of the requested duration / sr / channels."""
-    wav = torch.zeros(channels, int(seconds * sr))
-    torchaudio.save(str(path), wav, sr)
+    samples = int(seconds * sr)
+    data = np.zeros((samples, channels), dtype=np.float32)
+    sf.write(str(path), data, sr)
 
 
 def test_shape_and_dtype_44100hz(tmp_path):
