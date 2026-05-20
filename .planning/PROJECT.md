@@ -2,78 +2,79 @@
 
 ## What This Is
 
-Apollo is a real-time generative music co-performance system for piano and Max for Live. It listens to what a musician plays, generates a musical response in MIDI, and sends it back to Ableton Live via an OSC bridge — fast enough to feel like a live collaborator rather than a render job. The model is a causal transformer trained on MAESTRO, with streaming note-on/note-off tokenization for minimal input latency.
+Apollo is a generative call-and-response model for Ableton **Operator** (FM synth). You play a short MIDI phrase routed through an Operator preset; the model returns a complementary MIDI response in your own authored style. The corpus is hand-curated by the user — paired MIDI tracks (call + response) authored in Ableton — and the model learns the user's call→response intuition implicitly.
 
 ## Core Value
 
-A pianist plays and Apollo responds in real-time — note-for-note, phrase-for-phrase, within 10ms of keypress.
+Given a short MIDI call played through an Operator preset, the model produces a response that *feels like the user* responding to themselves. The active-learning loop (author → train → listen → identify gaps → author more) is the deliverable as much as any single trained model.
 
 ## Requirements
 
 ### Validated
 
-- ✓ MAESTRO preprocessing pipeline (MIDI tokenization, mel spectrogram extraction, streaming tokenizer) — Phase 1
-- ✓ Autoregressive transformer with KV-cache (11M params, 2.7× speedup over naive decode) — Phase 1
-- ✓ v2 augmented training: best val loss 2.1641 (50K steps, pitch augmentation, label smoothing) — Phase 1
-- ✓ Streaming note-on/note-off tokenizer (259-token vocab, 2× musical context per window, zero duration-wait latency) — Phase 1
-- ✓ OSC inference server with streaming handlers (/apollo/note_on, /apollo/note_off) — Phase 1
-- ✓ FluidSynth synthesis pipeline (MIDI → WAV via bundled soundfont) — Phase 1
-- ✓ Modal cloud GPU training infrastructure (A100, 12h timeout, config-driven data dir) — Phase 1
+**Validated in Phase 1 (Tokenizer & Ingest):** Tokenizer round-trips MIDI, mel extractor produces (96,128) tensors, pair discovery + hash split + artifact format, error handling + smoke test.
+
+**Validated in Phase 2 (Model & Training):** MelEncoder (109,184 params, CNN) compresses mel → (B,128) embedding. ApolloModel (976,384 params, causal transformer + MEL prefix). ApolloDataset + collate_fn packs [BOS, call, SEP, response, EOS, PAD]. Masked CE loss (response-only, `>= sep_pos` boundary). Smoke train: `type_accuracy=1.0` on 4 pairs, 1.88s on MPS. Checkpoint round-trips bit-identically (5-key format).
 
 ### Active
 
-- [ ] v3 mel training run completes (80K steps, MelEncoder CNN conditioning, batch=64)
-- [ ] v4 streaming training run completes (80K steps, 259-token vocab, batch=256, torch.compile)
-- [ ] v3 checkpoint pulled, WAVs generated at temperatures 0.7/0.9/1.1, audio evaluated
-- [ ] v4 checkpoint pulled, WAVs generated, audio evaluated against v2 baseline
-- [ ] OSC loopback test: inference_server.py running locally, test script sends note_on/note_off, verifies generated notes return
+- [ ] Author ≥30 call/response pairs in Ableton across varying Operator presets
+- [ ] Pair folder layout: `data/pairs/NNN/{call.mid, call.wav, response.mid}` (NNN zero-padded)
+- [ ] MIDI tokenizer: pitch + velocity + timing + duration, monophonic, quantized-grid time bins, vocab structurally extensible to pitch bend / mod wheel / CCs without breaking checkpoints
+- [ ] Mel encoder conditions the model on the call's rendered audio (`call.wav` → mel features → embedding fed alongside MIDI tokens)
+- [ ] Training packs `[BOS, call_tokens, SEP, response_tokens, EOS]` with **loss masked to response tokens only**
+- [ ] Train from scratch — no warm-start from any prior checkpoint
+- [ ] 20% of authored pairs held out, never trained on
+- [ ] Inference: `generate.py` accepts a call `.mid` + `.wav`, emits a response `.mid`
+- [ ] Listen-test rubric includes a "call-response fit" dimension (1–5), scored by user
+- [ ] Active-learning loop tooling: track held-out scores across iterations, surface deltas
+- [ ] Ship v1 when two consecutive iteration rounds both improve held-out call-response-fit score
 
 ### Out of Scope
 
-- Live Ableton integration (M4L device wiring) — Phase 2, after training validated
-- Multi-scale mel encoder (fine/mid/coarse branches) — Phase 3.2, after single-scale v3 validated
-- EnCodec codec decoder (waveform output head) — Phase 4, requires paired audio + new training run
-- User personalization embeddings — Phase 2+
-- Non-piano instruments / GiantMIDI-Piano data — future milestone
+- **Pitch bend / mod wheel / CC tokens in v1** — vocab leaves headroom for these, but v1 ships notes-only. Reason: keep first-pass scope small; expression can be added without re-architecture.
+- **Real-time Max-for-Live deployment** — v1 is offline `.mid` → `.mid`. Reason: validate the musical bar before the latency bar.
+- **Free/humanized timing** — v1 corpus is quantized to grid. Reason: smaller vocab, cleaner training signal; groove enters as a later corpus extension.
+- **Polyphonic generation** — v1 is monophonic both sides. Reason: clean tokenization, smaller model, matches authored corpus style.
+- **Phrases longer than ~2 sec / >6 notes per side** — v1 stays in the "tiny gesture" regime. Reason: small context window keeps the model small and training local-runnable.
+- **Audio output from the model** — response is MIDI only; user picks the response preset in Ableton. Reason: scope explosion; symbolic output is sufficient to validate the call→response idea.
+- **Non-Operator instruments** — v1 is Operator-only. Reason: timbre space constrained to one FM synth family makes mel conditioning learnable on a small corpus.
+- **Pretraining on MAESTRO or other corpora** — train from scratch. Reason: prior piano-derived priors (pedal-active rate, piano dynamics envelope) actively conflict with FM/Operator material. Prior piano/MAESTRO code lives on the `deprecated` branch for reference only.
+- **Relationship-mode labels** (call-back / answer / continuation) — user authors naturally, model learns implicit distribution. Reason: zero labeling overhead; "Jerald-shape" is the target, not any specific mode.
+- **Synthesis-level rhythmic response** — calls can carry timbral rhythm via LFO/envelope (e.g. a filter LFO creating a perceived pulse on a held note). The mel spectrogram gives the model perceptual access to this, but the response channel is MIDI-only, so the model cannot answer with synthesis-level rhythm — only note-event rhythm. This is a fundamental asymmetry between call and response channels. Deferred to a future milestone (see Backlog 999.2).
 
 ## Context
 
-**Training state:** v3_mel (batch=64, lr=4.2e-4) and v4_streaming (batch=256, lr=6.0e-4, compile=true) are configured and tested locally. Both were stopped mid-run when Modal billing cycle limit was hit. Configs are correct — OOM bugs fixed, VOCAB_SIZE migration complete.
+**Prior work.** A prior milestone (v1.0) trained a transformer on MAESTRO piano. It hit a representation-level dynamics blocker (MAESTRO's 91-95% pedal-active prior was load-bearing in the output distribution). That milestone is deferred. Its codebase lives on the `deprecated` branch as historical reference only — *not* a model lineage. This project is a clean restart (`call-and-response-v1` branch, orphan, three scaffold files).
 
-**Blocking issue:** Modal workspace billing limit. Runs need to be re-launched once limit resets or is increased.
+**Corpus authoring.** The user authors pairs in Ableton: two MIDI tracks, both running Operator (with potentially different presets per pair). Each pair is exported as three files: `call.mid`, `call.wav` (manual bounce/freeze from Ableton, captures timbre context), and `response.mid`. Authoring is the rate-limiting step; everything else exists to make iteration on the corpus cheap.
 
-**Architecture decisions made:**
-- TransformerEncoder (decoder-only) replaced TransformerDecoder — removes 3.4M params of dead cross-attention over zeros
-- KV-cache (CausalMHA/CausalTransformerLayer) — O(T) per decode step, 2.7× faster at 50 tokens
-- Streaming note-on/note-off split — 3 tokens on keypress (immediate), 2 tokens on release; eliminates duration-wait latency
-- MelEncoder: 2-layer Conv2D CNN, AdaptiveAvgPool → d_model, broadcast over token positions
-- Pitch augmentation ±6 semitones — 13× effective data, eliminated v2 val plateau at 2.44
+**Why Operator (FM).** FM has a small, predictable spectral structure compared to piano. Timbre carries information in this corpus — the same call shape feels different through a bright pluck vs. a soft pad, and the right response differs accordingly. Mel-conditioning is the channel through which the model gets timbre context.
 
-**Val loss history:**
-| Run | Steps | Best Val | Notes |
-|-----|-------|----------|-------|
-| base (MIDI only) | 50K | 2.2751 | no augmentation, plateau at step 46K |
-| v2 (augmented) | 50K | 2.1641 | pitch aug, label smoothing, TF encoder |
-| v3 mel | running | — | mel conditioning, batch 64 |
-| v4 streaming | running | — | 259-token vocab, 2× context |
+**Active-learning is the product.** A single trained model is not the goal. The goal is a methodology: author 30 → train → listen → identify gaps → author 20 more → retrain → confirm scores improved. v1 ships when this loop demonstrably works (two consecutive improvements on held-out scores).
 
 ## Constraints
 
-- **Compute**: Modal A100 — 12h timeout per run, ~$3/hr, billing cycle limit applies
-- **Latency**: Inference must stay under 10ms/event at ctx=128 on MPS (M4 MacBook)
-- **Vocab**: v3 uses 380-token base vocab; v4 uses 259-token streaming vocab — incompatible checkpoints
-- **Augmentation**: Pitch/velocity augmentation disabled for v4 streaming (token offset ranges differ from base vocab — needs reimplementation)
+- **Tech stack**: PyTorch transformer + mel encoder (small CNN). Local-runnable on MPS (Apple Silicon) — no Modal/cloud needed for v1 given the tiny model + tiny corpus.
+- **Corpus size**: ≥30 pairs to start; comfort zone 100–200 pairs. Pitch-shift ±5 semitones augmentation gives ~11× but interacts with mel conditioning (audio must be shifted or re-rendered to stay aligned — a plan-phase decision).
+- **Authoring tool**: Ableton Live with Operator. No CLI/headless render — user manually bounces audio per pair.
+- **Latency**: Not a v1 constraint (offline `.mid` → `.mid`). Real-time M4L is a later milestone.
+- **Vocab extensibility**: First-version tokenizer must reserve space for pitch bend / mod wheel / CC tokens so adding them later doesn't invalidate existing checkpoints.
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| TransformerEncoder over TransformerDecoder | Decoder had dummy cross-attention over zeros (3.4M wasted params) | ✓ Confirmed — no quality regression, 10% faster |
-| KV-cache (custom CausalMHA) | O(T²)→O(T) per decode step, essential for real-time | ✓ 2.7× speedup at 50 tokens, ~10× at 512 |
-| Streaming note-on/note-off tokenizer | Duration-wait latency (0.5–2s) incompatible with real-time feel | — Pending (v4 training not yet evaluated) |
-| Pitch augmentation ±6 semitones | Dataset cycled 89× per run — primary cause of v2 val plateau | ✓ Val improved 0.11 vs base |
-| Single A100 over multi-GPU DDP | 11M params use 0.2% VRAM — DDP has sync overhead without benefit at this scale | ✓ Confirmed — throughput bottleneck is batch size, not GPU count |
-| batch_size 512 → 64/256 (downscaled) | MelEncoder Conv2D activations OOM at batch=512; compile adds overhead | — Pending (runs not yet complete) |
+| Instrument = Operator only | FM has bounded spectral structure; mel-conditioning becomes learnable on a small corpus | — Pending |
+| Monophonic, tiny gestures (0.5–1.5s, 2–6 notes) | Smallest viable scope; model stays tiny, training fast, authoring tractable | — Pending |
+| Quantized timing first, groove later | Smaller time-bin vocab; iterate corpus complexity after baseline works | — Pending |
+| No relationship-mode labels | Zero labeling overhead; user-shape is the implicit target | — Pending |
+| Preset varies pair-to-pair + mel-condition the call | Timbre is part of the corpus signal; mel-condition is the channel that carries it | — Pending |
+| Response loss only | Model isn't penalized for the call side; learns to generate, not autoencode | — Pending |
+| Train from scratch (no MAESTRO pretrain) | Piano priors actively conflict with Operator material; cleaner to start fresh | — Pending |
+| Ship criterion = two consecutive held-out-score improvements | Validates the iteration loop, not just a single lucky model | — Pending |
+| Vocab is extensible (room for bend/CC tokens) | Adding expression later must not break existing checkpoints | — Pending |
+| Manual Ableton bounce for `.wav` | Most natural workflow; no separate synth-render pipeline | — Pending |
 
 ## Evolution
 
@@ -93,4 +94,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-13 after project initialization*
+*Last updated: 2026-05-19 after initialization*

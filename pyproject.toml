@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "apollo"
+version = "0.1.0"
+description = "Apollo v2.0 — Call-and-Response v1 (tokenizer + ingest)"
+requires-python = ">=3.9"
+dependencies = [
+    "torch>=2.8.0",
+    "torchaudio>=2.8.0",
+    "pretty_midi>=0.2.11",
+    "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["apollo*"]
+exclude = ["tests*", "deprecated*", "data*", "artifacts*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

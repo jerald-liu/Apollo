@@ -1,72 +1,135 @@
-# Apollo — v1 Requirements
+# Requirements: Apollo
 
-## Milestone: Ship v3 + v4 Training
-
-**Goal:** Complete both training runs, evaluate audio quality, and verify the streaming inference path end-to-end.
-
----
+**Defined:** 2026-05-19
+**Core Value:** Given a short MIDI call played through an Operator preset, the model produces a response that feels like the user responding to themselves — and the active-learning loop demonstrably improves it over consecutive iterations.
 
 ## v1 Requirements
 
-### Training Completion
+### Corpus (DATA)
 
-- [ ] **TRAIN-01**: v3 mel training run completes 80K steps on Modal A100 without error
-- [ ] **TRAIN-02**: v4 streaming training run completes 80K steps on Modal A100 without error
-- [ ] **TRAIN-03**: Both runs use corrected configs (v3: batch=64 lr=4.2e-4; v4: batch=256 lr=6.0e-4 compile=true)
-- [ ] **TRAIN-04**: Best checkpoints saved to Modal `apollo-checkpoints` volume for both runs
+- [x] **DATA-01**: User can author and export call/response pairs in Ableton with both tracks running Operator (potentially different presets per pair)
+- [x] **DATA-02**: Each pair lives at `data/pairs/NNN/` with three files: `call.mid`, `call.wav` (manual Ableton bounce), `response.mid` (NNN zero-padded, sequential)
+- [x] **DATA-03**: An ingestion pipeline reads `data/pairs/*/` and tokenizes pairs into training tensors (MIDI tokens + mel features per pair)
+- [x] **DATA-04**: The pipeline reserves 20% of pairs as a held-out evaluation split, deterministically (same split every run)
+- [ ] **DATA-05**: Corpus reaches ≥30 authored pairs before first real training run
 
-### Checkpoint Evaluation
+### Tokenizer (TOK)
 
-- [ ] **EVAL-01**: v3 checkpoint pulled locally (`models/checkpoint_v3_best.pt`)
-- [ ] **EVAL-02**: v4 checkpoint pulled locally (`models/checkpoint_v4_best.pt`)
-- [ ] **EVAL-03**: v3 generates WAVs at temperatures 0.7, 0.9, 1.1 via `scripts/generate.py --audio`
-- [ ] **EVAL-04**: v4 generates WAVs at temperatures 0.7, 0.9, 1.1 via `scripts/generate.py --audio`
-- [ ] **EVAL-05**: v3 val loss beats v2 baseline (2.1641) — mel conditioning demonstrates improvement
-- [ ] **EVAL-06**: v4 streaming val loss shows healthy descent (target <2.3 at 80K steps)
+- [x] **TOK-01**: A monophonic MIDI event tokenizer encodes pitch + velocity + timing + duration as discrete tokens
+- [x] **TOK-02**: Time and duration use quantized-grid bins (coarse resolution suitable for grid-locked authoring)
+- [x] **TOK-03**: The vocab includes BOS, EOS, and SEP special tokens with SEP placed between call and response in training samples
+- [x] **TOK-04**: The vocab layout reserves contiguous ranges (or a versioned offset scheme) for later pitch bend / mod wheel / CC tokens, so adding them does not invalidate existing checkpoints
+- [x] **TOK-05**: Round-trip test: a tokenizer applied to mock pairs decodes back to MIDI semantically equivalent to the input (pitches, velocities, onsets preserved within quantization tolerance)
 
-### Inference Verification
+### Audio Conditioning (COND)
 
-- [ ] **INF-01**: `inference_server.py` starts cleanly with v4 checkpoint loaded
-- [ ] **INF-02**: OSC loopback test script sends `/apollo/note_on` + `/apollo/note_off` events
-- [ ] **INF-03**: Server returns generated notes via `/apollo/gen/note` OSC messages
-- [ ] **INF-04**: Time-to-first-event measured and logged (target: <50ms from note_on to first response)
+- [x] **COND-01**: A mel-feature extractor reads `call.wav` and produces a fixed-shape mel-spectrogram tensor at a documented sample rate / hop / n_mels
+- [x] **COND-02**: A small mel encoder (CNN or equivalent) compresses the mel tensor into a conditioning embedding fed alongside MIDI tokens
+- [x] **COND-03**: The mel encoder is part of the trained model graph (jointly trained, not frozen pretrained)
+- [x] **COND-04**: If a pair's `call.wav` is missing or malformed, the pipeline reports the offending pair and aborts (no silent skipping)
 
----
+### Training (TRAIN)
 
-## v2 Requirements (deferred)
+- [x] **TRAIN-01**: Training samples pack as `[BOS, call_tokens, SEP, response_tokens, EOS]` with the SEP boundary explicit
+- [x] **TRAIN-02**: Cross-entropy loss is **masked to response tokens only** — the model is not penalized for the call side
+- [x] **TRAIN-03**: Model is trained from scratch (random init); no warm-start from any prior checkpoint
+- [x] **TRAIN-04**: A smoke-train on ≥10 mock pairs reaches >95% next-token type-accuracy on the response side (sanity check, structurally valid output)
+- [x] **TRAIN-05**: Training runs locally on MPS (Apple Silicon) in a reasonable wall-clock for the small corpus (no Modal/cloud dependency)
+- [x] **TRAIN-06**: Checkpoints save model state + mel encoder + tokenizer config in a single artifact under `models/`
 
-- Live Ableton M4L device integration — Phase 2
-- Streaming augmentation (pitch/velocity in 259-token vocab) — blocked on v4 training validation
-- GiantMIDI-Piano data addition — next data milestone
-- Multi-scale mel encoder (fine/mid/coarse) — Phase 3.2
-- EnCodec codec output head — Phase 4
+### Inference (INFER)
 
----
+- [ ] **INFER-01**: `generate.py` accepts a path to a `call.mid` + `call.wav` pair and emits a `response.mid`
+- [ ] **INFER-02**: Response length is configurable (max events or max seconds budget)
+- [ ] **INFER-03**: Sampling supports temperature and top-k controls
+- [ ] **INFER-04**: Optional: sample N responses per call to let the user pick a preferred one
+
+### Evaluation (EVAL)
+
+- [ ] **EVAL-01**: A listen-test rubric exists with "call-response fit" (1–5) as one dimension, plus other musical-quality dimensions
+- [ ] **EVAL-02**: A grading workflow plays call → response back-to-back per cell so the user can score
+- [ ] **EVAL-03**: Held-out scoring is persisted per run (CSV/JSON) so deltas across iterations are visible
+- [ ] **EVAL-04**: A tracking surface (script or doc) shows score-per-iteration deltas across consecutive training runs
+- [ ] **EVAL-05**: v1 ships only when two consecutive iteration rounds both improve mean held-out call-response-fit score
+
+## v2 Requirements
+
+Deferred to a later milestone. Tracked here so they don't get lost.
+
+### Expression (EXPR)
+
+- **EXPR-01**: Pitch-bend tokens added to vocab (offset reserved in TOK-04), tokenizer encodes/decodes them, training corpus includes pitch-bend-rich pairs
+- **EXPR-02**: Mod-wheel / CC tokens added to vocab; user authors CC automation in call and response
+- **EXPR-03**: Aftertouch and other expressive controllers
+
+### Timing (TIME)
+
+- **TIME-01**: Groove / humanized / off-grid timing supported by widening the time-bin resolution (or moving to a hybrid bin+offset scheme)
+- **TIME-02**: Tempo variations across pairs (currently assumed constant)
+
+### Real-time (RT)
+
+- **RT-01**: Max for Live device wraps the model for in-Ableton call→response
+- **RT-02**: Live audio capture of the call (not just `.mid` file)
+- **RT-03**: Sub-50ms latency call-end → first response note
+
+### Capacity (CAP)
+
+- **CAP-01**: Polyphonic call/response (chords, overlapping voices)
+- **CAP-02**: Longer phrases (>2 sec, >6 notes per side)
+- **CAP-03**: Multi-bar pairs with internal structure
 
 ## Out of Scope
 
-- Drum/rhythm generation — 12-TET piano model, not designed for percussion
-- Real-time audio input — audio encoder is conditioning only, not generative input
-- Multi-instrument support — MAESTRO is piano-only; generalization requires new data
-- Mobile / embedded inference — target is M4 MacBook, not constrained hardware
-
----
+| Feature | Reason |
+|---------|--------|
+| Pretraining on MAESTRO or other piano corpora | Piano priors (pedal-active rate, piano dynamics envelope) actively conflict with FM/Operator material; prior code lives on `deprecated` branch as reference only |
+| Non-Operator instruments | v1 timbre space constrained to one FM family so mel-conditioning is learnable on a small corpus |
+| Model produces audio output (waveform / codec tokens) | Symbolic MIDI output is sufficient to validate the call→response idea; audio output is scope explosion |
+| Relationship-mode labels (call-back / answer / continuation) | Zero labeling overhead; "Jerald-shape" is the implicit target across modes |
+| Cloud / Modal training | Model + corpus are small enough to train locally on MPS |
+| Pretrained mel encoders (e.g. AudioMAE, CLAP) | First version trains the mel encoder jointly so it specializes to the Operator-FM spectral family on this corpus |
+| Multi-instrument training (e.g. piano + bass + drums) | v1 is solo Operator only; multi-track ensemble is a separate problem class |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TRAIN-01 | Phase 1: Training | Pending |
-| TRAIN-02 | Phase 1: Training | Pending |
-| TRAIN-03 | Phase 1: Training | Pending |
-| TRAIN-04 | Phase 1: Training | Pending |
-| EVAL-01 | Phase 2: Evaluation | Pending |
-| EVAL-02 | Phase 2: Evaluation | Pending |
-| EVAL-03 | Phase 2: Evaluation | Pending |
-| EVAL-04 | Phase 2: Evaluation | Pending |
-| EVAL-05 | Phase 2: Evaluation | Pending |
-| EVAL-06 | Phase 2: Evaluation | Pending |
-| INF-01 | Phase 3: Inference | Pending |
-| INF-02 | Phase 3: Inference | Pending |
-| INF-03 | Phase 3: Inference | Pending |
-| INF-04 | Phase 3: Inference | Pending |
+| DATA-01 | Phase 1: Tokenizer & Ingest | Done (01-05) |
+| DATA-02 | Phase 1: Tokenizer & Ingest | Done (01-04) |
+| DATA-03 | Phase 1: Tokenizer & Ingest | Done (01-04) |
+| DATA-04 | Phase 1: Tokenizer & Ingest | Done (01-04) |
+| DATA-05 | Phase 3: Corpus & Inference | Pending |
+| TOK-01 | Phase 1: Tokenizer & Ingest | Done (01-02) |
+| TOK-02 | Phase 1: Tokenizer & Ingest | Done (01-02) |
+| TOK-03 | Phase 1: Tokenizer & Ingest | Done (01-01) |
+| TOK-04 | Phase 1: Tokenizer & Ingest | Done (01-01) |
+| TOK-05 | Phase 1: Tokenizer & Ingest | Done (01-05) |
+| COND-01 | Phase 1: Tokenizer & Ingest | Done (01-03) |
+| COND-02 | Phase 2: Model & Training | Done (02-01) |
+| COND-03 | Phase 2: Model & Training | Done (02-01) |
+| COND-04 | Phase 1: Tokenizer & Ingest | Done (01-05) |
+| TRAIN-01 | Phase 2: Model & Training | Done (02-03) |
+| TRAIN-02 | Phase 2: Model & Training | Done (02-04) |
+| TRAIN-03 | Phase 2: Model & Training | Done (02-04) |
+| TRAIN-04 | Phase 2: Model & Training | Done (02-05) |
+| TRAIN-05 | Phase 2: Model & Training | Done (02-04) |
+| TRAIN-06 | Phase 2: Model & Training | Done (02-05) |
+| INFER-01 | Phase 3: Corpus & Inference | Pending |
+| INFER-02 | Phase 3: Corpus & Inference | Pending |
+| INFER-03 | Phase 3: Corpus & Inference | Pending |
+| INFER-04 | Phase 3: Corpus & Inference | Pending |
+| EVAL-01 | Phase 4: Evaluation Loop | Pending |
+| EVAL-02 | Phase 4: Evaluation Loop | Pending |
+| EVAL-03 | Phase 4: Evaluation Loop | Pending |
+| EVAL-04 | Phase 4: Evaluation Loop | Pending |
+| EVAL-05 | Phase 4: Evaluation Loop | Pending |
+
+**Coverage:**
+- v1 requirements: 29 total
+- Mapped to phases: 29
+- Unmapped: 0 ✓
+
+---
+*Requirements defined: 2026-05-19*
+*Last updated: 2026-05-19 after roadmap creation*

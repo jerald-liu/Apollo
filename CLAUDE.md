@@ -2,67 +2,63 @@
 
 ## What This Is
 
-Real-time generative piano co-performance system for Max for Live. The model listens to what a musician plays and generates a musical response in MIDI via OSC, targeting <10ms latency per event.
+Apollo v2.0 — **Call-and-Response v1**. A generative model that takes a short MIDI phrase (call) routed through an Ableton Operator preset and emits a complementary MIDI response. Trained from scratch on a corpus the user hand-authors in Ableton (paired MIDI tracks, both running Operator), conditioned on the rendered audio of the call to capture timbre context.
 
-## Current Milestone
+Authoritative project context: [`.planning/PROJECT.md`](.planning/PROJECT.md).
 
-**Ship v3 + v4 Training** — get both runs to completion, evaluate audio quality, verify streaming OSC inference.
+## Current State
 
-See `.planning/ROADMAP.md` for phases and success criteria.
-See `.planning/PROJECT.md` for full project context and key decisions.
+- **Branch:** `call-and-response-v1` (active development; the prior piano/MAESTRO codebase lives on `deprecated` for reference only — *not* a model lineage)
+- **Phase:** 1 of 4 — Tokenizer & Ingest
+- **Status:** Roadmap initialized, no plans written yet
+- **Progress:** [░░░░░░░░░░] 0%
 
-## Project Structure
+## Planning Artifacts
 
-```
-src/                  Model, inference server, representations
-  model.py            ApolloModel with KV-cache (CausalMHA/CausalTransformer)
-  inference_server.py OSC bridge for M4L — streaming + legacy handlers
-  representation.py   Base 380-token MIDI tokenizer
-  streaming_representation.py  259-token note-on/note-off tokenizer
-  spectral.py         5-scalar timbral feature extraction (legacy)
-scripts/
-  train.py            Training loop (DDP, AMP, KV-cache-aware)
-  preprocess.py       MAESTRO tokenization (base, mel, streaming modes)
-  generate.py         Autoregressive generation + FluidSynth audio
-  synthesize.py       MIDI → WAV via FluidSynth CLI
-configs/
-  v2.yaml             Base augmented config (current best: val 2.1641)
-  v3_mel.yaml         Mel conditioning (batch=64, lr=4.2e-4)
-  v4_streaming.yaml   Streaming vocab (batch=256, lr=6.0e-4, compile=true)
-data/processed/       Base + mel token arrays (MAESTRO 1276 files)
-data/processed_streaming/  Streaming 259-token arrays
-models/               Local checkpoints (checkpoint_v2_best.pt etc.)
-```
+| Artifact | Location |
+|---|---|
+| Project context | [`.planning/PROJECT.md`](.planning/PROJECT.md) |
+| Workflow config | [`.planning/config.json`](.planning/config.json) |
+| Requirements (29 v1 reqs) | [`.planning/REQUIREMENTS.md`](.planning/REQUIREMENTS.md) |
+| Roadmap (4 phases) | [`.planning/ROADMAP.md`](.planning/ROADMAP.md) |
+| Project state | [`.planning/STATE.md`](.planning/STATE.md) |
 
-## Key Commands
+## Roadmap (4 phases)
 
-```bash
-# Training
-make modal-train CONFIG=configs/v3_mel.yaml
-make modal-train CONFIG=configs/v4_streaming.yaml
+1. **Tokenizer & Ingest** — Pipeline converts any `data/pairs/NNN/` folder to training-ready tensors (TOK + DATA + COND-01/04, 11 reqs)
+2. **Model & Training** — Mel encoder + transformer trained from scratch on mock pairs, smoke-train hits >95% type-acc (COND-02/03 + TRAIN, 8 reqs)
+3. **Corpus & Inference** — User authors ≥30 pairs in Ableton; `generate.py` emits playable response MIDI (DATA-05 + INFER, 5 reqs)
+4. **Evaluation Loop** — Rubric, grading workflow, per-iteration tracking; v1 ships when two consecutive iterations both improve held-out scores (EVAL, 5 reqs)
 
-# Pull checkpoints after training
-make pull-checkpoints
+## Key Constraints to Remember
 
-# Generate audio from checkpoint
-venv/bin/python3 scripts/generate.py --checkpoint models/checkpoint_v3_best.pt --audio --temperatures 0.7 0.9 1.1
-
-# Start inference server
-venv/bin/python3 src/inference_server.py --config configs/inference.yaml
-
-# Check running Modal jobs
-venv/bin/modal app list
-```
+- **Local-only training** — model is small enough to train on Apple Silicon (MPS). No Modal / cloud needed for v1.
+- **Train from scratch** — no MAESTRO pretrain, no warm-start. Piano priors actively conflict with FM material.
+- **Just notes vocab in v1, extensible by design** — pitch / velocity / timing / duration only, but vocab structure must reserve room for pitch-bend / mod-wheel / CC tokens later without invalidating existing checkpoints.
+- **Monophonic + tiny gestures** — 0.5–1.5 sec, 2–6 notes per side, quantized timing. Don't widen scope without explicit decision.
+- **Mel-condition the call** — preset varies pair-to-pair, so the model needs timbre context. `call.wav` is a manual Ableton bounce in each pair folder.
+- **Response-only loss** — model isn't penalized for the call side.
+- **The active-learning loop is the product** — v1 ships only when two consecutive iteration rounds both improve held-out call-response-fit scores.
 
 ## GSD Workflow
 
-This project uses GSD for structured planning. Use:
-- `/gsd-progress` — check where you are
-- `/gsd-plan-phase 1` — plan Phase 1 (Training)
-- `/gsd-execute-phase 1` — execute Phase 1 plans
+This project uses GSD (Get Shit Done) for planning and execution. Common commands:
 
-## Important State
+- `/gsd-progress` — show where you are, route to next action
+- `/gsd-discuss-phase 1` — discuss Phase 1 before planning (recommended)
+- `/gsd-plan-phase 1` — create detailed PLAN.md for Phase 1
+- `/gsd-execute-phase 1` — execute all plans in Phase 1
+- `/gsd-next` — auto-advance to the next logical step
 
-- **Modal billing**: Hit cycle limit — runs are paused. Resolve before Phase 1 can proceed.
-- **v4 streaming**: Pitch/velocity augmentation is disabled (token offset mismatch — needs reimplementation).
-- **Checkpoints on Modal volume**: `checkpoint_step_50000.pt` is the v2 best (2.1641). Saved as `checkpoint_v2_best.pt` locally.
+**Workflow toggles active** (from `.planning/config.json`): YOLO mode · Coarse granularity · Parallel execution · Research before planning · Plan-check enabled · Verifier enabled · Balanced model profile.
+
+## Branches
+
+- `call-and-response-v1` (active) — fresh start, this milestone
+- `deprecated` — prior piano/MAESTRO codebase, historical reference only
+
+## Memory References
+
+Persistent memory for this project lives in `~/.claude/projects/-Users-jerald-Projects-apollo/memory/`:
+- `user_profile.md` — collaboration style (design-first, deep ML, prefers honest answers)
+- `corpus_direction.md` — call-and-response v2.0 direction (this milestone)

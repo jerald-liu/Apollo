@@ -1,43 +1,40 @@
-# Data
-data/raw/
-data/processed/
-data/processed_streaming/
-*.mid
-*.midi
-*.wav
-*.mp3
-
 # Python
 __pycache__/
 *.py[cod]
 *.egg-info/
-dist/
-build/
-.eggs/
-*.egg
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Environments
 venv/
 .venv/
 env/
 
-# Models
-models/*.pt
-models/*.onnx
-models/*.bin
-models/*.txt
-*.checkpoint
-
-# Jupyter
-.ipynb_checkpoints/
+# Data + artifacts (never commit large files or model state)
+data/
+logs/
+models/
+*.pt
+*.ckpt
+*.npy
+*.npz
 
 # OS
 .DS_Store
 Thumbs.db
 
-# IDE
+# Editors
 .vscode/
 .idea/
 *.swp
-*.swo
 
-# Training logs (runtime output from Modal launches)
-logs/
+# Tooling / session local
+.claude/
+
+# Build / packaging
+build/
+dist/
+
+# Apollo runtime artifacts
+artifacts/

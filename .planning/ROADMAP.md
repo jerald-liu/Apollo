@@ -1,61 +1,119 @@
-# Roadmap: Apollo — Ship v3 + v4 Training
+# Roadmap: Apollo v2.0 — Call-and-Response v1
 
 ## Overview
 
-This milestone takes the two configured-but-stalled training runs (v3 mel conditioning, v4 streaming tokenizer) from billing-blocked to complete, evaluates both checkpoints for audio quality, then verifies the end-to-end streaming OSC inference path with the v4 checkpoint. Infrastructure is already built; the work is running, evaluating, and validating.
+Four phases take Apollo from an empty repo to a demonstrably improving active-learning loop. Phase 1 builds the symbolic pipeline — tokenizer, data ingest, mel extraction, and error handling — so that any pair folder can be converted to tensors. Phase 2 adds the model and trains it on mock data to confirm the architecture is wired correctly before a single real pair is authored. Phase 3 is the human work: authoring ≥30 Ableton pairs and standing up inference so generated responses can actually be heard. Phase 4 closes the loop — scoring rubric, per-iteration tracking, and the ship gate that defines "done."
 
 ## Phases
 
-- [ ] **Phase 1: Training** - Resolve billing, relaunch v3 + v4 runs, monitor to completion and saved checkpoints
-- [ ] **Phase 2: Evaluation** - Pull both checkpoints, generate audio samples at multiple temperatures, assess quality
-- [ ] **Phase 3: Inference** - OSC loopback test with streaming handlers and v4 checkpoint end-to-end
+**Phase Numbering:**
+- Integer phases (1, 2, 3): Planned milestone work
+- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
+
+Decimal phases appear between their surrounding integers in numeric order.
+
+- [x] **Phase 1: Tokenizer & Ingest** - Tokenizer, data pipeline, mel extraction, held-out split
+- [x] **Phase 2: Model & Training** - Mel encoder, transformer, masked loss, smoke train, checkpoints
+- [ ] **Phase 3: Corpus & Inference** - Author ≥30 pairs, generate.py, sampling controls
+- [ ] **Phase 4: Evaluation Loop** - Scoring rubric, grading workflow, iteration tracking, ship gate
 
 ## Phase Details
 
-### Phase 1: Training
-**Goal**: Both v3 and v4 training runs complete 80K steps and save best checkpoints to Modal volume
+### Phase 1: Tokenizer & Ingest
+**Goal**: The pipeline can ingest any `data/pairs/NNN/` folder and produce training-ready tensors
 **Depends on**: Nothing (first phase)
-**Requirements**: TRAIN-01, TRAIN-02, TRAIN-03, TRAIN-04
+**Requirements**: TOK-01, TOK-02, TOK-03, TOK-04, TOK-05, DATA-01, DATA-02, DATA-03, DATA-04, COND-01, COND-04
 **Success Criteria** (what must be TRUE):
-  1. Modal billing limit is resolved and runs can be launched
-  2. v3 mel run (batch=64, lr=4.2e-4) completes 80K steps without error
-  3. v4 streaming run (batch=256, lr=6.0e-4, compile=true) completes 80K steps without error
-  4. Best checkpoints for both runs are saved to `apollo-checkpoints` Modal volume
-**Plans**: 3 plans
+  1. A MIDI file round-trips through the tokenizer and decodes back with pitches, velocities, and onsets preserved within quantization tolerance
+  2. Running the ingest script over a folder of mock pairs produces tokenized tensors and mel-spectrogram tensors with no silent failures
+  3. Any pair with a missing or malformed `call.wav` causes the pipeline to report the offending pair and abort — not silently skip
+  4. The held-out split is deterministic: the same 20% of pairs are held out on every run regardless of authoring order
+  5. The vocab layout includes BOS, EOS, SEP, and contiguous reserved ranges for future pitch bend / mod wheel / CC tokens
+**Plans**: 5 plans
+- [x] 01-01-PLAN.md — Project scaffold + Vocab dataclass + duration bins + IngestError + vocab-layout test
+- [x] 01-02-PLAN.md — Tokenizer encoder + decoder + round-trip test (TOK-05)
+- [x] 01-03-PLAN.md — MelExtractor (torchaudio Resample + MelSpectrogram, (96,128) log-mel) + tests
+- [x] 01-04-PLAN.md — Pair discovery + MIDI load + hash split + artifact format + CLI script
+- [x] 01-05-PLAN.md — Mock pair generator + end-to-end smoke test + error-handling tests (CLI exit codes)
 
-Plans:
-- [x] 01-01-PLAN.md — Fix checkpoint isolation and launch both training runs in parallel
-- [x] 01-02-PLAN.md — Monitor training progress and intervene if needed
-- [x] 01-03-PLAN.md — Pull and verify checkpoints from Modal volume
-
-### Phase 2: Evaluation
-**Goal**: Both checkpoints are pulled locally and their audio output is assessed against quality targets
+### Phase 2: Model & Training
+**Goal**: The model trains from scratch on mock pairs, hits the smoke-train accuracy bar, and saves a complete checkpoint artifact
 **Depends on**: Phase 1
-**Requirements**: EVAL-01, EVAL-02, EVAL-03, EVAL-04, EVAL-05, EVAL-06
+**Requirements**: COND-02, COND-03, TRAIN-01, TRAIN-02, TRAIN-03, TRAIN-04, TRAIN-05, TRAIN-06
 **Success Criteria** (what must be TRUE):
-  1. v3 checkpoint exists locally at `models/checkpoint_v3_best.pt`
-  2. v4 checkpoint exists locally at `models/checkpoint_v4_best.pt`
-  3. v3 generates listenable WAVs at temperatures 0.7, 0.9, and 1.1 via `scripts/generate.py --audio`
-  4. v4 generates listenable WAVs at temperatures 0.7, 0.9, and 1.1 via `scripts/generate.py --audio`
-  5. v3 val loss beats the v2 baseline of 2.1641 (mel conditioning demonstrably helps)
-  6. v4 streaming val loss shows healthy descent (target below 2.3 at 80K steps)
-**Plans**: TBD
+  1. A smoke train on ≥10 mock pairs reaches >95% next-token type-accuracy on the response side, confirming the architecture is wired correctly
+  2. Loss is visibly lower on response tokens than on call tokens, confirming the mask is applied correctly
+  3. Training completes without error on the local MPS device with no Modal/cloud dependency
+  4. A checkpoint saved under `models/` contains model weights, mel encoder weights, and tokenizer config in a single artifact
+**Plans**: 5 plans
+- [x] 02-01-PLAN.md — MelEncoder (CNN mel-to-embedding) + tests (COND-02, COND-03)
+- [x] 02-02-PLAN.md — ApolloModel (decoder-only transformer w/ MEL prefix) + tests (TRAIN-01, TRAIN-03, TRAIN-05)
+- [x] 02-03-PLAN.md — ApolloDataset + collate_fn (TRAIN-01 sequence packing) + tests
+- [x] 02-04-PLAN.md — Masked CE loss, type-accuracy metric, train_epoch + tests (TRAIN-02, TRAIN-03, TRAIN-05)
+- [x] 02-05-PLAN.md — Smoke-train CLI + checkpoint save/load + >0.95 type-acc gate (TRAIN-04, TRAIN-06)
 
-### Phase 3: Inference
-**Goal**: The streaming OSC inference path works end-to-end with the v4 checkpoint on local hardware
+### Phase 3: Corpus & Inference
+**Goal**: ≥30 authored pairs exist and `generate.py` can produce a response MIDI from a call pair
 **Depends on**: Phase 2
-**Requirements**: INF-01, INF-02, INF-03, INF-04
+**Requirements**: DATA-05, INFER-01, INFER-02, INFER-03, INFER-04
 **Success Criteria** (what must be TRUE):
-  1. `inference_server.py` starts cleanly with the v4 checkpoint loaded (no errors, model on device)
-  2. A test script successfully sends `/apollo/note_on` and `/apollo/note_off` OSC events to the server
-  3. The server returns generated notes via `/apollo/gen/note` OSC messages in response
-  4. Time-to-first-event is measured and logged, confirmed under 50ms from note_on to first response
+  1. At least 30 call/response pairs are authored in Ableton and present in `data/pairs/` in the correct folder layout
+  2. Running `generate.py` with a `call.mid` + `call.wav` produces a `response.mid` that is valid MIDI and playable in Ableton
+  3. Response length, temperature, and top-k are configurable at the command line without code changes
+  4. Sampling N responses for a single call produces N distinct `response.mid` files the user can audition
+**Plans**: 3 plans
+- [ ] 03-01-PLAN.md — data/pairs/ directory stub + CORPUS-CONVENTIONS.md authoring guide (DATA-05)
+- [ ] 03-02-PLAN.md — generate.py autoregressive inference CLI + tests (INFER-01..04)
+- [ ] 03-03-PLAN.md — train.py real-corpus training CLI with OneCycleLR + held-out logging + tests
+
+### Phase 4: Evaluation Loop
+**Goal**: Users can score held-out pairs per iteration and confirm consecutive improvements — the ship gate is reachable
+**Depends on**: Phase 3
+**Requirements**: EVAL-01, EVAL-02, EVAL-03, EVAL-04, EVAL-05
+**Success Criteria** (what must be TRUE):
+  1. A listen-test rubric exists with a "call-response fit" (1–5) dimension plus at least one other musical-quality dimension, documented and usable without explanation
+  2. The grading workflow plays call then response back-to-back per held-out pair so the user can score without manual file management
+  3. Scores from each training run are persisted to CSV/JSON and the delta from the previous run is surfaced automatically
+  4. v1 ships only after two consecutive iteration rounds both show improvement in mean held-out call-response-fit score
 **Plans**: TBD
 
 ## Progress
 
+**Execution Order:**
+Phases execute in numeric order: 1 → 2 → 3 → 4
+
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Training | 0/3 | Not started | - |
-| 2. Evaluation | 0/TBD | Not started | - |
-| 3. Inference | 0/TBD | Not started | - |
+| 1. Tokenizer & Ingest | 5/5 | Complete | 2026-05-19 |
+| 2. Model & Training | 5/5 | Complete | 2026-05-20 |
+| 3. Corpus & Inference | 0/3 | Not started | - |
+| 4. Evaluation Loop | 0/TBD | Not started | - |
+
+## Backlog
+
+### Phase 999.3: Cross-Synth Parameter Mapping (BACKLOG)
+
+**Goal:** Extend Apollo's preset generation head beyond Operator to other synth instruments — starting with native Ableton instruments (Analog, Wavetable, Drift), then third-party VSTs. The model outputs a response preset in whatever instrument the user is working with, not just Operator.
+**Motivation:** Apollo's preset-as-transformation approach (999.1) learns parameter mutations within Operator's schema. Extending this to other instruments requires either (a) manual ontology mapping — research each instrument's manual, define parameter analogs to Operator, translate the learned transformation into the target dialect — or (b) a learned cross-synth timbral embedding where audio bridges parameter spaces across instruments. The latter may be a genuinely new field: no existing system handles arbitrary synth plugin parameter mapping at the semantic level.
+**Prerequisites:** 999.1 (FM patch generation head) complete; Operator parameter schema validated; `.adg` corpus capture workflow established.
+**Requirements:** TBD
+**Plans:** 0 plans
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.2: Synthesis-Level Rhythmic Response (BACKLOG)
+
+**Goal:** Close the asymmetry between call and response rhythmic channels. In v1, calls can carry timbral rhythm via LFO/envelope (a filter LFO on a held note creates a perceived pulse), but the model can only answer with MIDI note events. A future milestone should either (a) extend the response channel to include synthesis parameter suggestions (LFO rate, envelope shape) or (b) augment the tokenizer with CC/mod-wheel tokens that can proxy synthesis-level rhythm.
+**Motivation:** Operator FM patches frequently use LFOs for rhythmic expression. Constraining corpus authoring to note-event rhythm (the v1 workaround) limits musical range and is unnatural for FM sound design.
+**Prerequisites:** Phase 4 complete; at least one corpus iteration showing clear note-rhythm call-response fit; Phase 999.1 (FM patch generation head) is a natural prerequisite.
+**Requirements:** TBD
+**Plans:** 0 plans
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.1: FM Patch Generation Head (BACKLOG)
+
+**Goal:** Extend the model to suggest Operator FM patch parameters alongside response MIDI — the model outputs both notes *and* a timbre suggestion, giving complete call-and-response including sound design.
+**Motivation:** The call preset is already known (user authored it). The response preset is a *transformation* of the call preset — not an inverse synthesis problem, but a direct parameter-to-parameter mapping. The model learns what FM mutations constitute a musical response: flip an algorithm, change coarse tuning on a carrier, swap a modulator waveform. Training signal is (call_params, response_params) pairs from corpus; no audio reconstruction loss required. Corpus change: capture `call_preset.adg` + `response_preset.adg` per pair (one Ableton export step per track). Inference output: `response.mid` + `response_preset.adg`, directly loadable in Ableton Operator.
+**Prerequisites:** v1 evaluation loop complete (Phase 4); corpus authoring extended to capture `.adg` preset exports per pair; Operator parameter schema defined (~40–60 meaningful params).
+**Requirements:** TBD
+**Plans:** 0 plans
+- [ ] TBD (promote with /gsd-review-backlog when ready)
