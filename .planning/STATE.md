@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-03-PLAN.md (ApolloDataset + collate_fn — 10/10 tests, TDD RED/GREEN)
-last_updated: "2026-05-20T03:49:13Z"
-last_activity: 2026-05-20 -- Completed 02-03 ApolloDataset + collate_fn (10/10 tests, length-based pad mask, TDD RED/GREEN)
+stopped_at: Completed 02-04-PLAN.md (masked CE loss + metrics + train_epoch — 15/15 tests, TDD RED/GREEN)
+last_updated: "2026-05-20T04:05:00Z"
+last_activity: 2026-05-20 -- Completed 02-04 masked loss + metrics + train_epoch (15/15 tests, j>=sep_pos boundary confirmed, MPS green)
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 10
-  completed_plans: 8
-  percent: 80
+  completed_plans: 9
+  percent: 90
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-19)
 ## Current Position
 
 Phase: 02 (model-training) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-05-20
 
@@ -83,6 +83,10 @@ Recent decisions affecting current work:
 - 02-03: PAD_ID=0 reuses TIME_OFFSET=0 — pad_mask derived from sequence length L, never token_ids==0 (RESEARCH pitfall #1 baked into packer.py)
 - 02-03: mel.unsqueeze(1) in collate_fn adds channel dim (B,1,96,128) required by Conv2d (RESEARCH pitfall #6)
 - 02-03: tokens cast to int64 via .long() in collate_fn — artifact stores int32, nn.Embedding requires LongTensor
+- 02-04: Loss mask boundary is j >= sep_pos (NOT j > sep_pos) — RESEARCH pitfall #2 confirmed via direct boundary test
+- 02-04: train_epoch accepts scheduler=None as Phase 3 plug point — warmup+cosine injects without refactoring (D-16)
+- 02-04: No torch.compile in train.py — not supported on MPS in PyTorch 2.8 (RESEARCH §4)
+- 02-04: run_training uses AdamW(model.parameters()) — mel_enc covered via ApolloModel submodule, no separate instantiation needed
 
 ### Pending Todos
 
@@ -102,6 +106,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-20T03:49:13Z
-Stopped at: Completed 02-03-PLAN.md (ApolloDataset + collate_fn — 10/10 tests, TDD RED/GREEN)
-Resume file: .planning/phases/02-model-training/02-04-PLAN.md
+Last session: 2026-05-20T04:05:00Z
+Stopped at: Completed 02-04-PLAN.md (masked CE loss + metrics + train_epoch — 15/15 tests, TDD RED/GREEN)
+Resume file: .planning/phases/02-model-training/02-05-PLAN.md
