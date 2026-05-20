@@ -24,18 +24,18 @@
 ### Audio Conditioning (COND)
 
 - [x] **COND-01**: A mel-feature extractor reads `call.wav` and produces a fixed-shape mel-spectrogram tensor at a documented sample rate / hop / n_mels
-- [ ] **COND-02**: A small mel encoder (CNN or equivalent) compresses the mel tensor into a conditioning embedding fed alongside MIDI tokens
-- [ ] **COND-03**: The mel encoder is part of the trained model graph (jointly trained, not frozen pretrained)
+- [x] **COND-02**: A small mel encoder (CNN or equivalent) compresses the mel tensor into a conditioning embedding fed alongside MIDI tokens
+- [x] **COND-03**: The mel encoder is part of the trained model graph (jointly trained, not frozen pretrained)
 - [x] **COND-04**: If a pair's `call.wav` is missing or malformed, the pipeline reports the offending pair and aborts (no silent skipping)
 
 ### Training (TRAIN)
 
 - [x] **TRAIN-01**: Training samples pack as `[BOS, call_tokens, SEP, response_tokens, EOS]` with the SEP boundary explicit
-- [ ] **TRAIN-02**: Cross-entropy loss is **masked to response tokens only** — the model is not penalized for the call side
-- [ ] **TRAIN-03**: Model is trained from scratch (random init); no warm-start from any prior checkpoint
-- [ ] **TRAIN-04**: A smoke-train on ≥10 mock pairs reaches >95% next-token type-accuracy on the response side (sanity check, structurally valid output)
-- [ ] **TRAIN-05**: Training runs locally on MPS (Apple Silicon) in a reasonable wall-clock for the small corpus (no Modal/cloud dependency)
-- [ ] **TRAIN-06**: Checkpoints save model state + mel encoder + tokenizer config in a single artifact under `models/`
+- [x] **TRAIN-02**: Cross-entropy loss is **masked to response tokens only** — the model is not penalized for the call side
+- [x] **TRAIN-03**: Model is trained from scratch (random init); no warm-start from any prior checkpoint
+- [x] **TRAIN-04**: A smoke-train on ≥10 mock pairs reaches >95% next-token type-accuracy on the response side (sanity check, structurally valid output)
+- [x] **TRAIN-05**: Training runs locally on MPS (Apple Silicon) in a reasonable wall-clock for the small corpus (no Modal/cloud dependency)
+- [x] **TRAIN-06**: Checkpoints save model state + mel encoder + tokenizer config in a single artifact under `models/`
 
 ### Inference (INFER)
 
@@ -106,15 +106,15 @@ Deferred to a later milestone. Tracked here so they don't get lost.
 | TOK-04 | Phase 1: Tokenizer & Ingest | Done (01-01) |
 | TOK-05 | Phase 1: Tokenizer & Ingest | Done (01-05) |
 | COND-01 | Phase 1: Tokenizer & Ingest | Done (01-03) |
-| COND-02 | Phase 2: Model & Training | Pending |
-| COND-03 | Phase 2: Model & Training | Pending |
+| COND-02 | Phase 2: Model & Training | Done (02-01) |
+| COND-03 | Phase 2: Model & Training | Done (02-01) |
 | COND-04 | Phase 1: Tokenizer & Ingest | Done (01-05) |
-| TRAIN-01 | Phase 2: Model & Training | Complete |
-| TRAIN-02 | Phase 2: Model & Training | Pending |
-| TRAIN-03 | Phase 2: Model & Training | Pending |
-| TRAIN-04 | Phase 2: Model & Training | Pending |
-| TRAIN-05 | Phase 2: Model & Training | Pending |
-| TRAIN-06 | Phase 2: Model & Training | Pending |
+| TRAIN-01 | Phase 2: Model & Training | Done (02-03) |
+| TRAIN-02 | Phase 2: Model & Training | Done (02-04) |
+| TRAIN-03 | Phase 2: Model & Training | Done (02-04) |
+| TRAIN-04 | Phase 2: Model & Training | Done (02-05) |
+| TRAIN-05 | Phase 2: Model & Training | Done (02-04) |
+| TRAIN-06 | Phase 2: Model & Training | Done (02-05) |
 | INFER-01 | Phase 3: Corpus & Inference | Pending |
 | INFER-02 | Phase 3: Corpus & Inference | Pending |
 | INFER-03 | Phase 3: Corpus & Inference | Pending |
