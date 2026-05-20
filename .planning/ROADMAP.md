@@ -85,3 +85,14 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 2. Model & Training | 5/5 | Complete | 2026-05-20 |
 | 3. Corpus & Inference | 0/TBD | Not started | - |
 | 4. Evaluation Loop | 0/TBD | Not started | - |
+
+## Backlog
+
+### Phase 999.1: FM Patch Generation Head (BACKLOG)
+
+**Goal:** Extend the model to suggest Operator FM patch parameters alongside response MIDI — the model outputs both notes *and* a timbre suggestion, giving complete call-and-response including sound design.
+**Motivation:** Operator is DX7/FM4 lineage with a bounded, interpretable parameter space. torchsynth/SynthAX provide GPU-accelerated differentiable FM synthesis — no raw waveform generation needed, just map to FM parameters and train with a reconstruction loss. Dexed (open-source DX7 clone) has a fully open parameter format mappable to Operator. Reference: https://gist.github.com/0xdevalias/5a06349b376d01b2a76ad27a86b08c1b
+**Prerequisites:** v1 evaluation loop complete (Phase 4); corpus authoring extended to capture patch parameter snapshots per pair.
+**Requirements:** TBD
+**Plans:** 0 plans
+- [ ] TBD (promote with /gsd-review-backlog when ready)
