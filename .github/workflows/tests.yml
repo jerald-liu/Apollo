@@ -9,6 +9,39 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false   # let all suites finish even if one fails
+      matrix:
+        suite:
+          - name: "unit"
+            # Vocab, tokenizer, model architecture, checkpoint, split — all sub-second
+            tests: >-
+              tests/test_vocab_layout.py
+              tests/test_tokenizer_roundtrip.py
+              tests/test_mel_encoder.py
+              tests/test_transformer.py
+              tests/test_checkpoint.py
+              tests/test_split_determinism.py
+              tests/test_import_hygiene.py
+
+          - name: "pipeline"
+            # Ingest, mel extraction, error handling, packer, generate — need wav I/O
+            tests: >-
+              tests/test_ingest_smoke.py
+              tests/test_mel_extractor.py
+              tests/test_error_handling.py
+              tests/test_packer.py
+              tests/test_generate.py
+
+          - name: "training"
+            # Smoke train (50 epochs × 4 runs) + train_epoch + production train CLI
+            # Slowest suite — runs in parallel so it doesn't block the others
+            tests: >-
+              tests/test_train.py
+              tests/test_train_real.py
+              tests/test_smoke_train.py
+
+    name: "${{ matrix.suite.name }}"
 
     steps:
       - uses: actions/checkout@v4
@@ -26,8 +59,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      # Install CPU-only PyTorch — avoids pulling the CUDA wheel (~2 GB)
-      # MPS tests are guarded with pytest.skip so they are silently skipped on Linux
+      # CPU-only torch — avoids ~2 GB CUDA wheel; MPS tests skip automatically
       - name: Install PyTorch (CPU)
         run: |
           pip install torch>=2.8.0 torchaudio>=2.8.0 \
@@ -36,5 +68,5 @@ jobs:
       - name: Install package + dev deps
         run: pip install -e ".[dev]"
 
-      - name: Run tests
-        run: pytest --tb=short -v
+      - name: Run ${{ matrix.suite.name }} tests
+        run: pytest --tb=short -v ${{ matrix.suite.tests }}
