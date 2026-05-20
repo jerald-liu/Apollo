@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apollo — Local vs Cloud</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0c0e14;
+    color: #c9d1d9;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    min-height: 100vh;
+    padding: 40px 32px 80px;
+  }
+
+  h1 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #e6edf3;
+    letter-spacing: 0.03em;
+    margin-bottom: 4px;
+  }
+  .subtitle {
+    font-size: 12px;
+    color: #6e7681;
+    margin-bottom: 36px;
+  }
+
+  /* ── TOP-LEVEL LAYOUT ── */
+  .environments {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    max-width: 1100px;
+    margin: 0 auto 28px;
+  }
+
+  /* ── ENVIRONMENT BOX ── */
+  .env {
+    border-radius: 14px;
+    padding: 22px;
+    position: relative;
+  }
+
+  .env-local {
+    background: #0a1628;
+    border: 2px solid #1e4a8a;
+  }
+
+  .env-cloud {
+    background: #0f0f0f;
+    border: 2px dashed #2d2d2d;
+    opacity: 0.7;
+  }
+
+  .env-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .env-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+
+  .env-local .env-icon { background: #0d2a5a; }
+  .env-cloud .env-icon { background: #1a1a1a; }
+
+  .env-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #e6edf3;
+  }
+  .env-cloud .env-name { color: #484f58; }
+
+  .env-spec {
+    font-size: 11px;
+    color: #484f58;
+    margin-top: 2px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+
+  .env-badge {
+    margin-left: auto;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+  .badge-local { background: #0d2a5a; color: #58a6ff; }
+  .badge-none  { background: #1a1a1a; color: #3d3d3d; border: 1px dashed #2d2d2d; }
+
+  /* ── SUBSYSTEM ── */
+  .subsystem {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 9px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+
+  .subsystem-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #e6edf3;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dot-green  { background: #3fb950; }
+  .dot-blue   { background: #58a6ff; }
+  .dot-purple { background: #bc8cff; }
+  .dot-yellow { background: #e3b341; }
+  .dot-teal   { background: #39d353; }
+  .dot-gray   { background: #484f58; }
+
+  .subsystem-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .component {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 9px 12px;
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 6px;
+  }
+
+  .component-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #e6edf3;
+    white-space: nowrap;
+    min-width: 140px;
+  }
+
+  .component-detail {
+    font-size: 11px;
+    color: #6e7681;
+    line-height: 1.5;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+
+  .compute-badge {
+    margin-left: auto;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 3px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .cb-mps    { background: #1a2f4a; color: #58a6ff; }
+  .cb-cpu    { background: #1a2a1a; color: #3fb950; }
+  .cb-disk   { background: #2a2a1a; color: #e3b341; }
+  .cb-daw    { background: #2a1a2a; color: #bc8cff; }
+  .cb-human  { background: #1a1f1a; color: #6e7681; }
+
+  /* ── COMMUNICATION BAND ── */
+  .comms-band {
+    max-width: 1100px;
+    margin: 0 auto 20px;
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 10px;
+    padding: 16px 22px;
+  }
+
+  .comms-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #484f58;
+    margin-bottom: 12px;
+  }
+
+  .comms-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .comms-row:last-child { margin-bottom: 0; }
+
+  .comm-from, .comm-to {
+    font-size: 11px;
+    font-weight: 600;
+    color: #e6edf3;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    padding: 4px 9px;
+    white-space: nowrap;
+  }
+
+  .comm-arrow {
+    color: #3d444d;
+    font-size: 14px;
+  }
+
+  .comm-detail {
+    font-size: 11px;
+    color: #484f58;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+
+  /* ── RATIONALE BOX ── */
+  .rationale {
+    max-width: 1100px;
+    margin: 0 auto 28px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+
+  .rationale-card {
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 9px;
+    padding: 14px 16px;
+  }
+
+  .rationale-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #484f58;
+    margin-bottom: 8px;
+  }
+
+  .rationale-body {
+    font-size: 12px;
+    color: #8b949e;
+    line-height: 1.6;
+  }
+
+  strong { color: #e6edf3; }
+
+  /* ── FUTURE NOTE ── */
+  .future-note {
+    max-width: 1100px;
+    margin: 0 auto;
+    border: 1px dashed #2d2d2d;
+    border-radius: 9px;
+    padding: 14px 18px;
+    font-size: 12px;
+    color: #484f58;
+    line-height: 1.6;
+  }
+  .future-note strong { color: #6e7681; }
+
+  /* ── EMPTY CLOUD CONTENT ── */
+  .empty-cloud {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    gap: 12px;
+    text-align: center;
+  }
+
+  .empty-cloud-icon {
+    font-size: 48px;
+    opacity: 0.15;
+  }
+
+  .empty-cloud-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #2d2d2d;
+  }
+
+  .empty-cloud-sub {
+    font-size: 11px;
+    color: #2d2d2d;
+    line-height: 1.6;
+  }
+
+  .strike {
+    text-decoration: line-through;
+    opacity: 0.4;
+  }
+</style>
+</head>
+<body>
+
+<h1>Apollo — Deployment Topology</h1>
+<p class="subtitle">What runs locally vs in the cloud · v1 and future</p>
+
+<!-- ── ENVIRONMENT SPLIT ── -->
+<div class="environments">
+
+  <!-- LOCAL -->
+  <div class="env env-local">
+    <div class="env-header">
+      <div class="env-icon">💻</div>
+      <div>
+        <div class="env-name">Local Machine</div>
+        <div class="env-spec">Apple Silicon (M-series) · MPS + CPU</div>
+      </div>
+      <div class="env-badge badge-local">Everything runs here</div>
+    </div>
+
+    <!-- DAW -->
+    <div class="subsystem">
+      <div class="subsystem-title"><div class="dot dot-purple"></div>Ableton Live (DAW)</div>
+      <div class="subsystem-rows">
+        <div class="component">
+          <div class="component-name">Corpus Authoring</div>
+          <div class="component-detail">MIDI tracks · Operator preset<br>manual bounce → call.wav</div>
+          <div class="compute-badge cb-human">Human</div>
+        </div>
+        <div class="component">
+          <div class="component-name">M4L Plugin <span style="opacity:.4; font-size:10px;">future</span></div>
+          <div class="component-detail">call trigger · response playback<br>preset loading</div>
+          <div class="compute-badge cb-daw">DAW</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FILESYSTEM -->
+    <div class="subsystem">
+      <div class="subsystem-title"><div class="dot dot-yellow"></div>Local Filesystem</div>
+      <div class="subsystem-rows">
+        <div class="component">
+          <div class="component-name">data/pairs/NNN/</div>
+          <div class="component-detail">call.mid · call.wav · response.mid<br>call_preset.adg · response_preset.adg <span style="opacity:.4">future</span></div>
+          <div class="compute-badge cb-disk">Disk</div>
+        </div>
+        <div class="component">
+          <div class="component-name">models/</div>
+          <div class="component-detail">run-NN-timestamp.pt checkpoints<br>model + mel_enc + vocab</div>
+          <div class="compute-badge cb-disk">Disk</div>
+        </div>
+        <div class="component">
+          <div class="component-name">logs/</div>
+          <div class="component-detail">held-out loss CSV per iteration<br>score deltas across runs</div>
+          <div class="compute-badge cb-disk">Disk</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PYTHON / ML -->
+    <div class="subsystem">
+      <div class="subsystem-title"><div class="dot dot-blue"></div>Python / PyTorch Process</div>
+      <div class="subsystem-rows">
+        <div class="component">
+          <div class="component-name">ingest_corpus.py</div>
+          <div class="component-detail">tokenizer · mel extraction<br>dataset packing · hash split</div>
+          <div class="compute-badge cb-cpu">CPU</div>
+        </div>
+        <div class="component">
+          <div class="component-name">train.py</div>
+          <div class="component-detail">ApolloModel + MelEncoder<br>AdamW · OneCycleLR · masked loss<br>~1.1M params · fits easily in RAM</div>
+          <div class="compute-badge cb-mps">MPS</div>
+        </div>
+        <div class="component">
+          <div class="component-name">generate.py</div>
+          <div class="component-detail">autoregressive sampling<br>call.mid + call.wav → response.mid</div>
+          <div class="compute-badge cb-mps">MPS</div>
+        </div>
+        <div class="component">
+          <div class="component-name">Inference Server <span style="opacity:.4; font-size:10px;">future M4L</span></div>
+          <div class="component-detail">persistent Python process<br>OSC / Unix socket · &lt;100ms latency<br>checkpoint loaded once at init</div>
+          <div class="compute-badge cb-mps">MPS</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CLOUD — empty -->
+  <div class="env env-cloud">
+    <div class="env-header">
+      <div class="env-icon" style="opacity:.3;">☁️</div>
+      <div>
+        <div class="env-name">Cloud</div>
+        <div class="env-spec" style="color:#2d2d2d;">Modal · AWS · GCP · etc.</div>
+      </div>
+      <div class="env-badge badge-none">Not used</div>
+    </div>
+
+    <div class="empty-cloud">
+      <div class="empty-cloud-icon">⊘</div>
+      <div class="empty-cloud-label">Nothing runs in the cloud</div>
+      <div class="empty-cloud-sub">
+        Apollo v1 is intentionally<br>
+        fully local and offline.<br><br>
+        <span class="strike">Cloud training (Modal)</span><br>
+        <span class="strike">Hosted inference API</span><br>
+        <span class="strike">Remote data storage</span><br>
+        <span class="strike">Internet dependency</span><br><br>
+        The model is small enough (~1.1M params)<br>
+        that Apple Silicon handles everything.<br><br>
+        Cloud would only be needed if the model<br>
+        grew to billions of parameters — not planned.
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ── LOCAL COMMUNICATION PATHS ── -->
+<div class="comms-band">
+  <div class="comms-title">Internal Communication Paths (all local)</div>
+
+  <div class="comms-row">
+    <div class="comm-from">Ableton Live</div>
+    <div class="comm-arrow">→</div>
+    <div class="comm-to">data/pairs/NNN/</div>
+    <div class="comm-arrow">→</div>
+    <div class="comm-to">ingest_corpus.py</div>
+    <div class="comm-detail">Manual export · filesystem write · Python reads from disk</div>
+  </div>
+
+  <div class="comms-row">
+    <div class="comm-from">ingest_corpus.py</div>
+    <div class="comm-arrow">→</div>
+    <div class="comm-to">ApolloDataset (.pt)</div>
+    <div class="comm-arrow">→</div>
+    <div class="comm-to">train.py</div>
+    <div class="comm-detail">Tensor artifacts on disk · DataLoader reads per batch</div>
+  </div>
+
+  <div class="comms-row">
+    <div class="comm-from">train.py</div>
+    <div class="comm-arrow">→</div>
+    <div class="comm-to">models/run-NN.pt</div>
+    <div class="comm-arrow">→</div>
+    <div class="comm-to">generate.py</div>
+    <div class="comm-detail">Checkpoint saved to disk · inference loads via torch.load()</div>
+  </div>
+
+  <div class="comms-row">
+    <div class="comm-from">Ableton M4L</div>
+    <div class="comm-arrow">→</div>
+    <div class="comm-to">Python Inference Server</div>
+    <div class="comm-arrow">→</div>
+    <div class="comm-to">Ableton M4L</div>
+    <div class="comm-detail">OSC / Unix socket · same machine · no network hop · &lt;100ms round-trip</div>
+  </div>
+
+</div>
+
+<!-- ── RATIONALE ── -->
+<div class="rationale">
+
+  <div class="rationale-card">
+    <div class="rationale-title">Why fully local</div>
+    <div class="rationale-body">
+      The model is <strong>~1.1M parameters</strong> — tiny by modern standards.
+      Apple Silicon MPS handles training and inference without any cloud dependency.
+      Corpus is small (30–200 pairs). No scale pressure requiring remote compute.
+    </div>
+  </div>
+
+  <div class="rationale-card">
+    <div class="rationale-title">Latency advantage</div>
+    <div class="rationale-body">
+      Local inference eliminates network round-trips entirely.
+      <strong>&lt;100ms on CPU, &lt;10ms on MPS</strong> — fast enough for
+      near-real-time M4L response even on a background thread. A cloud API
+      would add 200–500ms of unavoidable network latency.
+    </div>
+  </div>
+
+  <div class="rationale-card">
+    <div class="rationale-title">Privacy + offline</div>
+    <div class="rationale-body">
+      Your corpus is your musical fingerprint — it should never leave your machine.
+      Local-only means the model trains on your style, runs on your machine,
+      and works <strong>completely offline</strong>. No API keys, no accounts, no upload.
+    </div>
+  </div>
+
+</div>
+
+<!-- ── FUTURE NOTE ── -->
+<div class="future-note">
+  <strong>When would cloud become relevant?</strong>
+  Only if the model architecture grew to the scale where MPS can't keep up — billions of parameters,
+  or a dataset requiring multi-GPU training. Neither is planned for Apollo.
+  The hierarchical call-and-response vision (SEED-002: gesture → theme → passage) adds model levels
+  but each level stays small. Cloud training would be a deliberate architectural decision, not a default.
+</div>
+
+</body>
+</html>

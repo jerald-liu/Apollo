@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apollo — System Architecture</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0c0e14;
+    color: #c9d1d9;
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 12px;
+    min-height: 100vh;
+    padding: 40px 32px 80px;
+  }
+
+  h1 {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: #e6edf3;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+  }
+
+  .subtitle {
+    font-size: 11px;
+    color: #6e7681;
+    margin-bottom: 36px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  .legend {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    color: #8b949e;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  .legend-swatch {
+    width: 14px; height: 14px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .legend-swatch.future {
+    border: 2px dashed #444;
+    background: transparent;
+  }
+
+  /* ─── DIAGRAM CONTAINER ─── */
+  .diagram {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    max-width: 980px;
+    margin: 0 auto;
+  }
+
+  /* ─── LAYER ─── */
+  .layer {
+    width: 100%;
+    border-radius: 10px;
+    padding: 14px 18px 16px;
+    position: relative;
+  }
+
+  .layer-label {
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 700;
+    opacity: 0.55;
+    margin-bottom: 12px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  .layer-body {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  /* ─── COLORS PER LAYER ─── */
+  .layer-corpus  { background: #0d1f12; border: 1px solid #1e4024; }
+  .layer-ingest  { background: #0d1527; border: 1px solid #1a3158; }
+  .layer-model   { background: #1a0d27; border: 1px solid #3d1f5c; }
+  .layer-train   { background: #1f1a0d; border: 1px solid #4a3d12; }
+  .layer-eval    { background: #1a1212; border: 1px solid #4a2020; }
+  .layer-infer   { background: #0d1f1f; border: 1px solid #1a4040; }
+  .layer-m4l     { background: #0d0d1f; border: 2px dashed #2a2a5a; }
+  .layer-xsynth  { background: #0d0d1f; border: 2px dashed #2a2a5a; }
+
+  .layer-corpus .layer-label  { color: #3fb950; }
+  .layer-ingest .layer-label  { color: #58a6ff; }
+  .layer-model .layer-label   { color: #bc8cff; }
+  .layer-train .layer-label   { color: #e3b341; }
+  .layer-eval .layer-label    { color: #f78166; }
+  .layer-infer .layer-label   { color: #39d353; }
+  .layer-m4l .layer-label     { color: #6e7681; }
+  .layer-xsynth .layer-label  { color: #6e7681; }
+
+  /* ─── NODE ─── */
+  .node {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 7px;
+    padding: 10px 13px;
+    min-width: 130px;
+    flex: 1;
+  }
+
+  .node.future {
+    border: 1px dashed #3d444d;
+    background: #0d1117;
+    opacity: 0.75;
+  }
+
+  .node-title {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #e6edf3;
+    margin-bottom: 5px;
+    white-space: nowrap;
+  }
+
+  .node-detail {
+    font-size: 10px;
+    color: #6e7681;
+    line-height: 1.5;
+  }
+
+  .node-tag {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-top: 6px;
+    text-transform: uppercase;
+  }
+
+  .tag-green  { background: #1a3323; color: #3fb950; }
+  .tag-blue   { background: #132235; color: #58a6ff; }
+  .tag-purple { background: #25183a; color: #bc8cff; }
+  .tag-yellow { background: #2d2411; color: #e3b341; }
+  .tag-red    { background: #2d1515; color: #f78166; }
+  .tag-teal   { background: #0f2626; color: #39d353; }
+  .tag-gray   { background: #1c2128; color: #8b949e; }
+  .tag-future { background: #1c2128; color: #6e7681; border: 1px dashed #3d444d; }
+
+  /* ─── ARROWS ─── */
+  .arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    padding: 2px 0;
+  }
+  .arrow-line {
+    width: 2px;
+    height: 22px;
+    background: #21262d;
+  }
+  .arrow-head {
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 8px solid #21262d;
+  }
+  .arrow-label {
+    font-size: 9px;
+    color: #484f58;
+    letter-spacing: 0.06em;
+    margin-top: 3px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  .arrow.future .arrow-line { background: #21262d; border-left: 2px dashed #21262d; width: 0; height: 22px; }
+  .arrow.future .arrow-head { border-top-color: #21262d; opacity: 0.4; }
+
+  /* ─── SPLIT LAYOUT (train + infer side by side) ─── */
+  .split-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    width: 100%;
+  }
+
+  /* ─── FUTURE BADGE ─── */
+  .future-badge {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 1px dashed #3d444d;
+    color: #6e7681;
+    text-transform: uppercase;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  /* ─── INNER GROUP (within a layer) ─── */
+  .group {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid #21262d;
+    border-radius: 6px;
+    padding: 10px 12px;
+    flex: 1;
+  }
+  .group-title {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #484f58;
+    margin-bottom: 8px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  .group-body {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* ─── CONNECTOR LABEL ─── */
+  .connector {
+    font-size: 9px;
+    color: #484f58;
+    text-align: center;
+    letter-spacing: 0.08em;
+    margin: 4px 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  /* ─── FLOW ANNOTATION ─── */
+  .flow-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+  }
+  .flow-arrow {
+    color: #484f58;
+    font-size: 11px;
+  }
+
+  .section-header {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    color: #8b949e;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin: 32px 0 12px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-header::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #21262d;
+  }
+</style>
+</head>
+<body>
+
+<h1>Apollo — System Architecture</h1>
+<p class="subtitle">v2.0 · Call-and-Response · Current (v1) + Future Roadmap</p>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-swatch" style="background:#1e4024"></div>Corpus authoring</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#1a3158"></div>Ingest pipeline</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#3d1f5c"></div>Model</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#4a3d12"></div>Training</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#4a2020"></div>Evaluation</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#1a4040"></div>Inference</div>
+  <div class="legend-item"><div class="legend-swatch future"></div>Future (backlog)</div>
+</div>
+
+<div class="diagram">
+
+  <!-- ══════════════════════════════════════════════ -->
+  <div class="section-header">v1 — current</div>
+
+  <!-- ─── CORPUS ─── -->
+  <div class="layer layer-corpus">
+    <div class="layer-label">① Corpus Authoring · Ableton Live · Human</div>
+    <div class="layer-body">
+
+      <div class="node" style="flex:2; min-width:160px;">
+        <div class="node-title">Ableton Live</div>
+        <div class="node-detail">
+          Two MIDI tracks · Operator preset<br>
+          120 BPM · monophonic · 0.5–1.5s · 2–6 notes
+        </div>
+        <span class="node-tag tag-green">Human authored</span>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px; flex:3;">
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <div class="node" style="flex:1;">
+            <div class="node-title">call.mid</div>
+            <div class="node-detail">Call phrase MIDI</div>
+            <span class="node-tag tag-green">v1</span>
+          </div>
+          <div class="node" style="flex:1;">
+            <div class="node-title">call.wav</div>
+            <div class="node-detail">Manual Ableton bounce<br>captures Operator timbre</div>
+            <span class="node-tag tag-green">v1</span>
+          </div>
+          <div class="node" style="flex:1;">
+            <div class="node-title">response.mid</div>
+            <div class="node-detail">Response phrase MIDI</div>
+            <span class="node-tag tag-green">v1</span>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <div class="node future" style="flex:1;">
+            <div class="node-title">call_preset.adg <span class="future-badge">999.1</span></div>
+            <div class="node-detail">Operator XML export<br>~40–60 FM parameters</div>
+            <span class="node-tag tag-future">Future</span>
+          </div>
+          <div class="node future" style="flex:1;">
+            <div class="node-title">response_preset.adg <span class="future-badge">999.1</span></div>
+            <div class="node-detail">Response preset<br>Δ from call preset</div>
+            <span class="node-tag tag-future">Future</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div><div class="arrow-label">data/pairs/NNN/</div></div>
+
+  <!-- ─── INGEST ─── -->
+  <div class="layer layer-ingest">
+    <div class="layer-label">② Ingest Pipeline · ingest_corpus.py</div>
+    <div class="layer-body">
+
+      <div class="node" style="flex:1;">
+        <div class="node-title">Tokenizer</div>
+        <div class="node-detail">
+          pitch · velocity · time-shift · duration<br>
+          4 tokens/note · 256-token vocab<br>
+          32 time bins · 16 vel bins · 24 dur bins<br>
+          vocab reserves tail for bend/CC
+        </div>
+        <span class="node-tag tag-blue">TOK-01..05</span>
+      </div>
+
+      <div class="node" style="flex:1;">
+        <div class="node-title">MelExtractor</div>
+        <div class="node-detail">
+          call.wav → log-mel spectrogram<br>
+          22050 Hz · n_mels=128 · hop=512<br>
+          fixed shape: 96 × 128<br>
+          torchaudio Resample + MelSpectrogram
+        </div>
+        <span class="node-tag tag-blue">COND-01</span>
+      </div>
+
+      <div class="node" style="flex:2; min-width:180px;">
+        <div class="node-title">ApolloDataset + Hash Split</div>
+        <div class="node-detail">
+          Packs: <code>[BOS, call_tokens, SEP, response_tokens, EOS, PAD]</code><br>
+          Hash split: SHA-1(pair_id) mod 5 == 0 → held-out<br>
+          80% train · 20% held-out · deterministic<br>
+          Artifact: .pt tensors per pair
+        </div>
+        <span class="node-tag tag-blue">DATA-01..04</span>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+  <!-- ─── MODEL ─── -->
+  <div class="layer layer-model">
+    <div class="layer-label">③ Model Architecture</div>
+    <div class="layer-body">
+
+      <div class="node" style="flex:1;">
+        <div class="node-title">MelEncoder</div>
+        <div class="node-detail">
+          CNN: Conv2d(1→32)→ReLU→MaxPool<br>
+          →Conv2d(32→64)→ReLU→MaxPool<br>
+          →Conv2d(64→128)→ReLU→AvgPool<br>
+          →FC(128×1×1 → 128-dim)<br><br>
+          <strong>109,184 params</strong><br>
+          Input: (B, 1, 96, 128)<br>
+          Output: (B, 128) mel embedding
+        </div>
+        <span class="node-tag tag-purple">COND-02</span>
+      </div>
+
+      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 8px; color:#484f58; font-size:18px;">→</div>
+
+      <div class="node" style="flex:2; min-width:200px;">
+        <div class="node-title">ApolloModel — Decoder Transformer</div>
+        <div class="node-detail">
+          mel embedding → prepended as prefix token<br>
+          Token embed: 128-dim vocab (256 tokens)<br>
+          Pos embed: nn.Embedding(65, 128)<br>
+          Transformer: 4 layers · 4 heads · d_ff=512<br>
+          enable_nested_tensor=False (MPS compat)<br>
+          Out proj: 128 → 256 logits<br><br>
+          <strong>976,384 params total</strong><br>
+          mel_enc(109K) + tok_emb(32K) + pos_emb(8K)<br>
+          + transformer(793K) + out_proj(33K)
+        </div>
+        <span class="node-tag tag-purple">TRAIN-01</span>
+      </div>
+
+      <div class="node future" style="flex:1;">
+        <div class="node-title">Preset Head <span class="future-badge">999.1</span></div>
+        <div class="node-detail">
+          MLP on final hidden state<br>
+          Input: call_params (known)<br>
+          Output: Δ params → response preset<br>
+          Preset-as-transformation,<br>not inverse synthesis
+        </div>
+        <span class="node-tag tag-future">Future</span>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+  <!-- ─── TRAIN + INFER SPLIT ─── -->
+  <div class="split-row">
+
+    <!-- TRAINING -->
+    <div class="layer layer-train">
+      <div class="layer-label">④ Training · train.py</div>
+      <div class="layer-body" style="flex-direction:column;">
+
+        <div class="node">
+          <div class="node-title">Optimizer + Scheduler</div>
+          <div class="node-detail">
+            AdamW(model.parameters())<br>
+            OneCycleLR · pct_start=0.05<br>
+            anneal_strategy="cos"
+          </div>
+        </div>
+
+        <div class="node">
+          <div class="node-title">Masked CE Loss</div>
+          <div class="node-detail">
+            Loss computed on response tokens only<br>
+            Boundary: j ≥ sep_pos<br>
+            Call side is ignored — no autoencoding
+          </div>
+          <span class="node-tag tag-yellow">TRAIN-02</span>
+        </div>
+
+        <div class="node">
+          <div class="node-title">Checkpoint · models/</div>
+          <div class="node-detail">
+            run-{iteration:02d}-{timestamp}.pt<br>
+            Keys: model_state_dict<br>
+            mel_encoder_state_dict<br>
+            vocab · model_config · training_meta
+          </div>
+          <span class="node-tag tag-yellow">TRAIN-04</span>
+        </div>
+
+        <div class="node">
+          <div class="node-title">Held-out Loss Log</div>
+          <div class="node-detail">
+            _evaluate_heldout_loss per epoch<br>
+            @torch.no_grad()<br>
+            Logged to CSV per iteration
+          </div>
+          <span class="node-tag tag-yellow">TRAIN-06</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- INFERENCE -->
+    <div class="layer layer-infer">
+      <div class="layer-label">⑤ Inference · generate.py</div>
+      <div class="layer-body" style="flex-direction:column;">
+
+        <div class="node">
+          <div class="node-title">Inputs</div>
+          <div class="node-detail">
+            --call-mid  call.mid<br>
+            --call-wav  call.wav<br>
+            --checkpoint  run-NN.pt
+          </div>
+        </div>
+
+        <div class="node">
+          <div class="node-title">Autoregressive Sampling</div>
+          <div class="node-detail">
+            Greedy or top-k nucleus sampling<br>
+            --temperature  float<br>
+            --top-k  int<br>
+            --max-tokens  int<br>
+            --n  N distinct responses<br>
+            Invalid tokens skipped (not crashed)
+          </div>
+          <span class="node-tag tag-teal">INFER-01..04</span>
+        </div>
+
+        <div class="node">
+          <div class="node-title">response_001.mid …</div>
+          <div class="node-detail">
+            Non-overlapping numbered outputs<br>
+            Valid MIDI · playable in Ableton
+          </div>
+          <span class="node-tag tag-teal">v1 output</span>
+        </div>
+
+        <div class="node future">
+          <div class="node-title">response_preset.adg <span class="future-badge">999.1</span></div>
+          <div class="node-detail">
+            Directly loadable in Ableton Operator<br>
+            Δ params applied to call_preset
+          </div>
+          <span class="node-tag tag-future">Future</span>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <div class="arrow"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+  <!-- ─── EVAL ─── -->
+  <div class="layer layer-eval">
+    <div class="layer-label">⑥ Evaluation Loop · Phase 4</div>
+    <div class="layer-body">
+
+      <div class="node" style="flex:1;">
+        <div class="node-title">Listen-test Rubric</div>
+        <div class="node-detail">
+          Call-response fit: 1–5 score<br>
+          + ≥1 other musical dimension<br>
+          Scored by user per held-out pair<br>
+          No headless evaluation possible
+        </div>
+        <span class="node-tag tag-red">EVAL-01</span>
+      </div>
+
+      <div class="node" style="flex:1;">
+        <div class="node-title">Iteration Tracker</div>
+        <div class="node-detail">
+          Scores persisted to CSV/JSON<br>
+          Delta from previous run surfaced<br>
+          call→response auto-played per pair<br>
+          No manual file management
+        </div>
+        <span class="node-tag tag-red">EVAL-02..04</span>
+      </div>
+
+      <div class="node" style="flex:1; border-color:#4a2020;">
+        <div class="node-title">Ship Gate</div>
+        <div class="node-detail">
+          v1 ships when:<br>
+          <strong>2 consecutive iterations</strong><br>
+          both improve mean held-out<br>
+          call-response-fit score<br><br>
+          Validates the loop, not a single model
+        </div>
+        <span class="node-tag tag-red">EVAL-05</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ -->
+  <div class="section-header" style="margin-top:40px;">future — post v1 ship</div>
+
+  <!-- ─── M4L ─── -->
+  <div class="layer layer-m4l">
+    <div class="layer-label">⑦ Max4Live Plugin <span class="future-badge">post-v1</span></div>
+    <div class="layer-body">
+
+      <div class="node future" style="flex:1;">
+        <div class="node-title">Call Trigger</div>
+        <div class="node-detail">
+          Manual trigger / silence detect<br>
+          / quantized bar boundary<br>
+          Captures MIDI clip + bounces audio
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:center; color:#484f58; font-size:16px; padding:0 6px;">→</div>
+
+      <div class="node future" style="flex:2;">
+        <div class="node-title">Local Python Inference Server</div>
+        <div class="node-detail">
+          Runs on MPS (Apple Silicon) — no cloud<br>
+          Checkpoint loaded once at plugin init<br>
+          M4L communicates via OSC or Unix socket<br>
+          Latency: ~20–100ms (CPU) · &lt;10ms (MPS)<br>
+          Model size (~1.1M params) fits easily in RAM
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:center; color:#484f58; font-size:16px; padding:0 6px;">→</div>
+
+      <div class="node future" style="flex:1;">
+        <div class="node-title">Response MIDI</div>
+        <div class="node-detail">
+          Inserted into Ableton clip<br>
+          + Operator preset (999.1)<br>
+          loaded into instrument
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div style="height:12px;"></div>
+
+  <!-- ─── PRESET HEAD ─── -->
+  <div class="layer layer-m4l">
+    <div class="layer-label">⑧ FM Preset Generation Head <span class="future-badge">999.1</span></div>
+    <div class="layer-body">
+
+      <div class="node future" style="flex:1;">
+        <div class="node-title">call_preset.adg</div>
+        <div class="node-detail">
+          Already known — user authored it<br>
+          Parsed to flat parameter vector<br>
+          ~40–60 meaningful Operator params<br>
+          (algorithm · coarse/fine · FM depth<br>
+          envelope · filter · LFO)
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:center; color:#484f58; font-size:16px; padding:0 6px;">→</div>
+
+      <div class="node future" style="flex:2;">
+        <div class="node-title">Preset Δ MLP Head</div>
+        <div class="node-detail">
+          Input: call_params + model final hidden state<br>
+          Output: Δ params (transformation, not absolute)<br>
+          Learns: flip algorithm · detune carriers<br>
+          · swap modulator waveform · reduce FM depth<br><br>
+          NOT inverse synthesis — call preset is known<br>
+          Training signal: (call_params, response_params) pairs<br>
+          No audio reconstruction loss needed
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:center; color:#484f58; font-size:16px; padding:0 6px;">→</div>
+
+      <div class="node future" style="flex:1;">
+        <div class="node-title">response_preset.adg</div>
+        <div class="node-detail">
+          call_preset + Δ params<br>
+          Directly loadable in Ableton<br>
+          "Musical mutation" of call timbre
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div style="height:12px;"></div>
+
+  <!-- ─── CROSS-SYNTH ─── -->
+  <div class="layer layer-xsynth">
+    <div class="layer-label">⑨ Cross-Synth Parameter Mapping <span class="future-badge">999.3</span></div>
+    <div class="layer-body">
+
+      <div class="node future" style="flex:1;">
+        <div class="node-title">Timbral Embedding</div>
+        <div class="node-detail">
+          Shared perceptual space<br>
+          bridged by mel spectrogram<br>
+          MelEncoder as universal<br>
+          timbral encoder (fine-tuned)
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:center; color:#484f58; font-size:16px; padding:0 6px;">→</div>
+
+      <div style="display:flex; flex-direction:column; gap:8px; flex:3;">
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <div class="node future" style="flex:1;">
+            <div class="node-title">Analog Head</div>
+            <div class="node-detail">Classic subtractive<br>2 osc · 2 filters<br>Closest to Operator</div>
+            <span class="node-tag tag-future">Priority 1</span>
+          </div>
+          <div class="node future" style="flex:1;">
+            <div class="node-title">Wavetable Head</div>
+            <div class="node-detail">Wavetable osc<br>Mod matrix<br>Same env/filter skeleton</div>
+            <span class="node-tag tag-future">Priority 2</span>
+          </div>
+          <div class="node future" style="flex:1;">
+            <div class="node-title">Drift Head</div>
+            <div class="node-detail">Semi-modular analog<br>Patch-point routing</div>
+            <span class="node-tag tag-future">Priority 3</span>
+          </div>
+          <div class="node future" style="flex:1;">
+            <div class="node-title">VST Head</div>
+            <div class="node-detail">Serum · Massive · Diva<br>Via M4L param dump<br>VST3 parameter IDs</div>
+            <span class="node-tag tag-future">Priority 4</span>
+          </div>
+        </div>
+        <div class="node future" style="font-size:10px; color:#484f58; border-style:dashed; text-align:center; padding:8px;">
+          Level 1 (near-term): manual ontology mapping — research manuals, define parameter analogs to Operator schema<br>
+          Level 2 (research): learned cross-synth embedding — mel bridges parameter spaces; potentially a new field
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div style="height:12px;"></div>
+
+  <!-- ─── HIERARCHICAL ─── -->
+  <div class="layer layer-xsynth">
+    <div class="layer-label">⑩ Hierarchical Call-and-Response · Songwriting Scaffold <span class="future-badge">SEED-002 · post-v1</span></div>
+    <div class="layer-body">
+
+      <div class="node future" style="flex:1;">
+        <div class="node-title">Gesture Level (v1)</div>
+        <div class="node-detail">
+          A → B<br>
+          ~1 sec · 2–6 notes<br>
+          This is Apollo v1
+        </div>
+        <span class="node-tag tag-future">Current</span>
+      </div>
+
+      <div style="display:flex; align-items:center; color:#484f58; font-size:16px; padding:0 6px;">→</div>
+
+      <div class="node future" style="flex:1;">
+        <div class="node-title">Theme Level</div>
+        <div class="node-detail">
+          T1 → T2<br>
+          T1 = (A→B), T2 = (A→C) or (A→B')<br>
+          B' = development<br>
+          C = contrast
+        </div>
+        <span class="node-tag tag-future">v2 milestone</span>
+      </div>
+
+      <div style="display:flex; align-items:center; color:#484f58; font-size:16px; padding:0 6px;">→</div>
+
+      <div class="node future" style="flex:1;">
+        <div class="node-title">Passage Level</div>
+        <div class="node-detail">
+          Themes accumulate into<br>musical passages<br>
+          Verse / chorus / bridge<br>
+          structure emerges
+        </div>
+        <span class="node-tag tag-future">v3+ milestone</span>
+      </div>
+
+      <div style="display:flex; align-items:center; color:#484f58; font-size:16px; padding:0 6px;">→</div>
+
+      <div class="node future" style="flex:1;">
+        <div class="node-title">Architecture</div>
+        <div class="node-detail">
+          v1 model as feature extractor<br>
+          Gesture embeddings = tokens<br>
+          for theme-level model<br>
+          Nests naturally, no re-arch
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top:48px; max-width:980px; margin-left:auto; margin-right:auto; padding:16px; background:#0d1117; border:1px solid #21262d; border-radius:8px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; font-size:11px; color:#6e7681; line-height:1.6;">
+  <strong style="color:#8b949e;">Known Limitation (LFO rhythm):</strong>
+  Calls can carry timbral rhythm via LFO/envelope modulation (e.g. a filter LFO creating a perceived pulse on a held note).
+  The mel spectrogram gives the model perceptual access to this, but the response channel is MIDI-only — the model answers with note events, not synthesis parameters.
+  Addressed in part by 999.1 (preset head) and 999.2 (synthesis-level rhythm response, deferred).
+</div>
+
+</body>
+</html>
