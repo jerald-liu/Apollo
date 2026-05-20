@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MelEncoder CNN Architecture</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0c0e14;
+    color: #c9d1d9;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 24px 80px;
+    min-height: 100vh;
+  }
+
+  h1 {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    color: #e6edf3;
+    margin-bottom: 4px;
+    letter-spacing: 0.03em;
+  }
+
+  .subtitle {
+    font-size: 11px;
+    color: #6e7681;
+    margin-bottom: 40px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  /* ── PIPELINE ── */
+  .pipeline {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    width: 100%;
+    max-width: 680px;
+  }
+
+  /* ── TENSOR BLOCK ── */
+  .tensor {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .tensor-shape {
+    font-size: 11px;
+    color: #8b949e;
+    letter-spacing: 0.04em;
+  }
+
+  .tensor-vis {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    position: relative;
+  }
+
+  /* isometric-ish 3-D box using stacked divs */
+  .tbox {
+    position: relative;
+    border-radius: 3px;
+  }
+
+  /* ── OPERATION BLOCK ── */
+  .op {
+    width: 100%;
+    padding: 12px 18px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .op-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #e6edf3;
+    white-space: nowrap;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  .op-detail {
+    font-size: 10.5px;
+    color: #8b949e;
+    text-align: right;
+    line-height: 1.5;
+  }
+
+  .op-params {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 3px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* color themes per layer */
+  .op-input    { background: #0d1f12; border: 1px solid #1e4024; }
+  .op-conv1    { background: #130d27; border: 1px solid #3d1f5c; }
+  .op-conv2    { background: #1a0f35; border: 1px solid #4a2875; }
+  .op-conv3    { background: #200f40; border: 1px solid #5a30a0; }
+  .op-pool     { background: #0d1a2a; border: 1px solid #1a3d5c; }
+  .op-avgpool  { background: #0d1f27; border: 1px solid #1a4a40; }
+  .op-fc       { background: #271a0d; border: 1px solid #5c3d1a; }
+  .op-output   { background: #1a0d12; border: 1px solid #5c1a2a; }
+
+  .params-conv  { background: #25183a; color: #bc8cff; }
+  .params-pool  { background: #132235; color: #58a6ff; }
+  .params-fc    { background: #2d1f0a; color: #e3b341; }
+  .params-none  { background: #1c2128; color: #6e7681; }
+
+  /* ── ARROW ── */
+  .arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    padding: 1px 0;
+    position: relative;
+  }
+
+  .arrow-shaft {
+    width: 2px;
+    background: #21262d;
+  }
+
+  .arrow-head {
+    width: 0; height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 7px solid #21262d;
+  }
+
+  .arrow-label {
+    position: absolute;
+    left: calc(50% + 14px);
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    color: #3d444d;
+    white-space: nowrap;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  /* ── SHAPE TAG ── */
+  .shape {
+    width: 100%;
+    text-align: center;
+    font-size: 10.5px;
+    color: #484f58;
+    letter-spacing: 0.04em;
+    padding: 5px 0 4px;
+    border-top: 1px dashed #21262d;
+    border-bottom: 1px dashed #21262d;
+    margin: 0;
+  }
+
+  /* ── ACTIVATION BADGE ── */
+  .act {
+    display: inline-block;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 1px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .act-relu    { background: #1f2a0d; color: #56d364; }
+  .act-sigmoid { background: #2d1f0a; color: #e3b341; }
+
+  /* ── DIMENSION VISUALIZATION ── */
+  .dimviz {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 10px 18px;
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 6px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .dim-axis {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .dim-bar {
+    border-radius: 2px;
+    transition: height 0.2s;
+  }
+
+  .dim-label {
+    font-size: 9px;
+    color: #484f58;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  .dim-value {
+    font-size: 11px;
+    font-weight: 700;
+    color: #8b949e;
+  }
+
+  .dim-sep {
+    font-size: 14px;
+    color: #21262d;
+    margin-top: -8px;
+  }
+
+  /* ── PARAM TABLE ── */
+  .param-table {
+    width: 100%;
+    max-width: 680px;
+    margin-top: 40px;
+    border: 1px solid #21262d;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .param-table table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .param-table th {
+    background: #161b22;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #484f58;
+    padding: 8px 14px;
+    text-align: left;
+    border-bottom: 1px solid #21262d;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  .param-table td {
+    padding: 7px 14px;
+    border-bottom: 1px solid #161b22;
+    font-size: 11px;
+    color: #8b949e;
+  }
+
+  .param-table tr:last-child td { border-bottom: none; }
+
+  .param-table td:first-child { color: #e6edf3; font-weight: 600; }
+  .param-table td.num { color: #bc8cff; text-align: right; font-variant-numeric: tabular-nums; }
+  .param-table tfoot td {
+    background: #161b22;
+    color: #e3b341;
+    font-weight: 700;
+    border-top: 1px solid #21262d;
+    font-size: 11px;
+  }
+  .param-table tfoot td.num { color: #e3b341; }
+</style>
+</head>
+<body>
+
+<h1>MelEncoder — CNN Architecture</h1>
+<p class="subtitle">call.wav → (B, 1, 96, 128) log-mel spectrogram → (B, 128) timbre embedding</p>
+
+<div class="pipeline">
+
+  <!-- INPUT -->
+  <div class="op op-input" style="width:100%;">
+    <div>
+      <div class="op-name">Input</div>
+      <div class="op-detail">log-mel spectrogram · added channel dim in collate_fn</div>
+    </div>
+    <div class="op-detail" style="text-align:right;">
+      <div style="color:#3fb950; font-weight:700;">(B, 1, 96, 128)</div>
+      <div>batch · channels · time-frames · mel-bins</div>
+    </div>
+    <div class="op-params params-none">—</div>
+  </div>
+
+  <!-- ARROW -->
+  <div class="arrow" style="height:28px;">
+    <div class="arrow-shaft" style="height:21px;"></div>
+    <div class="arrow-head"></div>
+  </div>
+
+  <!-- CONV 1 -->
+  <div class="op op-conv1" style="width:100%;">
+    <div>
+      <div class="op-name">Conv2d(1 → 32) <span class="act act-relu">ReLU</span></div>
+      <div class="op-detail">kernel 3×3 · padding 1 · stride 1<br>learns 32 feature maps over time × frequency</div>
+    </div>
+    <div class="op-detail" style="text-align:right;">
+      <div style="color:#bc8cff; font-weight:700;">(B, 32, 96, 128)</div>
+      <div>spatial dims preserved by padding</div>
+    </div>
+    <div class="op-params params-conv">320 params</div>
+  </div>
+
+  <!-- MAXPOOL 1 -->
+  <div class="arrow" style="height:20px;">
+    <div class="arrow-shaft" style="height:13px;"></div>
+    <div class="arrow-head"></div>
+  </div>
+
+  <div class="op op-pool" style="width:100%;">
+    <div>
+      <div class="op-name">MaxPool2d(2×2)</div>
+      <div class="op-detail">halves both spatial dimensions</div>
+    </div>
+    <div class="op-detail" style="text-align:right;">
+      <div style="color:#58a6ff; font-weight:700;">(B, 32, 48, 64)</div>
+      <div>96÷2 · 128÷2</div>
+    </div>
+    <div class="op-params params-pool">no params</div>
+  </div>
+
+  <!-- ARROW -->
+  <div class="arrow" style="height:28px;">
+    <div class="arrow-shaft" style="height:21px;"></div>
+    <div class="arrow-head"></div>
+  </div>
+
+  <!-- CONV 2 -->
+  <div class="op op-conv2" style="width:100%;">
+    <div>
+      <div class="op-name">Conv2d(32 → 64) <span class="act act-relu">ReLU</span></div>
+      <div class="op-detail">kernel 3×3 · padding 1 · stride 1<br>doubles feature depth, captures richer patterns</div>
+    </div>
+    <div class="op-detail" style="text-align:right;">
+      <div style="color:#bc8cff; font-weight:700;">(B, 64, 48, 64)</div>
+      <div>spatial dims preserved by padding</div>
+    </div>
+    <div class="op-params params-conv">18,496 params</div>
+  </div>
+
+  <!-- MAXPOOL 2 -->
+  <div class="arrow" style="height:20px;">
+    <div class="arrow-shaft" style="height:13px;"></div>
+    <div class="arrow-head"></div>
+  </div>
+
+  <div class="op op-pool" style="width:100%;">
+    <div>
+      <div class="op-name">MaxPool2d(2×2)</div>
+      <div class="op-detail">halves both spatial dimensions again</div>
+    </div>
+    <div class="op-detail" style="text-align:right;">
+      <div style="color:#58a6ff; font-weight:700;">(B, 64, 24, 32)</div>
+      <div>48÷2 · 64÷2</div>
+    </div>
+    <div class="op-params params-pool">no params</div>
+  </div>
+
+  <!-- ARROW -->
+  <div class="arrow" style="height:28px;">
+    <div class="arrow-shaft" style="height:21px;"></div>
+    <div class="arrow-head"></div>
+  </div>
+
+  <!-- CONV 3 -->
+  <div class="op op-conv3" style="width:100%;">
+    <div>
+      <div class="op-name">Conv2d(64 → 128) <span class="act act-relu">ReLU</span></div>
+      <div class="op-detail">kernel 3×3 · padding 1 · stride 1<br>builds high-level timbral representations</div>
+    </div>
+    <div class="op-detail" style="text-align:right;">
+      <div style="color:#bc8cff; font-weight:700;">(B, 128, 24, 32)</div>
+      <div>spatial dims preserved by padding</div>
+    </div>
+    <div class="op-params params-conv">73,856 params</div>
+  </div>
+
+  <!-- ADAPTIVE AVG POOL -->
+  <div class="arrow" style="height:20px;">
+    <div class="arrow-shaft" style="height:13px;"></div>
+    <div class="arrow-head"></div>
+  </div>
+
+  <div class="op op-avgpool" style="width:100%;">
+    <div>
+      <div class="op-name">AdaptiveAvgPool2d(1×1)</div>
+      <div class="op-detail">collapses time × frequency into a single value per channel<br>global average — invariant to input length variations</div>
+    </div>
+    <div class="op-detail" style="text-align:right;">
+      <div style="color:#39d353; font-weight:700;">(B, 128, 1, 1)</div>
+      <div>24×32 → 1×1</div>
+    </div>
+    <div class="op-params params-pool">no params</div>
+  </div>
+
+  <!-- FLATTEN (implicit) -->
+  <div class="arrow" style="height:20px;">
+    <div class="arrow-shaft" style="height:13px;"></div>
+    <div class="arrow-head"></div>
+    <div class="arrow-label">flatten → (B, 128)</div>
+  </div>
+
+  <!-- FC -->
+  <div class="op op-fc" style="width:100%;">
+    <div>
+      <div class="op-name">Linear(128 → 128)</div>
+      <div class="op-detail">projects pooled features into the model's embedding space<br>output dim matches transformer d_model</div>
+    </div>
+    <div class="op-detail" style="text-align:right;">
+      <div style="color:#e3b341; font-weight:700;">(B, 128)</div>
+      <div>mel timbre embedding</div>
+    </div>
+    <div class="op-params params-fc">16,512 params</div>
+  </div>
+
+  <!-- ARROW -->
+  <div class="arrow" style="height:28px;">
+    <div class="arrow-shaft" style="height:21px;"></div>
+    <div class="arrow-head"></div>
+    <div class="arrow-label">prepended as prefix token</div>
+  </div>
+
+  <!-- OUTPUT -->
+  <div class="op op-output" style="width:100%;">
+    <div>
+      <div class="op-name">Mel Prefix Token → ApolloModel</div>
+      <div class="op-detail">unsqueezed to (B, 1, 128) · concatenated before call tokens<br>transformer attends to this as position 0</div>
+    </div>
+    <div class="op-detail" style="text-align:right;">
+      <div style="color:#f78166; font-weight:700;">(B, 1, 128)</div>
+      <div>in transformer sequence</div>
+    </div>
+    <div class="op-params params-none">—</div>
+  </div>
+
+</div>
+
+<!-- PARAM TABLE -->
+<div class="param-table">
+  <table>
+    <thead>
+      <tr>
+        <th>Layer</th>
+        <th>Operation</th>
+        <th>Output shape</th>
+        <th style="text-align:right;">Params</th>
+        <th style="text-align:right;">Calculation</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Input</td>
+        <td>log-mel spectrogram</td>
+        <td>(B, 1, 96, 128)</td>
+        <td class="num">—</td>
+        <td class="num">—</td>
+      </tr>
+      <tr>
+        <td>Conv1</td>
+        <td>Conv2d(1→32, 3×3, pad=1) + ReLU</td>
+        <td>(B, 32, 96, 128)</td>
+        <td class="num">320</td>
+        <td class="num">32×(1×3×3+1)</td>
+      </tr>
+      <tr>
+        <td>Pool1</td>
+        <td>MaxPool2d(2×2)</td>
+        <td>(B, 32, 48, 64)</td>
+        <td class="num">—</td>
+        <td class="num">—</td>
+      </tr>
+      <tr>
+        <td>Conv2</td>
+        <td>Conv2d(32→64, 3×3, pad=1) + ReLU</td>
+        <td>(B, 64, 48, 64)</td>
+        <td class="num">18,496</td>
+        <td class="num">64×(32×3×3+1)</td>
+      </tr>
+      <tr>
+        <td>Pool2</td>
+        <td>MaxPool2d(2×2)</td>
+        <td>(B, 64, 24, 32)</td>
+        <td class="num">—</td>
+        <td class="num">—</td>
+      </tr>
+      <tr>
+        <td>Conv3</td>
+        <td>Conv2d(64→128, 3×3, pad=1) + ReLU</td>
+        <td>(B, 128, 24, 32)</td>
+        <td class="num">73,856</td>
+        <td class="num">128×(64×3×3+1)</td>
+      </tr>
+      <tr>
+        <td>AvgPool</td>
+        <td>AdaptiveAvgPool2d(1×1)</td>
+        <td>(B, 128, 1, 1)</td>
+        <td class="num">—</td>
+        <td class="num">—</td>
+      </tr>
+      <tr>
+        <td>Flatten</td>
+        <td>view(B, 128)</td>
+        <td>(B, 128)</td>
+        <td class="num">—</td>
+        <td class="num">—</td>
+      </tr>
+      <tr>
+        <td>FC</td>
+        <td>Linear(128→128)</td>
+        <td>(B, 128)</td>
+        <td class="num">16,512</td>
+        <td class="num">128×128+128</td>
+      </tr>
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="3">Total trainable parameters</td>
+        <td class="num">109,184</td>
+        <td class="num">320+18,496+73,856+16,512</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+</body>
+</html>
