@@ -1,0 +1,40 @@
+name: Tests
+
+on:
+  push:
+    branches: ["call-and-response-v1"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # Install CPU-only PyTorch — avoids pulling the CUDA wheel (~2 GB)
+      # MPS tests are guarded with pytest.skip so they are silently skipped on Linux
+      - name: Install PyTorch (CPU)
+        run: |
+          pip install torch>=2.8.0 torchaudio>=2.8.0 \
+            --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install package + dev deps
+        run: pip install -e ".[dev]"
+
+      - name: Run tests
+        run: pytest --tb=short -v
