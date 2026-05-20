@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-02-PLAN.md (ApolloModel)
-last_updated: "2026-05-20T03:44:29Z"
-last_activity: 2026-05-20 -- Completed 02-02 ApolloModel (8/8 tests, 976384 params, TDD RED/GREEN)
+stopped_at: Completed 02-03-PLAN.md (ApolloDataset + collate_fn — 10/10 tests, TDD RED/GREEN)
+last_updated: "2026-05-20T03:49:13Z"
+last_activity: 2026-05-20 -- Completed 02-03 ApolloDataset + collate_fn (10/10 tests, length-based pad mask, TDD RED/GREEN)
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 10
-  completed_plans: 7
-  percent: 70
+  completed_plans: 8
+  percent: 80
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-05-19)
 ## Current Position
 
 Phase: 02 (model-training) — EXECUTING
-Plan: 3 of 5
-Status: Executing Phase 02
-Last activity: 2026-05-20 -- Completed 02-02 ApolloModel (8/8 tests, 976384 params, TDD RED/GREEN)
+Plan: 4 of 5
+Status: Ready to execute
+Last activity: 2026-05-20
 
-Progress: [████░░░░░░] 40%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
@@ -80,6 +80,9 @@ Recent decisions affecting current work:
 - 02-02: ApolloModel contains MelEncoder as submodule (self.mel_enc) — joint training via single model.parameters(); checkpoint saves mel_encoder_state_dict separately per D-23
 - 02-02: pos_emb = nn.Embedding(max_seq_len+1, d_model) — size 65 for default max_seq_len=64 (RESEARCH pitfall #4 baked in)
 - 02-02: Total params confirmed 976,384 (mel_enc 109,184 + tok_emb 32,768 + pos_emb 8,320 + transformer 793,088 + out_proj 33,024)
+- 02-03: PAD_ID=0 reuses TIME_OFFSET=0 — pad_mask derived from sequence length L, never token_ids==0 (RESEARCH pitfall #1 baked into packer.py)
+- 02-03: mel.unsqueeze(1) in collate_fn adds channel dim (B,1,96,128) required by Conv2d (RESEARCH pitfall #6)
+- 02-03: tokens cast to int64 via .long() in collate_fn — artifact stores int32, nn.Embedding requires LongTensor
 
 ### Pending Todos
 
@@ -99,6 +102,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-20
-Stopped at: Completed 02-02-PLAN.md (ApolloModel — 8/8 tests, 976384 params, TDD RED/GREEN)
-Resume file: .planning/phases/02-model-training/02-03-PLAN.md
+Last session: 2026-05-20T03:49:13Z
+Stopped at: Completed 02-03-PLAN.md (ApolloDataset + collate_fn — 10/10 tests, TDD RED/GREEN)
+Resume file: .planning/phases/02-model-training/02-04-PLAN.md

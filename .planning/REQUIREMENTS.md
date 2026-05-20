@@ -30,7 +30,7 @@
 
 ### Training (TRAIN)
 
-- [ ] **TRAIN-01**: Training samples pack as `[BOS, call_tokens, SEP, response_tokens, EOS]` with the SEP boundary explicit
+- [x] **TRAIN-01**: Training samples pack as `[BOS, call_tokens, SEP, response_tokens, EOS]` with the SEP boundary explicit
 - [ ] **TRAIN-02**: Cross-entropy loss is **masked to response tokens only** — the model is not penalized for the call side
 - [ ] **TRAIN-03**: Model is trained from scratch (random init); no warm-start from any prior checkpoint
 - [ ] **TRAIN-04**: A smoke-train on ≥10 mock pairs reaches >95% next-token type-accuracy on the response side (sanity check, structurally valid output)
@@ -109,7 +109,7 @@ Deferred to a later milestone. Tracked here so they don't get lost.
 | COND-02 | Phase 2: Model & Training | Pending |
 | COND-03 | Phase 2: Model & Training | Pending |
 | COND-04 | Phase 1: Tokenizer & Ingest | Done (01-05) |
-| TRAIN-01 | Phase 2: Model & Training | Pending |
+| TRAIN-01 | Phase 2: Model & Training | Complete |
 | TRAIN-02 | Phase 2: Model & Training | Pending |
 | TRAIN-03 | Phase 2: Model & Training | Pending |
 | TRAIN-04 | Phase 2: Model & Training | Pending |
