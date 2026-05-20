@@ -18,6 +18,7 @@ jobs:
               tests/test_vocab_layout.py
               tests/test_tokenizer_roundtrip.py
               tests/test_mel_encoder.py
+              tests/test_mel_conditioning.py
               tests/test_transformer.py
               tests/test_checkpoint.py
               tests/test_split_determinism.py
