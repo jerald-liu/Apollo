@@ -12,7 +12,9 @@ Given a short MIDI call played through an Operator preset, the model produces a 
 
 ### Validated
 
-(None yet — ship to validate)
+**Validated in Phase 1 (Tokenizer & Ingest):** Tokenizer round-trips MIDI, mel extractor produces (96,128) tensors, pair discovery + hash split + artifact format, error handling + smoke test.
+
+**Validated in Phase 2 (Model & Training):** MelEncoder (109,184 params, CNN) compresses mel → (B,128) embedding. ApolloModel (976,384 params, causal transformer + MEL prefix). ApolloDataset + collate_fn packs [BOS, call, SEP, response, EOS, PAD]. Masked CE loss (response-only, `>= sep_pos` boundary). Smoke train: `type_accuracy=1.0` on 4 pairs, 1.88s on MPS. Checkpoint round-trips bit-identically (5-key format).
 
 ### Active
 
