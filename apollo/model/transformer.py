@@ -74,7 +74,13 @@ class ApolloModel(nn.Module):
             dropout=0.0,
             norm_first=False,   # Post-LN; avoids nested_tensor warning (RESEARCH §4)
         )
-        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+        # enable_nested_tensor=False: disables the MPS-incompatible nested tensor
+        # fast path that raises NotImplementedError on MPS in eval mode when
+        # src_key_padding_mask is provided (aten::_nested_tensor_from_mask_left_aligned).
+        # Behavior is identical; only the internal dispatch path changes.
+        self.transformer = nn.TransformerEncoder(
+            encoder_layer, num_layers=n_layers, enable_nested_tensor=False
+        )
 
         self.out_proj = nn.Linear(d_model, vocab_size)
 

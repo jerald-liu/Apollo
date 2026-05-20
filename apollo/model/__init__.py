@@ -12,13 +12,22 @@ Phase 2 exports:
     get_device          — MPS if available, else CPU (Plan 02-04, D-19).
     token_category      — Token ID → category index mapping (Plan 02-04, D-20).
     compute_type_accuracy — Response-side type-accuracy metric (Plan 02-04, TRAIN-04).
+    save_checkpoint     — Save self-contained checkpoint (D-23, TRAIN-06).
+    load_checkpoint     — Load checkpoint with weights_only=False (D-24, trusted local).
 """
 
 from apollo.model.mel_encoder import MelEncoder
 from apollo.model.transformer import ApolloModel
 from apollo.model.packer import ApolloDataset, collate_fn, BOS, EOS, SEP, PAD_ID, MAX_SEQ_LEN
 from apollo.model.metrics import compute_type_accuracy, token_category
-from apollo.model.train import compute_masked_loss, train_epoch, run_training, get_device
+from apollo.model.train import (
+    compute_masked_loss,
+    train_epoch,
+    run_training,
+    get_device,
+    save_checkpoint,
+    load_checkpoint,
+)
 
 __all__ = [
     "MelEncoder",
@@ -28,4 +37,5 @@ __all__ = [
     "BOS", "EOS", "SEP", "PAD_ID", "MAX_SEQ_LEN",
     "compute_type_accuracy", "token_category",
     "compute_masked_loss", "train_epoch", "run_training", "get_device",
+    "save_checkpoint", "load_checkpoint",
 ]

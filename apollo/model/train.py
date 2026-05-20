@@ -7,9 +7,17 @@ RESEARCH-critical fix (pitfall #2):
   Loss mask boundary is `j >= sep_pos` — NOT `j > sep_pos`.
   Using `>` silently drops the first response token from the loss gradient.
   See compute_masked_loss docstring for the full boundary derivation.
+
+Checkpoint helpers (TRAIN-06, D-23, D-24):
+  save_checkpoint / load_checkpoint use weights_only=False (D-24).
+  This is safe because the checkpoint is OUR FILE in OUR REPO — same
+  disposition as the Phase 1 artifact (T-01-14 accept). Do NOT load
+  checkpoints from untrusted sources with this function.
 """
 
 from __future__ import annotations
+
+from pathlib import Path
 
 import torch
 import torch.nn as nn
@@ -142,3 +150,41 @@ def run_training(
         losses.append(mean_loss)
 
     return {"final_loss": losses[-1] if losses else float("nan"), "losses": losses}
+
+
+def save_checkpoint(
+    model: nn.Module,
+    vocab_dict: dict,
+    model_config: dict,
+    training_meta: dict,
+    out_path: str,
+) -> None:
+    """Save a self-contained checkpoint (D-23, TRAIN-06).
+
+    Keys: model_state_dict, mel_encoder_state_dict, vocab, model_config, training_meta.
+    mel_encoder_state_dict is saved as a separate top-level key even though MelEncoder
+    is a submodule of ApolloModel — this gives Phase 3 inference the option to load
+    components independently (D-23).
+    """
+    out = Path(out_path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(
+        {
+            "model_state_dict":       model.state_dict(),
+            "mel_encoder_state_dict": model.mel_enc.state_dict(),
+            "vocab":                  vocab_dict,
+            "model_config":           model_config,
+            "training_meta":          training_meta,
+        },
+        str(out),
+    )
+
+
+def load_checkpoint(path: str, map_location: str = "cpu") -> dict:
+    """Load OUR checkpoint with weights_only=False (D-24, trusted local file).
+
+    This is safe because the file is produced by save_checkpoint above —
+    OUR FILE, OUR REPO (same disposition as Phase 1 artifact, T-01-14 accept).
+    Do NOT use this to load checkpoints from untrusted sources.
+    """
+    return torch.load(path, map_location=map_location, weights_only=False)
