@@ -103,8 +103,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 ### Phase 999.1: FM Patch Generation Head (BACKLOG)
 
 **Goal:** Extend the model to suggest Operator FM patch parameters alongside response MIDI — the model outputs both notes *and* a timbre suggestion, giving complete call-and-response including sound design.
-**Motivation:** Operator is DX7/FM4 lineage with a bounded, interpretable parameter space. torchsynth/SynthAX provide GPU-accelerated differentiable FM synthesis — no raw waveform generation needed, just map to FM parameters and train with a reconstruction loss. Dexed (open-source DX7 clone) has a fully open parameter format mappable to Operator. Reference: https://gist.github.com/0xdevalias/5a06349b376d01b2a76ad27a86b08c1b
-**Prerequisites:** v1 evaluation loop complete (Phase 4); corpus authoring extended to capture patch parameter snapshots per pair.
+**Motivation:** The call preset is already known (user authored it). The response preset is a *transformation* of the call preset — not an inverse synthesis problem, but a direct parameter-to-parameter mapping. The model learns what FM mutations constitute a musical response: flip an algorithm, change coarse tuning on a carrier, swap a modulator waveform. Training signal is (call_params, response_params) pairs from corpus; no audio reconstruction loss required. Corpus change: capture `call_preset.adg` + `response_preset.adg` per pair (one Ableton export step per track). Inference output: `response.mid` + `response_preset.adg`, directly loadable in Ableton Operator.
+**Prerequisites:** v1 evaluation loop complete (Phase 4); corpus authoring extended to capture `.adg` preset exports per pair; Operator parameter schema defined (~40–60 meaningful params).
 **Requirements:** TBD
 **Plans:** 0 plans
 - [ ] TBD (promote with /gsd-review-backlog when ready)
