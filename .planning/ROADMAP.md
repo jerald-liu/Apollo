@@ -45,7 +45,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Loss is visibly lower on response tokens than on call tokens, confirming the mask is applied correctly
   3. Training completes without error on the local MPS device with no Modal/cloud dependency
   4. A checkpoint saved under `models/` contains model weights, mel encoder weights, and tokenizer config in a single artifact
-**Plans**: TBD
+**Plans**: 5 plans
+- [ ] 02-01-PLAN.md — MelEncoder (CNN mel-to-embedding) + tests (COND-02, COND-03)
+- [ ] 02-02-PLAN.md — ApolloModel (decoder-only transformer w/ MEL prefix) + tests (TRAIN-01, TRAIN-03, TRAIN-05)
+- [ ] 02-03-PLAN.md — ApolloDataset + collate_fn (TRAIN-01 sequence packing) + tests
+- [ ] 02-04-PLAN.md — Masked CE loss, type-accuracy metric, train_epoch + tests (TRAIN-02, TRAIN-03, TRAIN-05)
+- [ ] 02-05-PLAN.md — Smoke-train CLI + checkpoint save/load + >0.95 type-acc gate (TRAIN-04, TRAIN-06)
 
 ### Phase 3: Corpus & Inference
 **Goal**: ≥30 authored pairs exist and `generate.py` can produce a response MIDI from a call pair
