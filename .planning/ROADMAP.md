@@ -46,7 +46,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Training completes without error on the local MPS device with no Modal/cloud dependency
   4. A checkpoint saved under `models/` contains model weights, mel encoder weights, and tokenizer config in a single artifact
 **Plans**: 5 plans
-- [ ] 02-01-PLAN.md — MelEncoder (CNN mel-to-embedding) + tests (COND-02, COND-03)
+- [x] 02-01-PLAN.md — MelEncoder (CNN mel-to-embedding) + tests (COND-02, COND-03)
 - [ ] 02-02-PLAN.md — ApolloModel (decoder-only transformer w/ MEL prefix) + tests (TRAIN-01, TRAIN-03, TRAIN-05)
 - [ ] 02-03-PLAN.md — ApolloDataset + collate_fn (TRAIN-01 sequence packing) + tests
 - [ ] 02-04-PLAN.md — Masked CE loss, type-accuracy metric, train_epoch + tests (TRAIN-02, TRAIN-03, TRAIN-05)
@@ -82,6 +82,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Tokenizer & Ingest | 5/5 | Complete | 2026-05-19 |
-| 2. Model & Training | 0/TBD | Not started | - |
+| 2. Model & Training | 1/5 | Executing | - |
 | 3. Corpus & Inference | 0/TBD | Not started | - |
 | 4. Evaluation Loop | 0/TBD | Not started | - |

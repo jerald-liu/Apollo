@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-05-PLAN.md (Phase 01 done)
-last_updated: "2026-05-20T03:31:40.023Z"
-last_activity: 2026-05-20 -- Phase 02 execution started
+stopped_at: Completed 02-01-PLAN.md (MelEncoder)
+last_updated: "2026-05-20T03:40:24Z"
+last_activity: 2026-05-20 -- Completed 02-01 MelEncoder (6/6 tests, 109184 params)
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 10
-  completed_plans: 5
-  percent: 50
+  completed_plans: 6
+  percent: 60
 ---
 
 # Project State
@@ -26,30 +26,31 @@ See: .planning/PROJECT.md (updated 2026-05-19)
 ## Current Position
 
 Phase: 02 (model-training) — EXECUTING
-Plan: 1 of 5
+Plan: 2 of 5
 Status: Executing Phase 02
-Last activity: 2026-05-20 -- Phase 02 execution started
+Last activity: 2026-05-20 -- Completed 02-01 MelEncoder (6/6 tests, 109184 params)
 
-Progress: [██▌░░░░░░░] 25%
+Progress: [███░░░░░░░] 30%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 5
-- Average duration: ~8 min
-- Total execution time: ~0.65 hours
+- Total plans completed: 6
+- Average duration: ~7 min
+- Total execution time: ~0.70 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01    | 5     | ~39m  | ~8m      |
+| 02    | 1     | ~5m   | ~5m      |
 
 **Recent Trend:**
 
-- Last 5 plans: 01-01 (3.5m), 01-02 (~6m), 01-03 (12m), 01-04 (~5m), 01-05 (~12m)
-- Trend: 01-05 ran long because both tasks hit a Rule-1 bug (pretty_midi estimate_tempo sensitivity to IOI grid). Both fixed inline; no scope creep.
+- Last 6 plans: 01-01 (3.5m), 01-02 (~6m), 01-03 (12m), 01-04 (~5m), 01-05 (~12m), 02-01 (~5m)
+- Trend: 02-01 was fast — TDD plan with exact architecture spec from RESEARCH.md; no deviations.
 
 *Updated after each plan completion*
 
@@ -74,6 +75,8 @@ Recent decisions affecting current work:
 - 01-05: Mock pair default note durations = 0.5 s (quarter at 120 bpm) — 0.25 s tricks pretty_midi.estimate_tempo() into reporting 240 bpm and breaks the load_notes tempo guard
 - 01-05: Default audio_seconds = 1.5 in synthesize_pair to cover three quarter notes
 - 01-05: Phase 1 closed at 46/46 tests passing; 10-pair end-to-end ingest = 0.014 s on CPU (limit 10 s, 700× slack)
+- 02-01: MelEncoder is a standalone nn.Module (not submodule of ApolloModel) per D-23/D-25 — separate state_dict keys at checkpoint time
+- 02-01: Architecture locked to D-01 exactly: Conv2d(1→32)→ReLU→MaxPool×2→Conv2d(32→64)→ReLU→MaxPool×2→Conv2d(64→128)→ReLU→AdaptiveAvgPool→FC; 109,184 params confirmed
 
 ### Pending Todos
 
@@ -93,6 +96,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-19
-Stopped at: Completed 01-05-PLAN.md (Phase 01 done)
-Resume file: Next — Phase 02 discussion or planning (.planning/phases/02-* not yet created)
+Last session: 2026-05-20
+Stopped at: Completed 02-01-PLAN.md (MelEncoder — 6/6 tests, 109184 params, TDD RED/GREEN)
+Resume file: .planning/phases/02-model-training/02-02-PLAN.md
