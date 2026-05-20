@@ -16,6 +16,7 @@ from __future__ import annotations
 import os
 
 import numpy as np
+import soundfile as sf
 import torch
 import torchaudio
 from torchaudio.transforms import MelSpectrogram, Resample
@@ -70,9 +71,12 @@ class MelExtractor:
                 f"wav exceeds size cap ({size} > {self.MAX_WAV_BYTES} bytes)",
             )
 
-        # --- Load (any torchaudio error → IngestError per D-16 / COND-04) ---
+        # --- Load via soundfile — avoids torchaudio.load's torchcodec backend
+        # dependency (torchaudio 2.8+ defaults to torchcodec on Linux; soundfile
+        # is a stable, codec-free alternative for WAV/FLAC/OGG files).
         try:
-            wav, sr = torchaudio.load(wav_path)  # (channels, samples), float32
+            data, sr = sf.read(wav_path, dtype="float32", always_2d=True)
+            wav = torch.from_numpy(data.T)  # (channels, samples) float32
         except Exception as e:
             raise IngestError(pair_path, f"failed to load {wav_path}: {e}")
 
