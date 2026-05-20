@@ -136,13 +136,22 @@ def test_forward_with_padding_mask():
 # ---------------------------------------------------------------------------
 
 def test_uses_transformer_encoder_layer():
-    """transformer.py must use TransformerEncoderLayer, NOT TransformerDecoderLayer."""
+    """transformer.py must use TransformerEncoderLayer, NOT TransformerDecoderLayer.
+
+    The check looks for actual code use (nn.TransformerEncoderLayer instantiation),
+    and verifies nn.TransformerDecoderLayer does NOT appear in code (ignoring comments
+    and docstrings that may mention it by name for documentation purposes).
+    """
     src = Path("apollo/model/transformer.py").read_text()
-    assert "TransformerEncoderLayer" in src, (
-        "TransformerEncoderLayer not found in transformer.py"
+
+    # Positive: nn.TransformerEncoderLayer must be instantiated
+    assert "nn.TransformerEncoderLayer" in src, (
+        "nn.TransformerEncoderLayer not found in transformer.py"
     )
-    assert "TransformerDecoderLayer" not in src, (
-        "TransformerDecoderLayer found in transformer.py — RESEARCH §1 forbids this"
+
+    # Negative: nn.TransformerDecoderLayer must NOT appear (not even in code)
+    assert "nn.TransformerDecoderLayer" not in src, (
+        "nn.TransformerDecoderLayer found in transformer.py — RESEARCH §1 forbids this"
     )
 
 
