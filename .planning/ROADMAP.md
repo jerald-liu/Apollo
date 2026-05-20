@@ -61,7 +61,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Running `generate.py` with a `call.mid` + `call.wav` produces a `response.mid` that is valid MIDI and playable in Ableton
   3. Response length, temperature, and top-k are configurable at the command line without code changes
   4. Sampling N responses for a single call produces N distinct `response.mid` files the user can audition
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 03-01-PLAN.md — data/pairs/ directory stub + CORPUS-CONVENTIONS.md authoring guide (DATA-05)
+- [ ] 03-02-PLAN.md — generate.py autoregressive inference CLI + tests (INFER-01..04)
+- [ ] 03-03-PLAN.md — train.py real-corpus training CLI with OneCycleLR + held-out logging + tests
 
 ### Phase 4: Evaluation Loop
 **Goal**: Users can score held-out pairs per iteration and confirm consecutive improvements — the ship gate is reachable
@@ -83,7 +86,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 |-------|----------------|--------|-----------|
 | 1. Tokenizer & Ingest | 5/5 | Complete | 2026-05-19 |
 | 2. Model & Training | 5/5 | Complete | 2026-05-20 |
-| 3. Corpus & Inference | 0/TBD | Not started | - |
+| 3. Corpus & Inference | 0/3 | Not started | - |
 | 4. Evaluation Loop | 0/TBD | Not started | - |
 
 ## Backlog
