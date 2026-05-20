@@ -91,6 +91,15 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 
 ## Backlog
 
+### Phase 999.3: Cross-Synth Parameter Mapping (BACKLOG)
+
+**Goal:** Extend Apollo's preset generation head beyond Operator to other synth instruments — starting with native Ableton instruments (Analog, Wavetable, Drift), then third-party VSTs. The model outputs a response preset in whatever instrument the user is working with, not just Operator.
+**Motivation:** Apollo's preset-as-transformation approach (999.1) learns parameter mutations within Operator's schema. Extending this to other instruments requires either (a) manual ontology mapping — research each instrument's manual, define parameter analogs to Operator, translate the learned transformation into the target dialect — or (b) a learned cross-synth timbral embedding where audio bridges parameter spaces across instruments. The latter may be a genuinely new field: no existing system handles arbitrary synth plugin parameter mapping at the semantic level.
+**Prerequisites:** 999.1 (FM patch generation head) complete; Operator parameter schema validated; `.adg` corpus capture workflow established.
+**Requirements:** TBD
+**Plans:** 0 plans
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ### Phase 999.2: Synthesis-Level Rhythmic Response (BACKLOG)
 
 **Goal:** Close the asymmetry between call and response rhythmic channels. In v1, calls can carry timbral rhythm via LFO/envelope (a filter LFO on a held note creates a perceived pulse), but the model can only answer with MIDI note events. A future milestone should either (a) extend the response channel to include synthesis parameter suggestions (LFO rate, envelope shape) or (b) augment the tokenizer with CC/mod-wheel tokens that can proxy synthesis-level rhythm.
