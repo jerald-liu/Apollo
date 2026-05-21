@@ -85,6 +85,17 @@ No external specs or ADRs apply. All requirements are captured in REQUIREMENTS.m
 - CLI subcommands live under `apollo/scripts/` (per Phase 1 pattern). `apollo eval` will be a new subcommand group.
 - Tests under `tests/test_*.py`, one file per module/CLI. Eval will add `test_scoring.py`, `test_run_identity.py`, `test_ship_check.py` at minimum.
 - Artifact persistence already uses JSON for tokenizer config (Phase 1 precedent for JSON/JSONL choice).
+- CI has three parallel runners: `unit / pipeline / training`. Phase 4 adds a fourth: `eval`.
+
+### CI Coverage for Phase 4
+The following are strong CI candidates — deterministic, fast, no Ableton required:
+- **Run-identity hash** (`test_run_identity.py`) — given fixture checkpoint + pair-ID list, hash must be stable across runs and Python versions.
+- **`apollo eval ship-check`** (`test_ship_check.py`) — pure function over synthetic JSONL: gate trips on two consecutive iteration-marked improvements, doesn't trip on one, ignores non-iteration-marked runs, handles ties correctly.
+- **JSONL schema invariants** (`test_scoring.py`) — append-only, one record per (run, pair, dim), no duplicate keys per run.
+- **Mean / delta computation** — fixture `scores.jsonl` → expected per-dim means and deltas.
+- **Web UI route smoke** — `GET /pairs` returns held-out list, `POST /score` appends a valid record.
+
+Not CI-able: M4L device (requires Ableton + Max runtime), audio rendering, grading sessions (human in loop).
 
 ### Integration Points
 - Eval reads checkpoint artifacts from `models/` (Phase 2 output format).
