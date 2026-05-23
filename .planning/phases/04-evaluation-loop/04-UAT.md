@@ -1,5 +1,5 @@
 ---
-status: partial
+status: complete
 phase: 04-evaluation-loop
 source:
   - .planning/phases/04-evaluation-loop/04-01-SUMMARY.md
@@ -7,19 +7,12 @@ source:
   - .planning/phases/04-evaluation-loop/04-03-SUMMARY.md
   - .planning/phases/04-evaluation-loop/04-04-SUMMARY.md
 started: 2026-05-23T14:42:50Z
-updated: 2026-05-23T16:00:00Z
-paused: true
-resume_with: /gsd-verify-work 4
+updated: 2026-05-23T20:40:00Z
 ---
 
 ## Current Test
 
-number: 10
-name: eval_render registers a run
-expected: |
-  With a Phase 2 checkpoint and at least one held-out mock pair: `python -m apollo.scripts.eval_render <ckpt>` appends one line to `eval/runs.jsonl` with `iteration: false`, and writes `eval/render_manifests/active.json` listing each held-out pair that has `response_001.mid`. `--iteration` flag flips `iteration: true`.
-awaiting: setup — see Resume Notes below
-status: paused
+[testing complete]
 
 ## Tests
 
@@ -88,26 +81,41 @@ result: pass
 
 ### 10. eval_render registers a run
 expected: With a Phase 2 checkpoint and at least one held-out mock pair: `python -m apollo.scripts.eval_render <ckpt>` appends one line to `eval/runs.jsonl` with `iteration: false`, and writes `eval/render_manifests/active.json` listing each held-out pair that has `response_001.mid`. `--iteration` flag flips `iteration: true`.
-result: pending
+result: pass
+note: |
+  Trained 2-epoch smoke checkpoint (models/run-01-20260523T203932Z.pt), placed
+  response_001.mid in all 5 held-out pairs. First run: iteration=false, manifest
+  lists 5 entries. Second run with --iteration: iteration=true appended to runs.jsonl.
 
 ### 11. Delta notebook
 expected: Open `eval/delta.ipynb` in Jupyter. Cells execute top-to-bottom without errors (works with empty or mock data). Loader cell uses `pd.read_json(..., lines=True)`. Per-dim mean and per-pair trajectory plots render (even if empty).
-result: pending
+result: issue
+reported: "Cell 5 calls check_ship_gate() with no arguments but the function requires (runs_path, scores_path). TypeError crashes the notebook. Cells 1-4 (data loading + both plots) execute fine."
+severity: major
 
 ### 12. Ship-gate trips correctly
 expected: Author two consecutive `--iteration` runs in runs.jsonl with grading scores that show positive deltas in both fit and coherence. `python -m apollo.scripts.eval_ship_check` exits 0 with a banner. Author a run where the latest delta is zero or negative — exit non-zero.
-result: pending
+result: pass
+note: |
+  Crafted test data: baseline(fit=2) → iter1(fit=3) → iter2(fit=4). Ship-gate PASS, exit 0.
+  Then iter2 fit=3 (zero delta) → Ship-gate FAIL, exit 1. Both directions verified.
 
 ## Summary
 
 total: 12
-passed: 9
-issues: 1
-pending: 2
+passed: 11
+issues: 2
+pending: 0
 resolved: 1
 skipped: 0
 
-## Resume Notes
+## Cleanup Notes
+
+Mock UAT fixture on disk: `data/pairs/000..019`, `models/run-01-20260523T203932Z.pt`,
+`eval/runs.jsonl`, `eval/scores.jsonl`, `eval/render_manifests/active.json`.
+Remove before authoring real corpus.
+
+## Resume Notes (historical)
 
 **Session paused after test 9/12. Resume with `/gsd-verify-work 4`.**
 
@@ -191,3 +199,11 @@ Then:
   test: 8
   artifacts: ["apollo/eval/web/static/style.css (.mono class)"]
   missing: ["white-space: pre-wrap on .mono"]
+
+- truth: "delta.ipynb cells execute top-to-bottom without errors"
+  status: failed
+  reason: "Cell 5 calls check_ship_gate() with no arguments but function signature is check_ship_gate(runs_path, scores_path). TypeError: missing 2 required positional arguments."
+  severity: major
+  test: 11
+  artifacts: ["eval/delta.ipynb (cell 5)"]
+  missing: ["Pass default paths to check_ship_gate('eval/runs.jsonl', 'eval/scores.jsonl')"]
