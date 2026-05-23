@@ -38,3 +38,10 @@ dist/
 
 # Apollo runtime artifacts
 artifacts/
+
+# Phase 4 — eval loop regenerable data
+eval/scores.jsonl
+eval/runs.jsonl
+eval/render_manifests/*.json
+!eval/render_manifests/.gitkeep
+data/pairs/*/eval/

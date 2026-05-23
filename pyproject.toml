@@ -17,6 +17,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0"]
+eval = ["flask>=3.0", "pandas>=2.0", "matplotlib>=3.7", "jupyter>=1.0"]
 
 [tool.setuptools.packages.find]
 where = ["."]
