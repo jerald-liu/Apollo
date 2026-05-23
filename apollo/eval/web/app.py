@@ -67,11 +67,19 @@ def _find_run_record(run_id: str, runs_path: str) -> dict | None:
         return None
     last = None
     with open(p, encoding="utf-8") as f:
-        for line in f:
+        for lineno, line in enumerate(f, start=1):
             line = line.strip()
             if not line:
                 continue
-            rec = json.loads(line)
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError as exc:
+                # A single corrupt line (e.g. partial write after kill -9)
+                # should not take down the grading session — skip and warn.
+                import sys
+                print(f"WARN: skipping malformed {runs_path}:{lineno} — {exc}",
+                      file=sys.stderr)
+                continue
             if rec.get("run_id") == run_id:
                 last = rec
     return last

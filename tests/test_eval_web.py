@@ -161,6 +161,21 @@ def test_score_get_returns_nulls_for_ungraded(app, pairs_root):
         assert data["coherence"] is None
 
 
+def test_reveal_tolerates_malformed_runs_jsonl_lines(app, pairs_root, tmp_path):
+    """WR-03: a junk line above the real run record should not crash /reveal."""
+    runs_path = app.config["RUNS_PATH"]
+    valid_line = Path(runs_path).read_text()
+    # Prepend a malformed line plus an empty line.
+    Path(runs_path).write_text("{not-json\n\n" + valid_line)
+    heldout = list(enumerate_heldout(str(pairs_root)))
+    with app.test_client() as c:
+        r = c.get(f"/reveal/{heldout[0].nnn}")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["run_id"] == "testrun00000000"
+        assert data["checkpoint_path"] == "models/fake.pt"
+
+
 def test_shuffle_is_deterministic_across_processes(pairs_root):
     """Subprocess invocation rules out PYTHONHASHSEED salting (WR-01)."""
     import subprocess

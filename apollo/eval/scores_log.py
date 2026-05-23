@@ -68,11 +68,24 @@ def load_scores(run_id: str | None = None,
     """Return all score records (optionally filtered to one run_id).
 
     Returns [] when the file does not exist (first-run case, Pitfall 7).
+    Malformed lines are skipped with a stderr warning — single corrupt
+    line should not take down the grading UI (WR-03). The ship-gate reader
+    deliberately stays strict; data integrity is a loud failure there.
     """
     if not Path(path).is_file():
         return []
+    recs: List[dict] = []
     with open(path, encoding="utf-8") as f:
-        recs = [json.loads(line) for line in f if line.strip()]
+        for lineno, line in enumerate(f, start=1):
+            if not line.strip():
+                continue
+            try:
+                recs.append(json.loads(line))
+            except json.JSONDecodeError as exc:
+                import sys
+                print(f"WARN: skipping malformed {path}:{lineno} — {exc}",
+                      file=sys.stderr)
+                continue
     if run_id is not None:
         recs = [r for r in recs if r["run_id"] == run_id]
     return recs

@@ -106,3 +106,18 @@ def test_runs_log_does_not_mutate_caller_record(tmp_path):
     caller_rec = {"run_id": "r1", "iteration": True}
     append_run(caller_rec, path=str(path))
     assert "created" not in caller_rec  # function copied, didn't mutate
+
+
+def test_load_scores_skips_malformed_lines(tmp_path, capsys):
+    """WR-03: a single bad JSONL line should not crash load_scores."""
+    path = tmp_path / "scores.jsonl"
+    append_score("r1", "001", "fit", 4, path=str(path))
+    # Inject a malformed line, then a valid one.
+    with open(path, "a", encoding="utf-8") as f:
+        f.write("{not-json\n")
+        f.write('{"run_id":"r1","pair_id":"002","dim":"fit","score":3,"note":"","ts":"2026-01-01T00:00:00+00:00"}\n')
+    recs = load_scores(path=str(path))
+    assert len(recs) == 2
+    assert {r["pair_id"] for r in recs} == {"001", "002"}
+    err = capsys.readouterr().err
+    assert "malformed" in err
