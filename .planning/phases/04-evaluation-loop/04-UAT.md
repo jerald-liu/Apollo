@@ -72,8 +72,8 @@ result: pass
 expected: On a pair page, the reveal control shows the run_id (and checkpoint path / iteration flag per UI-SPEC). Reveal is hidden by default — you click to see it. Prevents grading bias.
 result: pass
 note: |
-  Cosmetic: \n newlines in reveal text collapse to spaces because .mono CSS
-  lacks white-space: pre. Info still readable on one line. Logged below.
+  Original cosmetic issue (newlines collapsed) fixed in b3523bd —
+  .mono CSS now has white-space: pre-wrap.
 
 ### 9. Resumability
 expected: After submitting some scores, navigate back to a graded pair. The fit/coherence values and note are pre-filled from the prior record. You can re-submit to overwrite (last-write-wins).
@@ -89,9 +89,10 @@ note: |
 
 ### 11. Delta notebook
 expected: Open `eval/delta.ipynb` in Jupyter. Cells execute top-to-bottom without errors (works with empty or mock data). Loader cell uses `pd.read_json(..., lines=True)`. Per-dim mean and per-pair trajectory plots render (even if empty).
-result: issue
-reported: "Cell 5 calls check_ship_gate() with no arguments but the function requires (runs_path, scores_path). TypeError crashes the notebook. Cells 1-4 (data loading + both plots) execute fine."
-severity: major
+result: pass
+note: |
+  Original issue (check_ship_gate() missing args) fixed in b3523bd —
+  cell 5 now passes str(RUNS), str(SCORES). All cells execute without errors.
 
 ### 12. Ship-gate trips correctly
 expected: Author two consecutive `--iteration` runs in runs.jsonl with grading scores that show positive deltas in both fit and coherence. `python -m apollo.scripts.eval_ship_check` exits 0 with a banner. Author a run where the latest delta is zero or negative — exit non-zero.
@@ -103,10 +104,10 @@ note: |
 ## Summary
 
 total: 12
-passed: 11
-issues: 2
+passed: 12
+issues: 0
 pending: 0
-resolved: 1
+resolved: 3
 skipped: 0
 
 ## Cleanup Notes
@@ -193,17 +194,15 @@ Then:
   resolved_in: phase-04-fix-grading-ui
 
 - truth: "Reveal aside formats run_id/checkpoint/iteration on separate lines (UI-SPEC §Reveal toggle)"
-  status: failed
-  reason: "Newlines in grade.js textContent collapse to spaces because .mono CSS lacks white-space: pre/pre-wrap. Info is readable but jammed onto one line."
+  status: resolved
+  reason: "Fixed in b3523bd — added white-space: pre-wrap to .mono CSS class."
   severity: cosmetic
   test: 8
-  artifacts: ["apollo/eval/web/static/style.css (.mono class)"]
-  missing: ["white-space: pre-wrap on .mono"]
+  resolved_in: phase-04-fix-grading-ui
 
 - truth: "delta.ipynb cells execute top-to-bottom without errors"
-  status: failed
-  reason: "Cell 5 calls check_ship_gate() with no arguments but function signature is check_ship_gate(runs_path, scores_path). TypeError: missing 2 required positional arguments."
+  status: resolved
+  reason: "Fixed in b3523bd — cell 5 now passes str(RUNS), str(SCORES) to check_ship_gate()."
   severity: major
   test: 11
-  artifacts: ["eval/delta.ipynb (cell 5)"]
-  missing: ["Pass default paths to check_ship_gate('eval/runs.jsonl', 'eval/scores.jsonl')"]
+  resolved_in: phase-04-fix-grading-ui
