@@ -93,7 +93,10 @@ def create_app(
     scores_path: str = "eval/scores.jsonl",
 ) -> Flask:
     app = Flask(__name__)
-    app.config["PAIRS_ROOT"] = Path(pairs_root)
+    # Resolve PAIRS_ROOT to an absolute path — Flask's send_file resolves
+    # relative paths against the app's root_path (apollo/eval/web/), NOT cwd,
+    # so a relative pairs_root from the CLI would 500 every audio request.
+    app.config["PAIRS_ROOT"] = Path(pairs_root).resolve()
     app.config["RUN_ID"] = run_id
     app.config["EVAL_ROOT"] = Path(eval_root)
     app.config["RUNS_PATH"] = runs_path

@@ -73,6 +73,26 @@ def test_pair_view_path_traversal_returns_404(app):
         assert r.status_code == 404
 
 
+def test_audio_call_wav_works_with_relative_pairs_root(tmp_path, monkeypatch):
+    """Regression: send_file resolves relative paths against the Flask app's
+    root_path (apollo/eval/web/), not cwd — so a relative pairs_root used to
+    500 every audio request. Reproduce by chdir + relative path."""
+    from apollo.ingest import synthesize_pair
+    pairs_dir = tmp_path / "pairs"
+    pairs_dir.mkdir()
+    for i in range(10):
+        synthesize_pair(pairs_dir, nnn=f"{i:03d}")
+    monkeypatch.chdir(tmp_path)
+    app = create_app(pairs_root="pairs", run_id="testrun00000000",
+                     runs_path=str(tmp_path / "runs.jsonl"),
+                     scores_path=str(tmp_path / "scores.jsonl"))
+    heldout = list(enumerate_heldout(str(pairs_dir)))
+    with app.test_client() as c:
+        r = c.get(f"/audio/{heldout[0].nnn}/call.wav")
+        assert r.status_code == 200
+        assert r.mimetype == "audio/wav"
+
+
 def test_audio_call_wav_valid(app, pairs_root):
     heldout = list(enumerate_heldout(str(pairs_root)))
     with app.test_client() as c:
