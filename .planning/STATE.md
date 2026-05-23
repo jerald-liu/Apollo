@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: executing
-stopped_at: Phase 04 executed — all 4 plans complete, 159 tests passing
-last_updated: "2026-05-23T00:00:00Z"
-last_activity: 2026-05-23 -- Phase 04 executed (scaffolding + eval lib + CLIs + grading UI)
+status: uat_paused
+stopped_at: Phase 04 UAT paused at test 10/12 — resume with /gsd-verify-work 4
+last_updated: "2026-05-23T16:00:00Z"
+last_activity: 2026-05-23 -- Phase 04 UAT 9/12 passed; 2 bugs fixed inline (audio 500s + Shift+digit) on PR #17; cosmetic reveal-newline issue still open
 progress:
   total_phases: 4
   completed_phases: 4
@@ -110,6 +110,13 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-20T04:04:41Z
-Stopped at: Completed 02-05-PLAN.md (checkpoint + smoke train — 100/100 tests, Phase 2 closed)
-Resume file: None — Phase 2 complete, next: Phase 3 (Corpus & Inference)
+Last session: 2026-05-23T16:00:00Z
+Stopped at: Phase 04 UAT paused after test 9/12. Two real bugs found and fixed inline (PR #17 commit 99d8af9); one cosmetic issue still open (reveal aside newlines). Tests 10–12 require setup (a real checkpoint + response_001.mid in each held-out pair) — full instructions in `.planning/phases/04-evaluation-loop/04-UAT.md` §Resume Notes.
+
+Resume:
+- `/gsd-verify-work 4` to continue UAT from test 10
+- Or `/gsd-progress` for a full status overview
+- Working branch: `phase-04-fix-grading-ui` (PR #17, stacked on #16)
+- Open cosmetic UAT issue: `.mono` CSS needs `white-space: pre-wrap` for reveal aside newlines (apollo/eval/web/static/style.css)
+
+Mock UAT fixture on disk: `data/pairs/000..019` (5 held-out: 006, 009, 010, 012, 019) + `eval/scores.jsonl` partially filled. Delete before authoring real corpus.
