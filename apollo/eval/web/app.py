@@ -175,6 +175,10 @@ def create_app(
             path=app.config["SCORES_PATH"],
         )
         # Next pending pair in shuffled order, for the client's auto-advance.
+        # Single-grader assumption: there is no lock between the append above
+        # and the re-read below. Concurrent writers would race the "next
+        # pending" computation. v1 Apollo is a single-user local tool; revisit
+        # if grading ever goes multi-user (WR-04).
         shuffled = _shuffled_pair_nnns(str(app.config["PAIRS_ROOT"]), run_id)
         graded = _graded_pair_ids(run_id, app.config["SCORES_PATH"])
         next_nnn = next((n for n in shuffled if n not in graded), None)

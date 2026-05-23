@@ -32,7 +32,13 @@ findings:
   warning: 4
   info: 6
   total: 10
-status: issues_found
+status: resolved
+resolved_in: phase-04-fix-grading-ui
+resolved_notes: |
+  WR-01..03 fixed with new tests (+6 tests, 159 → 165).
+  WR-04 addressed by documentation only — single-grader assumption now
+  inline at the relevant call site in apollo/eval/web/app.py.
+  Info items unchanged (intentional or design-correct).
 ---
 
 # Phase 4: Code Review Report
