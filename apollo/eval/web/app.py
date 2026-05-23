@@ -21,6 +21,7 @@ enumerate_heldout(pairs_root) set membership BEFORE constructing a Path
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import random
 from pathlib import Path
@@ -35,9 +36,15 @@ from apollo.eval.scores_log import append_score_pair, load_scores
 
 
 def _shuffled_pair_nnns(pairs_root: str, run_id: str) -> List[str]:
-    """Deterministic shuffle per run (UI-SPEC §Blind Grading)."""
+    """Deterministic shuffle per run (UI-SPEC §Blind Grading).
+
+    Seeded via blake2b rather than built-in hash() — string hash() is salted
+    per-process by PYTHONHASHSEED, so a built-in seed would re-shuffle the
+    worklist on every restart and undermine resumability.
+    """
     nnns = [p.nnn for p in enumerate_heldout(pairs_root)]
-    rng = random.Random(hash(run_id))
+    seed = int.from_bytes(hashlib.blake2b(run_id.encode(), digest_size=8).digest(), "big")
+    rng = random.Random(seed)
     rng.shuffle(nnns)
     return nnns
 

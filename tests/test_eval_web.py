@@ -159,3 +159,18 @@ def test_score_get_returns_nulls_for_ungraded(app, pairs_root):
         data = r.get_json()
         assert data["fit"] is None
         assert data["coherence"] is None
+
+
+def test_shuffle_is_deterministic_across_processes(pairs_root):
+    """Subprocess invocation rules out PYTHONHASHSEED salting (WR-01)."""
+    import subprocess
+    import sys
+    script = (
+        "import sys; "
+        "from apollo.eval.web.app import _shuffled_pair_nnns; "
+        f"print(','.join(_shuffled_pair_nnns({str(pairs_root)!r}, 'testrun00000000')))"
+    )
+    out1 = subprocess.check_output([sys.executable, "-c", script], text=True).strip()
+    out2 = subprocess.check_output([sys.executable, "-c", script], text=True).strip()
+    assert out1 == out2, "shuffle order must be stable across processes"
+    assert "," in out1, "fixture must produce >=2 held-out pairs"
