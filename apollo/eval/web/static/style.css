@@ -43,7 +43,7 @@ textarea { width: 100%; font-family: var(--font-body); font-size: 16px; padding:
 .muted { color: var(--muted); }
 .hidden { display: none; }
 #reveal-aside { margin-top: var(--md); font-family: var(--font-mono); font-size: 13px; line-height: 1.4; color: var(--muted); background: var(--surface); padding: var(--sm); }
-.mono { font-family: var(--font-mono); }
+.mono { font-family: var(--font-mono); white-space: pre-wrap; }
 .shortcuts { margin-top: var(--xl); color: var(--muted); font-size: 14px; }
 .shortcuts kbd { font-family: var(--font-mono); background: var(--surface); padding: 1px var(--xs); border: 1px solid var(--muted); border-radius: 2px; }
 .error { border-left: 3px solid var(--destructive); padding: var(--sm) var(--md); color: var(--destructive); margin-top: var(--sm); }

@@ -116,9 +116,13 @@
     if (e.key === 'r') { stopSequence(); playSequence(); return; }
     if (e.key === 'n') { e.preventDefault(); noteEl.focus(); return; }
     if (e.key === 'Enter') { submit(); return; }
-    if (/^[1-5]$/.test(e.key)) {
-      if (e.shiftKey) setScore('coherence', parseInt(e.key, 10));
-      else            setScore('fit',       parseInt(e.key, 10));
+    // Use e.code (physical key), not e.key — Shift+1 on macOS turns e.key into "!"
+    // and the previous /^[1-5]$/.test(e.key) check would never match.
+    const m = /^Digit([1-5])$/.exec(e.code);
+    if (m) {
+      const v = parseInt(m[1], 10);
+      if (e.shiftKey) setScore('coherence', v);
+      else            setScore('fit',       v);
     }
   });
 

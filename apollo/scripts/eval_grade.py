@@ -14,7 +14,7 @@ import argparse
 import sys
 from typing import Sequence
 
-from apollo.eval.web.app import create_app
+from apollo.eval.web.app import _find_run_record, create_app
 
 
 def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -32,6 +32,19 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parse_args(argv)
+    # Validate run_id exists in runs.jsonl before launching — a typo silently
+    # makes /reveal return all-None and a grader could score for ten pairs
+    # before noticing the metadata is empty (WR-02).
+    if _find_run_record(args.run_id, args.runs_path) is None:
+        print(
+            f"WARN: run_id={args.run_id!r} not found in {args.runs_path} — "
+            f"/reveal will return null metadata. Did you forget to run eval_render?",
+            file=sys.stderr,
+        )
+    print(
+        f"Apollo grading UI: http://127.0.0.1:{args.port}/  run_id={args.run_id[:8]}",
+        file=sys.stderr,
+    )
     app = create_app(
         pairs_root=args.pairs_root,
         run_id=args.run_id,

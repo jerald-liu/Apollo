@@ -73,6 +73,26 @@ def test_pair_view_path_traversal_returns_404(app):
         assert r.status_code == 404
 
 
+def test_audio_call_wav_works_with_relative_pairs_root(tmp_path, monkeypatch):
+    """Regression: send_file resolves relative paths against the Flask app's
+    root_path (apollo/eval/web/), not cwd — so a relative pairs_root used to
+    500 every audio request. Reproduce by chdir + relative path."""
+    from apollo.ingest import synthesize_pair
+    pairs_dir = tmp_path / "pairs"
+    pairs_dir.mkdir()
+    for i in range(10):
+        synthesize_pair(pairs_dir, nnn=f"{i:03d}")
+    monkeypatch.chdir(tmp_path)
+    app = create_app(pairs_root="pairs", run_id="testrun00000000",
+                     runs_path=str(tmp_path / "runs.jsonl"),
+                     scores_path=str(tmp_path / "scores.jsonl"))
+    heldout = list(enumerate_heldout(str(pairs_dir)))
+    with app.test_client() as c:
+        r = c.get(f"/audio/{heldout[0].nnn}/call.wav")
+        assert r.status_code == 200
+        assert r.mimetype == "audio/wav"
+
+
 def test_audio_call_wav_valid(app, pairs_root):
     heldout = list(enumerate_heldout(str(pairs_root)))
     with app.test_client() as c:
@@ -159,3 +179,33 @@ def test_score_get_returns_nulls_for_ungraded(app, pairs_root):
         data = r.get_json()
         assert data["fit"] is None
         assert data["coherence"] is None
+
+
+def test_reveal_tolerates_malformed_runs_jsonl_lines(app, pairs_root, tmp_path):
+    """WR-03: a junk line above the real run record should not crash /reveal."""
+    runs_path = app.config["RUNS_PATH"]
+    valid_line = Path(runs_path).read_text()
+    # Prepend a malformed line plus an empty line.
+    Path(runs_path).write_text("{not-json\n\n" + valid_line)
+    heldout = list(enumerate_heldout(str(pairs_root)))
+    with app.test_client() as c:
+        r = c.get(f"/reveal/{heldout[0].nnn}")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["run_id"] == "testrun00000000"
+        assert data["checkpoint_path"] == "models/fake.pt"
+
+
+def test_shuffle_is_deterministic_across_processes(pairs_root):
+    """Subprocess invocation rules out PYTHONHASHSEED salting (WR-01)."""
+    import subprocess
+    import sys
+    script = (
+        "import sys; "
+        "from apollo.eval.web.app import _shuffled_pair_nnns; "
+        f"print(','.join(_shuffled_pair_nnns({str(pairs_root)!r}, 'testrun00000000')))"
+    )
+    out1 = subprocess.check_output([sys.executable, "-c", script], text=True).strip()
+    out2 = subprocess.check_output([sys.executable, "-c", script], text=True).strip()
+    assert out1 == out2, "shuffle order must be stable across processes"
+    assert "," in out1, "fixture must produce >=2 held-out pairs"

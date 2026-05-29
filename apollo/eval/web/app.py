@@ -21,6 +21,7 @@ enumerate_heldout(pairs_root) set membership BEFORE constructing a Path
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import random
 from pathlib import Path
@@ -35,9 +36,15 @@ from apollo.eval.scores_log import append_score_pair, load_scores
 
 
 def _shuffled_pair_nnns(pairs_root: str, run_id: str) -> List[str]:
-    """Deterministic shuffle per run (UI-SPEC §Blind Grading)."""
+    """Deterministic shuffle per run (UI-SPEC §Blind Grading).
+
+    Seeded via blake2b rather than built-in hash() — string hash() is salted
+    per-process by PYTHONHASHSEED, so a built-in seed would re-shuffle the
+    worklist on every restart and undermine resumability.
+    """
     nnns = [p.nnn for p in enumerate_heldout(pairs_root)]
-    rng = random.Random(hash(run_id))
+    seed = int.from_bytes(hashlib.blake2b(run_id.encode(), digest_size=8).digest(), "big")
+    rng = random.Random(seed)
     rng.shuffle(nnns)
     return nnns
 
@@ -60,11 +67,19 @@ def _find_run_record(run_id: str, runs_path: str) -> dict | None:
         return None
     last = None
     with open(p, encoding="utf-8") as f:
-        for line in f:
+        for lineno, line in enumerate(f, start=1):
             line = line.strip()
             if not line:
                 continue
-            rec = json.loads(line)
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError as exc:
+                # A single corrupt line (e.g. partial write after kill -9)
+                # should not take down the grading session — skip and warn.
+                import sys
+                print(f"WARN: skipping malformed {runs_path}:{lineno} — {exc}",
+                      file=sys.stderr)
+                continue
             if rec.get("run_id") == run_id:
                 last = rec
     return last
@@ -78,7 +93,10 @@ def create_app(
     scores_path: str = "eval/scores.jsonl",
 ) -> Flask:
     app = Flask(__name__)
-    app.config["PAIRS_ROOT"] = Path(pairs_root)
+    # Resolve PAIRS_ROOT to an absolute path — Flask's send_file resolves
+    # relative paths against the app's root_path (apollo/eval/web/), NOT cwd,
+    # so a relative pairs_root from the CLI would 500 every audio request.
+    app.config["PAIRS_ROOT"] = Path(pairs_root).resolve()
     app.config["RUN_ID"] = run_id
     app.config["EVAL_ROOT"] = Path(eval_root)
     app.config["RUNS_PATH"] = runs_path
@@ -160,6 +178,10 @@ def create_app(
             path=app.config["SCORES_PATH"],
         )
         # Next pending pair in shuffled order, for the client's auto-advance.
+        # Single-grader assumption: there is no lock between the append above
+        # and the re-read below. Concurrent writers would race the "next
+        # pending" computation. v1 Apollo is a single-user local tool; revisit
+        # if grading ever goes multi-user (WR-04).
         shuffled = _shuffled_pair_nnns(str(app.config["PAIRS_ROOT"]), run_id)
         graded = _graded_pair_ids(run_id, app.config["SCORES_PATH"])
         next_nnn = next((n for n in shuffled if n not in graded), None)
