@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 03 planned — ready to execute
-last_updated: "2026-05-19T00:00:00Z"
-last_activity: 2026-05-19 -- Phase 03 planned (3 plans: corpus stub + generate.py + train.py)
+stopped_at: Phase 04 executed — all 4 plans complete, 159 tests passing
+last_updated: "2026-05-23T00:00:00Z"
+last_activity: 2026-05-23 -- Phase 04 executed (scaffolding + eval lib + CLIs + grading UI)
 progress:
   total_phases: 4
-  completed_phases: 2
-  total_plans: 13
-  completed_plans: 10
-  percent: 50
+  completed_phases: 4
+  total_plans: 17
+  completed_plans: 17
+  percent: 100
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-19)
 
 **Core value:** Given a short MIDI call played through an Operator preset, the model produces a response that feels like the user responding to themselves — and the active-learning loop demonstrably improves it over consecutive iterations.
-**Current focus:** Phase 03 — corpus-inference
+**Current focus:** Phase 04 — evaluation-loop (executed; corpus authoring still required for v1 ship gate)
 
 ## Current Position
 
-Phase: 03 (corpus-inference) — Ready to execute
-Plan: 0 of 3 (planning complete, execution not started)
-Status: Phase 3 planned — 3 plans in 1 wave, all parallel
-Last activity: 2026-05-19
+Phase: 04 (evaluation-loop) — Executed
+Plan: 4 of 4 (all complete)
+Status: Phase 4 complete — rubric, eval library, CLIs, grading UI shipped; 159/159 tests passing
+Last activity: 2026-05-23
 
-Progress: [██████████] 100% (phases 1-2 complete)
+Progress: [██████████] 100% code-side (corpus authoring is the remaining ship-gate dependency)
 
 ## Performance Metrics
 

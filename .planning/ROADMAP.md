@@ -14,8 +14,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Tokenizer & Ingest** - Tokenizer, data pipeline, mel extraction, held-out split
 - [x] **Phase 2: Model & Training** - Mel encoder, transformer, masked loss, smoke train, checkpoints
-- [ ] **Phase 3: Corpus & Inference** - Author ≥30 pairs, generate.py, sampling controls
-- [ ] **Phase 4: Evaluation Loop** - Scoring rubric, grading workflow, iteration tracking, ship gate
+- [x] **Phase 3: Corpus & Inference** - Author ≥30 pairs, generate.py, sampling controls (code shipped; corpus authoring pending)
+- [x] **Phase 4: Evaluation Loop** - Scoring rubric, grading workflow, iteration tracking, ship gate
 
 ## Phase Details
 
