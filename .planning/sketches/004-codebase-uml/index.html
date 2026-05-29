@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apollo — Codebase UML</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0f172a; color: #e2e8f0; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; }
+  h1 { text-align: center; padding: 1.5rem; font-size: 1.4rem; color: #38bdf8; letter-spacing: 0.05em; }
+  h2 { text-align: center; padding: 0.5rem; font-size: 1rem; color: #94a3b8; font-weight: 400; }
+  .tabs { display: flex; justify-content: center; gap: 0.5rem; padding: 1rem; flex-wrap: wrap; }
+  .tab { padding: 0.5rem 1.2rem; border: 1px solid #334155; border-radius: 6px; cursor: pointer; font-size: 0.85rem; color: #94a3b8; background: transparent; transition: all 0.2s; }
+  .tab:hover { border-color: #38bdf8; color: #38bdf8; }
+  .tab.active { background: #1e293b; border-color: #38bdf8; color: #38bdf8; }
+  .diagram { display: none; max-width: 1200px; margin: 1rem auto; padding: 1rem; }
+  .diagram.active { display: block; }
+  .mermaid { background: #1e293b; border-radius: 8px; padding: 1.5rem; overflow-x: auto; }
+  .legend { max-width: 800px; margin: 1rem auto; padding: 1rem; font-size: 0.8rem; color: #64748b; line-height: 1.6; }
+  .legend code { color: #38bdf8; background: #1e293b; padding: 0.1rem 0.3rem; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<h1>Apollo v2.0 — Codebase UML</h1>
+<h2>Call-and-Response v1</h2>
+
+<div class="tabs">
+  <button class="tab active" onclick="show('class')">Class Diagram</button>
+  <button class="tab" onclick="show('package')">Package Structure</button>
+  <button class="tab" onclick="show('sequence')">Training Flow</button>
+  <button class="tab" onclick="show('inference')">Inference Flow</button>
+  <button class="tab" onclick="show('data')">Data Flow</button>
+</div>
+
+<!-- CLASS DIAGRAM -->
+<div id="class" class="diagram active">
+<pre class="mermaid">
+classDiagram
+    direction TB
+
+    class Vocab {
+        &lt;&lt;frozen dataclass&gt;&gt;
+        +PITCH_MIN: 36 (C2)
+        +PITCH_MAX: 72 (C5)
+        +N_PITCH: 37
+        +N_TIME: 32
+        +N_VELOCITY: 16
+        +N_DURATION: 24
+        +BOS: 109
+        +EOS: 110
+        +SEP: 111
+        +VOCAB_SIZE: 256
+        +ACTIVE_VOCAB: 112
+    }
+
+    class Note {
+        &lt;&lt;dataclass&gt;&gt;
+        +pitch: int
+        +velocity: int
+        +start_sec: float
+        +duration_sec: float
+    }
+
+    class Tokenizer {
+        -vocab: Vocab
+        -tempo_bpm: float
+        +encode(notes: List~Note~) List~int~
+        +decode(ids: List~int~) List~Note~
+    }
+
+    class MelExtractor {
+        -n_fft: 2048
+        -hop_length: 512
+        -n_mels: 96
+        -target_frames: 128
+        +__call__(wav_path, pair_path) Tensor
+        -_fix_frames(log_mel, pair_path) Tensor
+    }
+
+    class PairPath {
+        &lt;&lt;NamedTuple&gt;&gt;
+        +nnn: str
+        +call_mid: Path
+        +call_wav: Path
+        +response_mid: Path
+    }
+
+    class IngestError {
+        &lt;&lt;Exception&gt;&gt;
+        +pair_path: str
+        +reason: str
+    }
+
+    class MelEncoder {
+        &lt;&lt;nn.Module&gt;&gt;
+        -net: Sequential (Conv→ReLU→Pool ×3)
+        -fc: Linear(128 → d_model)
+        +forward(mel: Tensor) Tensor
+    }
+
+    class ApolloModel {
+        &lt;&lt;nn.Module&gt;&gt;
+        -mel_enc: MelEncoder
+        -tok_emb: Embedding(256, 128)
+        -pos_emb: Embedding(65, 128)
+        -transformer: TransformerEncoder(4 layers)
+        -out_proj: Linear(128, 256)
+        +forward(token_ids, mel_input, key_padding_mask) Tensor
+    }
+
+    class ApolloDataset {
+        &lt;&lt;Dataset&gt;&gt;
+        -entries: list
+        +__init__(artifact: dict, split: str)
+        +__getitem__(idx) tuple
+        +__len__() int
+    }
+
+    ApolloModel *-- MelEncoder : mel_enc
+    ApolloModel ..> Vocab : vocab_size=256
+    Tokenizer *-- Vocab : vocab
+    Tokenizer ..> Note : encode/decode
+    ApolloDataset ..> Vocab : BOS/EOS/SEP
+    MelExtractor ..> IngestError : raises
+
+    namespace apollo.tokenizer {
+        class Vocab
+        class Note
+        class Tokenizer
+    }
+
+    namespace apollo.ingest {
+        class MelExtractor
+        class PairPath
+        class IngestError
+    }
+
+    namespace apollo.model {
+        class MelEncoder
+        class ApolloModel
+        class ApolloDataset
+    }
+</pre>
+</div>
+
+<!-- PACKAGE DIAGRAM -->
+<div id="package" class="diagram">
+<pre class="mermaid">
+graph TB
+    subgraph scripts["apollo/scripts/"]
+        GEN["generate.py<br/><i>inference CLI</i>"]
+        TRAIN["train.py<br/><i>production training</i>"]
+        SMOKE["train_smoke.py<br/><i>CI smoke test</i>"]
+        INGEST_S["ingest_corpus.py<br/><i>corpus validation</i>"]
+    end
+
+    subgraph model["apollo/model/"]
+        XFORMER["transformer.py<br/><i>ApolloModel (976K params)</i>"]
+        MELENC["mel_encoder.py<br/><i>MelEncoder CNN (109K params)</i>"]
+        PACKER["packer.py<br/><i>ApolloDataset + collate_fn</i>"]
+        TRAINCORE["train.py<br/><i>train_epoch, loss, checkpoint</i>"]
+        METRICS["metrics.py<br/><i>type_accuracy</i>"]
+    end
+
+    subgraph ingest["apollo/ingest/"]
+        ARTIFACT["artifact.py<br/><i>ingest() → .pt artifact</i>"]
+        AUDIO["audio.py<br/><i>MelExtractor</i>"]
+        MIDI["midi.py<br/><i>load_notes()</i>"]
+        PAIRS["pairs.py<br/><i>discover_pairs()</i>"]
+        SPLIT["split.py<br/><i>is_heldout() hash split</i>"]
+        ERRORS["errors.py<br/><i>IngestError</i>"]
+    end
+
+    subgraph tokenizer["apollo/tokenizer/"]
+        VOCAB["vocab.py<br/><i>Vocab (256 IDs)</i>"]
+        ENC["encoder.py<br/><i>Tokenizer.encode()</i>"]
+        DEC["decoder.py<br/><i>decode_tokens()</i>"]
+        BINS["bins.py<br/><i>quantize/decode helpers</i>"]
+        TYPES["types.py<br/><i>Note dataclass</i>"]
+    end
+
+    subgraph data["data/pairs/"]
+        CORPUS["NNN/<br/>call.mid · call.wav · response.mid"]
+    end
+
+    GEN --> XFORMER
+    GEN --> DEC
+    GEN --> VOCAB
+    TRAIN --> TRAINCORE
+    TRAIN --> PACKER
+    TRAIN --> ARTIFACT
+    SMOKE --> TRAINCORE
+    INGEST_S --> ARTIFACT
+
+    XFORMER --> MELENC
+    PACKER --> VOCAB
+    TRAINCORE --> XFORMER
+    TRAINCORE --> METRICS
+
+    ARTIFACT --> AUDIO
+    ARTIFACT --> MIDI
+    ARTIFACT --> PAIRS
+    ARTIFACT --> SPLIT
+    ARTIFACT --> ENC
+    ARTIFACT --> VOCAB
+
+    ENC --> BINS
+    ENC --> TYPES
+    DEC --> BINS
+    DEC --> VOCAB
+    MIDI --> TYPES
+
+    ARTIFACT -.-> CORPUS
+
+    style scripts fill:#1e3a5f,stroke:#38bdf8,color:#e2e8f0
+    style model fill:#3b1f5e,stroke:#a78bfa,color:#e2e8f0
+    style ingest fill:#1a3c34,stroke:#34d399,color:#e2e8f0
+    style tokenizer fill:#3b3010,stroke:#fbbf24,color:#e2e8f0
+    style data fill:#3b2010,stroke:#fb923c,color:#e2e8f0
+</pre>
+</div>
+
+<!-- TRAINING SEQUENCE -->
+<div id="sequence" class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as User (Ableton)
+    participant I as ingest_corpus.py
+    participant T as train.py
+    participant DS as ApolloDataset
+    participant M as ApolloModel
+    participant CK as checkpoint.pt
+
+    U->>I: data/pairs/NNN/ (call.mid + call.wav + response.mid)
+    I->>I: discover_pairs() → list of PairPath
+    I->>I: load_notes(call.mid) → List[Note]
+    I->>I: Tokenizer.encode(notes) → List[int]
+    I->>I: MelExtractor(call.wav) → Tensor(96,128)
+    I->>I: is_heldout(NNN) → 80/20 hash split
+    I-->>T: artifact.pt (tokens + mel + metadata)
+
+    T->>DS: ApolloDataset(artifact, split="train")
+    DS-->>T: DataLoader with collate_fn
+
+    loop each epoch (1..300)
+        T->>DS: next batch
+        DS-->>T: token_ids(B,64) + pad_mask(B,64) + mel(B,1,96,128)
+        T->>M: forward(token_ids, mel, pad_mask)
+        Note over M: mel_enc(mel) → (B,128) prefix<br/>cat [prefix, tok_emb + pos_emb]<br/>causal transformer (4 layers)<br/>drop prefix, project → (B,T,256) logits
+        M-->>T: logits (B,T,256)
+        T->>T: masked CE loss (response tokens only, after SEP)
+        T->>T: backprop + OneCycleLR step
+        T->>T: eval held-out loss every N epochs
+    end
+
+    T->>CK: save_checkpoint (model, optimizer, metrics, epoch)
+    Note over CK: apollo_iter{N}_best.pt (3.7 MB)
+</pre>
+</div>
+
+<!-- INFERENCE SEQUENCE -->
+<div id="inference" class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant G as generate.py
+    participant TOK as Tokenizer
+    participant MEL as MelExtractor
+    participant M as ApolloModel
+    participant AB as Ableton
+
+    U->>G: checkpoint.pt + call.mid + call.wav<br/>--n 4 --temperature 0.8 --top-k 10
+    G->>G: load_checkpoint(checkpoint.pt)
+    G->>TOK: encode(load_notes(call.mid))
+    TOK-->>G: call_tokens: List[int]
+    G->>MEL: MelExtractor(call.wav)
+    MEL-->>G: mel: Tensor(1,1,96,128)
+
+    loop n=4 samples
+        G->>G: prompt = [BOS] + call_tokens + [SEP]
+        loop autoregressive (up to max_tokens)
+            G->>M: forward(prompt, mel)
+            M-->>G: logits for next token
+            G->>G: apply temperature (0.8)
+            G->>G: top-k filter (k=10)
+            G->>G: sample from distribution
+            alt EOS sampled
+                G->>G: stop generation
+            else token sampled
+                G->>G: append to prompt
+            end
+        end
+        G->>TOK: decode(response_tokens)
+        TOK-->>G: List[Note]
+        G->>G: write response_NNN.mid
+    end
+
+    G-->>U: response_001.mid .. response_004.mid
+    U->>AB: drag into Ableton, play through any preset
+</pre>
+</div>
+
+<!-- DATA FLOW -->
+<div id="data" class="diagram">
+<pre class="mermaid">
+graph LR
+    subgraph Ableton["Ableton (human)"]
+        CALL_MIDI["call.mid<br/><i>2-6 notes, 120 BPM</i>"]
+        RESP_MIDI["response.mid<br/><i>2-6 notes, 120 BPM</i>"]
+        CALL_WAV["call.wav<br/><i>Operator preset bounce</i>"]
+    end
+
+    subgraph Tokenize["Tokenizer"]
+        LN["load_notes()<br/><i>parse MIDI → Note[]</i>"]
+        ENC["encode()<br/><i>Note[] → [pitch, vel, time, dur, ...]</i>"]
+    end
+
+    subgraph MelPath["Mel Pipeline"]
+        MEX["MelExtractor<br/><i>wav → (96, 128) log-mel</i>"]
+    end
+
+    subgraph Pack["Packer (collate_fn)"]
+        SEQ["[BOS, call, SEP, resp, EOS, PAD]<br/><i>padded to 64 tokens</i>"]
+        MELT["mel.unsqueeze(1)<br/><i>(B, 1, 96, 128)</i>"]
+    end
+
+    subgraph Model["ApolloModel (1.1M params)"]
+        MELENC["MelEncoder CNN<br/><i>→ (B, 128) prefix</i>"]
+        EMBED["tok_emb + pos_emb<br/><i>cat with prefix</i>"]
+        XFORM["Causal Transformer<br/><i>4 layers, 4 heads, d=128</i>"]
+        PROJ["out_proj<br/><i>→ (B, T, 256) logits</i>"]
+    end
+
+    subgraph Loss["Training Loss"]
+        MASK["Mask: only response<br/>tokens (after SEP)"]
+        CE["CrossEntropyLoss"]
+    end
+
+    CALL_MIDI --> LN --> ENC
+    RESP_MIDI --> LN
+    CALL_WAV --> MEX
+
+    ENC --> SEQ
+    MEX --> MELT
+
+    SEQ --> EMBED
+    MELT --> MELENC --> EMBED
+    EMBED --> XFORM --> PROJ
+
+    PROJ --> MASK --> CE
+
+    style Ableton fill:#3b2010,stroke:#fb923c,color:#e2e8f0
+    style Tokenize fill:#3b3010,stroke:#fbbf24,color:#e2e8f0
+    style MelPath fill:#1a3c34,stroke:#34d399,color:#e2e8f0
+    style Pack fill:#1e3a5f,stroke:#38bdf8,color:#e2e8f0
+    style Model fill:#3b1f5e,stroke:#a78bfa,color:#e2e8f0
+    style Loss fill:#5e1f1f,stroke:#f87171,color:#e2e8f0
+</pre>
+</div>
+
+<div class="legend">
+  <strong>Diagram notes:</strong><br/>
+  • <code>Vocab.VOCAB_SIZE=256</code> — 112 active IDs (pitch/vel/time/dur + BOS/EOS/SEP), 144 reserved for future pitch-bend/CC tokens<br/>
+  • MEL prefix is injected at position 0 of the transformer sequence; output at position 0 is dropped before the vocabulary projection<br/>
+  • Pad mask is length-based (never <code>token_ids == 0</code>) because PAD_ID=0 overlaps with TIME_SHIFT bin 0<br/>
+  • Loss is masked to response tokens only (positions after SEP) — the model learns to generate, not autoencode<br/>
+  • Total params: ~1.1M (976K transformer + 109K MelEncoder). Checkpoint: ~3.7 MB<br/>
+  • Everything runs on Apple Silicon MPS. No cloud dependencies.
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      primaryColor: '#1e293b',
+      primaryTextColor: '#e2e8f0',
+      primaryBorderColor: '#38bdf8',
+      lineColor: '#64748b',
+      secondaryColor: '#334155',
+      tertiaryColor: '#1e293b',
+      fontFamily: 'SF Mono, Fira Code, Consolas, monospace',
+      fontSize: '13px'
+    }
+  });
+
+  window.show = function(id) {
+    document.querySelectorAll('.diagram').forEach(d => d.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    event.target.classList.add('active');
+    // Re-render mermaid for the newly visible diagram
+    mermaid.run({ querySelector: `#${id} .mermaid` });
+  };
+</script>
+
+</body>
+</html>
