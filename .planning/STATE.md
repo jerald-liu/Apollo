@@ -2,16 +2,17 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: uat_paused
-stopped_at: Phase 04 UAT paused at test 10/12 — resume with /gsd-verify-work 4
-last_updated: "2026-05-23T16:00:00Z"
-last_activity: 2026-05-23 -- Phase 04 UAT 9/12 passed; 2 bugs fixed inline (audio 500s + Shift+digit) on PR #17; cosmetic reveal-newline issue still open
+status: code_complete_corpus_pending
+stopped_at: All 4 phases executed & verified (Phase 04 UAT 12/12 pass). Ship gate blocked on human corpus authoring (DATA-05) + iteration loop (EVAL-05).
+last_updated: "2026-05-31T00:00:00Z"
+last_activity: 2026-05-31 -- Reconciled stale STATE; deleted mock UAT fixtures (data/pairs/000..019, eval/scores.jsonl, eval/runs.jsonl, render manifest, UAT checkpoint) ahead of real corpus authoring
 progress:
   total_phases: 4
   completed_phases: 4
   total_plans: 17
   completed_plans: 17
   percent: 100
+  note: percent is code-side only; v1 ship gate (DATA-05 ≥30 pairs, EVAL-05 two consecutive improving iterations) is unmet
 ---
 
 # Project State
@@ -25,12 +26,17 @@ See: .planning/PROJECT.md (updated 2026-05-19)
 
 ## Current Position
 
-Phase: 04 (evaluation-loop) — Executed
+Phase: 04 (evaluation-loop) — Executed & verified (UAT 12/12)
 Plan: 4 of 4 (all complete)
-Status: Phase 4 complete — rubric, eval library, CLIs, grading UI shipped; 159/159 tests passing
-Last activity: 2026-05-23
+Status: All 4 phases code-complete — rubric, eval library, CLIs, grading UI shipped; 159/159 tests passing. Mock UAT fixtures deleted 2026-05-31.
+Last activity: 2026-05-31
 
-Progress: [██████████] 100% code-side (corpus authoring is the remaining ship-gate dependency)
+Progress: [██████████] 100% code-side — but v1 is NOT shippable yet.
+Open ship-gate dependencies (both require the human-in-the-loop, no GSD coding command):
+- DATA-05: author ≥30 call/response pairs in Ableton (data/pairs/), each with call.wav bounce
+- First real training run (train.py) + first eval iteration (generate → blind-grade in Flask UI)
+- EVAL-05: two consecutive iteration rounds must both improve mean held-out call-response-fit score
+Do NOT run /gsd-complete-milestone until EVAL-05 is satisfied.
 
 ## Performance Metrics
 
