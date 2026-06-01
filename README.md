@@ -127,14 +127,14 @@ data/pairs/        # authored pairs live here (gitignored by default)
 eval/              # rubric.md, delta.ipynb, scores/runs logs (logs gitignored)
 tests/             # pytest suite (run with `pytest` or `make test`)
 .planning/         # project context, phase plans, requirements, sketches
-.github/workflows/ # tests.yml (CI matrix) + rebase-descendants.yml (stacked-PR auto-rebase)
+.github/workflows/ # tests.yml (CI matrix)
 ```
 
 ### Contributing with stacked PRs
 
-CI auto-maintains stacks: when a PR merges, [`rebase-descendants.yml`](.github/workflows/rebase-descendants.yml) rebases any open PR based on it onto the branch it merged into and force-pushes (or comments if the rebase conflicts). This prevents the squash-merge trap where a stacked child keeps stale commits and shows a bogus conflicting diff. Merge stacks normally to `main` — don't merge a PR into another feature branch expecting it to cascade.
+Stacks are maintained locally with Graphite (`gt`). Merge stacks to `main` — don't merge a PR into another feature branch expecting it to cascade (that's the squash-merge trap where a stacked child keeps stale commits and shows a bogus conflicting diff). After a base PR merges, run `gt sync` to retarget and rebase descendants.
 
-Locally, enable the restack-only git hooks once per clone:
+Enable the restack-only git hooks once per clone:
 
 ```bash
 git config core.hooksPath .githooks
