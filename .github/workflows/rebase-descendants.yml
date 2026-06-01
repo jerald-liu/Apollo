@@ -1,0 +1,84 @@
+name: Rebase descendant PRs on merge
+
+# When a PR merges, any open PR that was stacked on top of it (its base == the
+# merged PR's head) must be rebased onto the branch the merged PR landed in.
+#
+# GitHub auto-retargets the child's *base pointer*, but it does NOT rebase the
+# child's commits. With squash merges the parent's commits never appear verbatim
+# in the base, so the child branch keeps stale/duplicate commits and shows a
+# bogus "conflicting" diff. This workflow rebases the child branch onto the
+# merged base (dropping the squashed-away commits) and force-pushes it.
+#
+# On a rebase conflict it aborts and comments on the child PR rather than pushing
+# a broken result — a human resolves those by hand.
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  rebase-descendants:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Rebase stacked children onto merged base
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MERGED_HEAD: ${{ github.event.pull_request.head.ref }}
+          MERGED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          MERGED_BASE: ${{ github.event.pull_request.base.ref }}
+          MERGED_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          echo "Merged PR #${MERGED_NUMBER}: ${MERGED_HEAD} -> ${MERGED_BASE}"
+
+          # Open PRs stacked directly on the branch that was just merged.
+          children=$(gh pr list --state open --base "${MERGED_HEAD}" \
+            --json number,headRefName --jq '.[] | "\(.number) \(.headRefName)"')
+
+          if [ -z "${children}" ]; then
+            echo "No open PRs based on ${MERGED_HEAD}. Nothing to do."
+            exit 0
+          fi
+
+          git fetch origin "${MERGED_BASE}" --quiet
+
+          echo "${children}" | while read -r num head; do
+            [ -z "${num}" ] && continue
+            echo "::group::Rebasing PR #${num} (${head})"
+            git fetch origin "${head}" --quiet
+
+            # Replay commits that are on the child but not on the merged head,
+            # onto the merged base. MERGED_HEAD_SHA is used as the cutoff so this
+            # still works if the head branch was auto-deleted on merge.
+            git checkout -B "${head}" "origin/${head}"
+
+            if git rebase --onto "origin/${MERGED_BASE}" "${MERGED_HEAD_SHA}"; then
+              git push --force-with-lease origin "${head}"
+              # Retarget the base pointer to be explicit (GitHub usually does this,
+              # but make it deterministic).
+              gh pr edit "${num}" --base "${MERGED_BASE}" || true
+              gh pr comment "${num}" --body \
+                "🤖 Auto-rebased onto \`${MERGED_BASE}\` after #${MERGED_NUMBER} merged. Base retargeted; branch force-pushed (\`--force-with-lease\`)."
+              echo "PR #${num} rebased and pushed."
+            else
+              git rebase --abort || true
+              gh pr edit "${num}" --base "${MERGED_BASE}" || true
+              gh pr comment "${num}" --body \
+                "⚠️ Could not auto-rebase onto \`${MERGED_BASE}\` after #${MERGED_NUMBER} merged — the rebase hit conflicts. Base was retargeted, but you must rebase this branch manually (e.g. \`gt sync\` or \`git rebase --onto origin/${MERGED_BASE} ${MERGED_HEAD_SHA}\`)."
+              echo "PR #${num} has conflicts; left for manual rebase."
+            fi
+            echo "::endgroup::"
+          done
