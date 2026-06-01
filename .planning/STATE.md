@@ -106,6 +106,10 @@ None yet.
 
 None yet.
 
+### Roadmap Evolution
+
+- 2026-06-01: Phase 5 added — Local App & In-Browser Synth. Purely local user-facing app: drag-drop pair ingest, corpus-growth flow, in-browser Operator-style FM synth (Web Audio, removes manual Ableton bounce), manual + auto-retrain triggers, configurable response storage, call→response flow. New requirements (candidate APP-*) to be authored at plan time.
+
 ## Deferred Items
 
 Items acknowledged and carried forward from previous milestone close:

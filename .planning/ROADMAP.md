@@ -16,6 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Model & Training** - Mel encoder, transformer, masked loss, smoke train, checkpoints
 - [x] **Phase 3: Corpus & Inference** - Author ≥30 pairs, generate.py, sampling controls (code shipped; corpus authoring pending)
 - [x] **Phase 4: Evaluation Loop** - Scoring rubric, grading workflow, iteration tracking, ship gate
+- [ ] **Phase 5: Local App & In-Browser Synth** - Local-only user app: drag-drop pairs, in-browser FM synth, train triggers, call→response flow
 
 ## Phase Details
 
@@ -77,10 +78,26 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. v1 ships only after two consecutive iteration rounds both show improvement in mean held-out call-response-fit score
 **Plans**: TBD
 
+### Phase 5: Local App & In-Browser Synth
+**Goal**: A purely local, user-facing app that lets a user build a corpus by drag-and-drop, render call/response audio in-browser (no Ableton required), trigger training, and upload a call to get a generated response back — closing the whole loop in one app. **Primary purpose: a public demonstration front-end** that shows Apollo training and generating locally to anyone, regardless of whether they own Ableton.
+**Depends on**: Phase 2 (model) + Phase 3 *code* (`train.py`, `generate.py`) — both shipped. Does **not** depend on corpus completion or the Phase 4 ship gate.
+**Parallelizable**: Yes. This phase runs as a parallel workstream alongside ongoing corpus authoring / model tuning (Phase 3 corpus work, Phase 4 iterations). It is unblocked now and demos against whatever checkpoint currently exists.
+**Requirements**: TBD (new requirements to be authored at plan time — candidate APP-01..NN)
+**Success Criteria** (what must be TRUE):
+  1. **Local-only.** The app runs entirely on the user's machine (local server + browser, or fully offline). No data leaves the device; no cloud calls required to author, train, or infer.
+  2. **Drag-and-drop pair ingest.** A user can drag MIDI (and/or play/record) call+response into the app and it lands as a valid `data/pairs/NNN/` folder, validated against `CORPUS-CONVENTIONS.md` with clear inline errors.
+  3. **Corpus-growth flow.** The UI actively encourages volume — visible pair count vs. the ≥30 ship-gate target, progress/streak affordances, and a frictionless "add another" loop.
+  4. **In-browser synthesizer.** An Operator-style FM synth runs in the browser (Web Audio API, 4 operators with selectable algorithms + envelopes) and renders `call.wav` locally, removing the manual Ableton bounce. Tone.js `FMSynth` is 2-operator only, so a custom Web Audio operator graph is the faithful path; Tone.js may scaffold simpler cases.
+  5. **Training triggers.** A manual "Train" button kicks off `train.py`; a setting toggles auto-retrain-on-every-pair-upload. Training status/progress is surfaced in the UI and never blocks the authoring flow.
+  6. **Configurable response storage.** The user can configure where generated responses are written (a chosen local directory), and produced responses are listed/auditionable in-app.
+  7. **Call→response flow.** A user uploads (or plays) a call, the app renders its audio via the in-browser synth, runs inference, and returns a playable `response.mid` (auditioned in-app via the same synth).
+**Research note**: In-browser Operator alternative — Web Audio API `OscillatorNode`×4 wired per Operator's algorithm set + `GainNode` ADSR is the faithful, dependency-light approach; Tone.js (`FMSynth`) is convenient but only 2-operator. Faust or Rust→WASM are heavier options if performance/algorithm fidelity demands it.
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4
+Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel** — it depends only on shipped code (Phase 2 model + Phase 3 CLIs), not on corpus completion, so it can be built as a separate workstream while corpus tuning continues.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -88,6 +105,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | 2. Model & Training | 5/5 | Complete | 2026-05-20 |
 | 3. Corpus & Inference | 0/3 | Not started | - |
 | 4. Evaluation Loop | 0/TBD | Not started | - |
+| 5. Local App & In-Browser Synth | 0/TBD | Not started | - |
 
 ## Backlog
 
