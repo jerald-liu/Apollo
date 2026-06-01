@@ -46,11 +46,11 @@
 
 ### Evaluation (EVAL)
 
-- [ ] **EVAL-01**: A listen-test rubric exists with "call-response fit" (1–5) as one dimension, plus other musical-quality dimensions
-- [ ] **EVAL-02**: A grading workflow plays call → response back-to-back per cell so the user can score
-- [ ] **EVAL-03**: Held-out scoring is persisted per run (CSV/JSON) so deltas across iterations are visible
-- [ ] **EVAL-04**: A tracking surface (script or doc) shows score-per-iteration deltas across consecutive training runs
-- [ ] **EVAL-05**: v1 ships only when two consecutive iteration rounds both improve mean held-out call-response-fit score
+- [x] **EVAL-01**: A listen-test rubric exists with "call-response fit" (1–5) as one dimension, plus other musical-quality dimensions
+- [x] **EVAL-02**: A grading workflow plays call → response back-to-back per cell so the user can score
+- [x] **EVAL-03**: Held-out scoring is persisted per run (CSV/JSON) so deltas across iterations are visible
+- [x] **EVAL-04**: A tracking surface (script or doc) shows score-per-iteration deltas across consecutive training runs
+- [ ] **EVAL-05**: v1 ships only when two consecutive iteration rounds both improve mean held-out call-response-fit score *(blocked on real corpus iterations — see DATA-05)*
 
 ## v2 Requirements
 
@@ -99,7 +99,7 @@ Deferred to a later milestone. Tracked here so they don't get lost.
 | DATA-02 | Phase 1: Tokenizer & Ingest | Done (01-04) |
 | DATA-03 | Phase 1: Tokenizer & Ingest | Done (01-04) |
 | DATA-04 | Phase 1: Tokenizer & Ingest | Done (01-04) |
-| DATA-05 | Phase 3: Corpus & Inference | Pending |
+| DATA-05 | Phase 3: Corpus & Inference | Pending (real corpus authoring) |
 | TOK-01 | Phase 1: Tokenizer & Ingest | Done (01-02) |
 | TOK-02 | Phase 1: Tokenizer & Ingest | Done (01-02) |
 | TOK-03 | Phase 1: Tokenizer & Ingest | Done (01-01) |
@@ -115,15 +115,15 @@ Deferred to a later milestone. Tracked here so they don't get lost.
 | TRAIN-04 | Phase 2: Model & Training | Done (02-05) |
 | TRAIN-05 | Phase 2: Model & Training | Done (02-04) |
 | TRAIN-06 | Phase 2: Model & Training | Done (02-05) |
-| INFER-01 | Phase 3: Corpus & Inference | Pending |
-| INFER-02 | Phase 3: Corpus & Inference | Pending |
-| INFER-03 | Phase 3: Corpus & Inference | Pending |
-| INFER-04 | Phase 3: Corpus & Inference | Pending |
-| EVAL-01 | Phase 4: Evaluation Loop | Pending |
-| EVAL-02 | Phase 4: Evaluation Loop | Pending |
-| EVAL-03 | Phase 4: Evaluation Loop | Pending |
-| EVAL-04 | Phase 4: Evaluation Loop | Pending |
-| EVAL-05 | Phase 4: Evaluation Loop | Pending |
+| INFER-01 | Phase 3: Corpus & Inference | Done (03-02) |
+| INFER-02 | Phase 3: Corpus & Inference | Done (03-02) |
+| INFER-03 | Phase 3: Corpus & Inference | Done (03-02) |
+| INFER-04 | Phase 3: Corpus & Inference | Done (03-02) |
+| EVAL-01 | Phase 4: Evaluation Loop | Done (04-01) |
+| EVAL-02 | Phase 4: Evaluation Loop | Done (04-04) |
+| EVAL-03 | Phase 4: Evaluation Loop | Done (04-02) |
+| EVAL-04 | Phase 4: Evaluation Loop | Done (04-03) |
+| EVAL-05 | Phase 4: Evaluation Loop | Pending (real corpus iterations) |
 
 **Coverage:**
 - v1 requirements: 29 total
