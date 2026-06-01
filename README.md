@@ -132,7 +132,7 @@ tests/             # pytest suite (run with `pytest` or `make test`)
 
 ### Contributing with stacked PRs
 
-Stacks are maintained locally with Graphite (`gt`). Merge stacks to `main` — don't merge a PR into another feature branch expecting it to cascade (that's the squash-merge trap where a stacked child keeps stale commits and shows a bogus conflicting diff). After a base PR merges, run `gt sync` to retarget and rebase descendants.
+Stacks are maintained locally with Graphite (`gt`). Merge stacks to `main` — don't merge a PR into another feature branch expecting it to cascade (that's the squash-merge trap where a stacked child keeps stale commits and shows a bogus conflicting diff). After a base PR merges on GitHub, run `make sync` (wraps interactive `gt sync`) to fast-forward `main`, delete merged branches, and retarget/rebase descendants.
 
 Enable the restack-only git hooks once per clone:
 

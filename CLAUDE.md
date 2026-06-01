@@ -65,7 +65,7 @@ This repo uses Graphite (`gt`) stacked branches. Invoke stack operations implici
 
 - **Scope drift → new stacked branch.** If work in progress starts to fall outside the current branch's purpose (an unrelated fix, a new feature, a refactor that isn't part of this change), stop and propose splitting it onto a fresh branch with `gt create` rather than piling unrelated commits onto the current one. One branch = one coherent change.
 - **After a merge / trunk update / rebase → restack.** This is now automated by the tracked git hooks in `.githooks/` (restack-only). If those aren't active (fresh clone), run `gt restack` yourself, or set them up (see below).
-- **After PRs merge → sync.** Suggest `gt sync` to pull trunk, delete merged branches, and rebase descendants. `gt sync` deletes/force-pushes, so surface it rather than running it silently with `--force`.
+- **After PRs merge → sync.** A GitHub PR merge fires no local hook, so run **`make sync`** (wraps interactive `gt sync`) to pull trunk, delete merged branches, and rebase descendants. It prompts before deleting/force-pushing — surface it, never run silently with `--force`.
 - **Always merge stacks to `main`.** Never merge a PR into another feature branch expecting it to cascade — that orphaned the Phase 04 stack once. After a base PR merges, run `gt sync` to retarget and rebase descendants.
 
 **One-time hook setup** (per clone): `git config core.hooksPath .githooks`. Hooks are restack-only — they never delete branches or force-push.
