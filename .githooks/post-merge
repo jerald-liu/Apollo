@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Runs after `git merge` and `git pull` (trunk updated / branch merged in).
+# Restacks the Graphite stack so descendants sit on the updated base.
+exec "$(dirname "$0")/_gt-restack.sh"

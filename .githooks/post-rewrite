@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Runs after history-rewriting ops (`git rebase`, `git commit --amend`).
+# Restacks the Graphite stack so descendants follow the rewritten commits.
+exec "$(dirname "$0")/_gt-restack.sh"

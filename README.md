@@ -134,6 +134,14 @@ tests/             # pytest suite (run with `pytest` or `make test`)
 
 CI auto-maintains stacks: when a PR merges, [`rebase-descendants.yml`](.github/workflows/rebase-descendants.yml) rebases any open PR based on it onto the branch it merged into and force-pushes (or comments if the rebase conflicts). This prevents the squash-merge trap where a stacked child keeps stale commits and shows a bogus conflicting diff. Merge stacks normally to `main` — don't merge a PR into another feature branch expecting it to cascade.
 
+Locally, enable the restack-only git hooks once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+These run `gt restack` after a merge/pull/rebase so your stack stays ordered. They **never** delete branches or force-push — for that, run `gt sync` explicitly.
+
 ---
 
 ## Design constraints (locked for v1)
