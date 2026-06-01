@@ -73,6 +73,29 @@ python -m apollo.scripts.generate \
 
 See [`data/pairs/CORPUS-CONVENTIONS.md`](data/pairs/CORPUS-CONVENTIONS.md) for authoring rules (120 BPM, preset variety, gesture length, file naming, ≥30 minimum).
 
+### The evaluation loop (Phase 4)
+
+After a training run, score the held-out pairs and check the ship gate:
+
+```bash
+# 1. Register the run + write the M4L render manifest (compute run_id, log to runs.jsonl)
+python -m apollo.scripts.eval_render models/apollo_iter1_best.pt --iteration --iteration-label "iter 1"
+
+# 2. Blind-grade the held-out responses in the local browser UI (127.0.0.1 only)
+python -m apollo.scripts.eval_grade data/pairs/ --run-id <run_id>
+
+# 3. Ship-gate decision: have two consecutive iterations both improved held-out score? (EVAL-05)
+python -m apollo.scripts.eval_ship_check
+```
+
+Scores append to `eval/scores.jsonl`; the rubric lives in [`eval/rubric.md`](eval/rubric.md); `eval/delta.ipynb` charts per-iteration deltas. Before authoring or retraining on a fresh corpus, wipe regenerable artifacts (mock pairs, rendered wavs, score/run logs, manifests, checkpoints) without touching tracked files:
+
+```bash
+make clean-fixtures-dry   # preview what would be removed
+make clean-fixtures       # remove gitignored working artifacts only
+make test                 # full pytest suite
+```
+
 ---
 
 ## Project status
@@ -82,9 +105,9 @@ See [`data/pairs/CORPUS-CONVENTIONS.md`](data/pairs/CORPUS-CONVENTIONS.md) for a
 | 1 | Tokenizer & ingest pipeline | ✓ Complete |
 | 2 | MelEncoder + ApolloModel + training | ✓ Complete |
 | 3 | Corpus conventions, `generate.py`, `train.py` | ✓ Code complete; ≥30 pairs pending |
-| 4 | Evaluation loop & ship gate | Not started |
+| 4 | Evaluation loop & ship gate | ✓ Code complete; corpus iterations pending |
 
-v1 ships only when two consecutive active-learning iterations both improve held-out rubric scores. The loop itself — author → train → listen → identify gaps → author more — is the product, not any single checkpoint.
+**All four phases are code-complete (166 tests passing).** What remains is not code — it's the human-in-the-loop work the loop is built around: author ≥30 pairs in Ableton, run the first real training, grade the held-out responses, and iterate. v1 ships only when two consecutive active-learning iterations both improve held-out rubric scores. The loop itself — author → train → listen → identify gaps → author more — is the product, not any single checkpoint.
 
 Authoritative planning lives in [`.planning/`](.planning/) — see [PROJECT.md](.planning/PROJECT.md), [ROADMAP.md](.planning/ROADMAP.md), [REQUIREMENTS.md](.planning/REQUIREMENTS.md).
 
@@ -96,12 +119,20 @@ Authoritative planning lives in [`.planning/`](.planning/) — see [PROJECT.md](
 apollo/
   ingest/          # MIDI tokenizer, mel extractor, pair discovery, hash split
   model/           # MelEncoder (CNN), ApolloModel (transformer + mel prefix), training loop
-  scripts/         # ingest_corpus.py, train.py, train_smoke.py, generate.py
+  eval/            # run_id, runs/scores logs, ship-gate decision, render manifest
+  eval/web/        # local Flask grading UI (127.0.0.1) — blind, resumable scoring
+  scripts/         # ingest_corpus.py, train.py, generate.py, eval_render/grade/ship_check.py
   tokenizer/       # vocab + token helpers
 data/pairs/        # authored pairs live here (gitignored by default)
-tests/             # pytest suite (run with `pytest`)
+eval/              # rubric.md, delta.ipynb, scores/runs logs (logs gitignored)
+tests/             # pytest suite (run with `pytest` or `make test`)
 .planning/         # project context, phase plans, requirements, sketches
+.github/workflows/ # tests.yml (CI matrix) + rebase-descendants.yml (stacked-PR auto-rebase)
 ```
+
+### Contributing with stacked PRs
+
+CI auto-maintains stacks: when a PR merges, [`rebase-descendants.yml`](.github/workflows/rebase-descendants.yml) rebases any open PR based on it onto the branch it merged into and force-pushes (or comments if the rebase conflicts). This prevents the squash-merge trap where a stacked child keeps stale commits and shows a bogus conflicting diff. Merge stacks normally to `main` — don't merge a PR into another feature branch expecting it to cascade.
 
 ---
 

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Apollo · Pair {{ nnn }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body data-nnn="{{ nnn }}">
+  <main class="column">
+    <h1>Pair {{ nnn }} · {{ position }}/{{ total }}</h1>
+
+    <section class="audio-block">
+      <label>Call</label>
+      <audio id="audio-call" controls preload="auto" src="{{ url_for('call_audio', nnn=nnn) }}"></audio>
+
+      <label>Response</label>
+      <audio id="audio-response" controls preload="auto" src="{{ url_for('response_audio', nnn=nnn) }}"></audio>
+
+      <button id="play-sequence" class="primary">▶ Play call → response</button>
+    </section>
+
+    <section class="scoring-block">
+      <div class="dim">
+        <label>Call-Response Fit (1–5)</label>
+        <div class="segmented" data-dim="fit">
+          {% for v in range(1, 6) %}
+            <button type="button" class="score-btn" data-value="{{ v }}">{{ v }}</button>
+          {% endfor %}
+        </div>
+        <p class="anchor-strip">1 unrelated · 3 plausible · 5 exactly what I'd play</p>
+      </div>
+
+      <div class="dim">
+        <label>Musical Coherence (1–5)</label>
+        <div class="segmented" data-dim="coherence">
+          {% for v in range(1, 6) %}
+            <button type="button" class="score-btn" data-value="{{ v }}">{{ v }}</button>
+          {% endfor %}
+        </div>
+        <p class="anchor-strip">1 wrong notes · 3 coherent statement · 5 could ship as-is</p>
+      </div>
+
+      <div class="dim">
+        <label for="note">Note (optional)</label>
+        <textarea id="note" rows="2" placeholder="e.g. tonic-bound, rhythm matches but pitch random"></textarea>
+      </div>
+    </section>
+
+    <footer class="actions">
+      <a class="secondary" href="{{ url_for('index') }}">← back to worklist</a>
+      <button id="submit" class="primary" disabled>Submit & next →</button>
+      <span id="submit-hint" class="muted hidden">Set both scores to enable submit.</span>
+      <a id="reveal-link" class="secondary" href="#" data-nnn="{{ nnn }}">🔎 reveal</a>
+    </footer>
+
+    <aside id="reveal-aside" class="hidden mono"></aside>
+
+    <details class="shortcuts">
+      <summary>Keyboard shortcuts</summary>
+      <ul>
+        <li><kbd>Space</kbd> — play/stop call → response sequence</li>
+        <li><kbd>1</kbd>–<kbd>5</kbd> — set Call-Response Fit</li>
+        <li><kbd>Shift+1</kbd>–<kbd>Shift+5</kbd> — set Musical Coherence</li>
+        <li><kbd>n</kbd> — focus note</li>
+        <li><kbd>Enter</kbd> — submit (when both scores set)</li>
+        <li><kbd>Esc</kbd> (in note) — back to global shortcuts</li>
+        <li><kbd>r</kbd> — replay sequence</li>
+      </ul>
+    </details>
+  </main>
+
+  <script src="{{ url_for('static', filename='grade.js') }}"></script>
+</body>
+</html>

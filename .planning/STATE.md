@@ -2,16 +2,17 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: executing
-stopped_at: Phase 03 planned — ready to execute
-last_updated: "2026-05-19T00:00:00Z"
-last_activity: 2026-05-19 -- Phase 03 planned (3 plans: corpus stub + generate.py + train.py)
+status: code_complete_corpus_pending
+stopped_at: All 4 phases executed & verified (Phase 04 UAT 12/12 pass). Ship gate blocked on human corpus authoring (DATA-05) + iteration loop (EVAL-05).
+last_updated: "2026-05-31T00:00:00Z"
+last_activity: 2026-05-31 -- Reconciled stale STATE; deleted mock UAT fixtures (data/pairs/000..019, eval/scores.jsonl, eval/runs.jsonl, render manifest, UAT checkpoint) ahead of real corpus authoring
 progress:
   total_phases: 4
-  completed_phases: 2
-  total_plans: 13
-  completed_plans: 10
-  percent: 50
+  completed_phases: 4
+  total_plans: 17
+  completed_plans: 17
+  percent: 100
+  note: percent is code-side only; v1 ship gate (DATA-05 ≥30 pairs, EVAL-05 two consecutive improving iterations) is unmet
 ---
 
 # Project State
@@ -21,16 +22,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-19)
 
 **Core value:** Given a short MIDI call played through an Operator preset, the model produces a response that feels like the user responding to themselves — and the active-learning loop demonstrably improves it over consecutive iterations.
-**Current focus:** Phase 03 — corpus-inference
+**Current focus:** Phase 04 — evaluation-loop (executed; corpus authoring still required for v1 ship gate)
 
 ## Current Position
 
-Phase: 03 (corpus-inference) — Ready to execute
-Plan: 0 of 3 (planning complete, execution not started)
-Status: Phase 3 planned — 3 plans in 1 wave, all parallel
-Last activity: 2026-05-19
+Phase: 04 (evaluation-loop) — Executed & verified (UAT 12/12)
+Plan: 4 of 4 (all complete)
+Status: All 4 phases code-complete — rubric, eval library, CLIs, grading UI shipped; 159/159 tests passing. Mock UAT fixtures deleted 2026-05-31.
+Last activity: 2026-05-31
 
-Progress: [██████████] 100% (phases 1-2 complete)
+Progress: [██████████] 100% code-side — but v1 is NOT shippable yet.
+Open ship-gate dependencies (both require the human-in-the-loop, no GSD coding command):
+- DATA-05: author ≥30 call/response pairs in Ableton (data/pairs/), each with call.wav bounce
+- First real training run (train.py) + first eval iteration (generate → blind-grade in Flask UI)
+- EVAL-05: two consecutive iteration rounds must both improve mean held-out call-response-fit score
+Do NOT run /gsd-complete-milestone until EVAL-05 is satisfied.
 
 ## Performance Metrics
 
@@ -110,6 +116,13 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-20T04:04:41Z
-Stopped at: Completed 02-05-PLAN.md (checkpoint + smoke train — 100/100 tests, Phase 2 closed)
-Resume file: None — Phase 2 complete, next: Phase 3 (Corpus & Inference)
+Last session: 2026-05-23T16:00:00Z
+Stopped at: Phase 04 UAT paused after test 9/12. Two real bugs found and fixed inline (PR #17 commit 99d8af9); one cosmetic issue still open (reveal aside newlines). Tests 10–12 require setup (a real checkpoint + response_001.mid in each held-out pair) — full instructions in `.planning/phases/04-evaluation-loop/04-UAT.md` §Resume Notes.
+
+Resume:
+- `/gsd-verify-work 4` to continue UAT from test 10
+- Or `/gsd-progress` for a full status overview
+- Working branch: `phase-04-fix-grading-ui` (PR #17, stacked on #16)
+- Open cosmetic UAT issue: `.mono` CSS needs `white-space: pre-wrap` for reveal aside newlines (apollo/eval/web/static/style.css)
+
+Mock UAT fixture on disk: `data/pairs/000..019` (5 held-out: 006, 009, 010, 012, 019) + `eval/scores.jsonl` partially filled. Delete before authoring real corpus.

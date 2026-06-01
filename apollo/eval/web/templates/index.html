@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Apollo · Grading · {% if run_id_short %}{{ run_id_short }}{% else %}blind{% endif %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="column">
+    <h1>Apollo · Grading · blind</h1>
+    <p class="progress">{{ n_graded }} / {{ n_total }} pairs scored — {{ n_remaining }} remaining</p>
+
+    {% if n_total == 0 %}
+      <section class="empty">
+        <h2>No held-out pairs found.</h2>
+        <p>Did Phase 3 run? Check <code>data/pairs/</code> and the held-out hash split — eval expects ≥1 pair where <code>is_heldout(nnn)</code> returns true.</p>
+      </section>
+    {% elif n_remaining == 0 %}
+      <p class="done-banner">Done. Run delta.ipynb to see how this run compares.</p>
+    {% endif %}
+
+    <ul class="worklist">
+      {% for nnn in pairs %}
+        {% if nnn in unrenderable %}
+          <li class="row unrenderable">
+            <span class="glyph destructive">⚠</span>
+            <span class="pair-id">{{ nnn }}</span>
+            <span class="action muted">no response — re-render</span>
+          </li>
+        {% elif nnn in graded %}
+          <li class="row done">
+            <span class="glyph accent">✓</span>
+            <span class="pair-id">{{ nnn }}</span>
+            <a class="action secondary" href="{{ url_for('pair_view', nnn=nnn) }}">Re-score</a>
+          </li>
+        {% else %}
+          <li class="row pending">
+            <a class="row-link" href="{{ url_for('pair_view', nnn=nnn) }}">
+              <span class="glyph">·</span>
+              <span class="pair-id">{{ nnn }}</span>
+              <span class="action accent">Score →</span>
+            </a>
+          </li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  </main>
+</body>
+</html>
