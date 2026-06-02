@@ -17,6 +17,7 @@ exercised. No .wav fixture is committed — every render is in-process to tmp_pa
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import numpy as np
 import pretty_midi
@@ -152,6 +153,73 @@ def test_package_root_reexports_lfo():
 
 def _write_manifest(path, **op_overrides) -> None:
     path.write_text(json.dumps(_manifest_dict(**op_overrides)))
+
+
+# --- Golden v1.0 dsp_string anchors (committed fixtures; bit-identity) -------
+# These hold the EXACT Phase-6 v1.0 DSP source captured at plan-07-02 authoring
+# time (one per algorithm). They are the STRONG bit-identity anchor for
+# SYNTH-01 SC#2: the no-lfo `dsp_string` must equal these byte-for-byte, so ANY
+# drift in the v1.0 body — not merely the introduction of `lfo_` declarations —
+# fails loudly and protects the already-authored corpus's bit-identity. The
+# reference is a STORED file read at test time, NOT a recomputation of
+# `dsp_string` (which would make the assertion tautological).
+_GOLDEN_DIR = Path(__file__).parent / "fixtures" / "dsp_v1_0"
+_GOLDEN_V1_0 = {
+    0: (_GOLDEN_DIR / "stack.dsp").read_text(),
+    1: (_GOLDEN_DIR / "parallel_mods.dsp").read_text(),
+    2: (_GOLDEN_DIR / "carrier_pair.dsp").read_text(),
+}
+
+
+def test_dsp_string_v1_0_golden():
+    """No-lfo dsp_string equals the committed verbatim v1.0 golden, per algorithm.
+
+    This anchors backward-compat bit-identity (SYNTH-01 SC#2) to the EXACT
+    Phase-6 source: any change to the v1.0 routing body (not just an `lfo_`
+    introduction) re-renders the already-authored corpus and fails here.
+    """
+    for algorithm, golden in _GOLDEN_V1_0.items():
+        assert dsp_string(_fm_params(algorithm=algorithm)) == golden
+
+
+def test_manifest_accepts_v11(tmp_path):
+    """A valid v1.1 manifest with an lfo block loads; the lfo round-trips."""
+    manifest = tmp_path / "call_fm.json"
+    manifest.write_text(
+        json.dumps(
+            _manifest_dict(
+                spec_version="1.1",
+                lfo={"rate": 6.0, "depth": 0.8, "wave": 0, "target": 0},
+            )
+        )
+    )
+    fp = load_manifest(str(manifest), str(tmp_path))
+    assert fp.lfo is not None
+    assert fp.lfo.rate == 6.0 and fp.lfo.depth == 0.8
+    assert fp.lfo.wave == 0 and fp.lfo.target == 0
+
+
+def test_manifest_v10_no_lfo_still_loads(tmp_path):
+    """A v1.0 manifest (no lfo) loads with .lfo is None (loader backward-compat)."""
+    manifest = tmp_path / "call_fm.json"
+    manifest.write_text(json.dumps(_manifest_dict(spec_version="1.0")))
+    fp = load_manifest(str(manifest), str(tmp_path))
+    assert fp.lfo is None
+
+
+def test_lfo_target_bad_enum(tmp_path):
+    """An lfo.target not in {0,1} raises IngestError."""
+    manifest = tmp_path / "call_fm.json"
+    manifest.write_text(
+        json.dumps(
+            _manifest_dict(
+                spec_version="1.1",
+                lfo={"rate": 6.0, "depth": 0.8, "wave": 0, "target": 5},
+            )
+        )
+    )
+    with pytest.raises(IngestError, match="lfo target"):
+        load_manifest(str(manifest), str(tmp_path))
 
 
 # --- Render tests (require dawdreamer) --------------------------------------
