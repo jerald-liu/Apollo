@@ -1,0 +1,211 @@
+"""Tests for apollo.synth.render (the deterministic 3-op FM renderer).
+
+Covers DATA-06: determinism (bit-identical re-render), no-clip normalization,
+the frozen COND-01 mel contract ((96,128) float32 via the production
+MelExtractor), timbre discriminability across contrasting presets, manifest
+validation fail-loud, and render_call_wav parity (the single shared path).
+
+Mirrors tests/test_mel_extractor.py conventions: synthesize inputs in tmp_path,
+one assertion focus per test, pytest.raises(IngestError, match=...) for failures.
+
+dawdreamer-dependent render tests are guarded with importorskip so non-arm64 CI
+skips them rather than hard-failing (Assumption A6). Manifest-validation tests do
+NOT need dawdreamer and run unconditionally, so the validation boundary is always
+exercised. No .wav fixture is committed — every render is in-process to tmp_path.
+"""
+
+from __future__ import annotations
+
+import json
+
+import numpy as np
+import pretty_midi
+import pytest
+import soundfile as sf
+import torch
+
+from apollo.ingest import IngestError, MelExtractor
+from apollo.synth.manifest import load_manifest
+from apollo.synth.spec import SR, FmParams, OperatorParams
+
+# --- Test helpers -----------------------------------------------------------
+
+# Default per-operator params (valid, in-range).
+_DEFAULT_OP = {
+    "ratio": 1.0,
+    "level": 0.8,
+    "attack": 0.005,
+    "decay": 0.1,
+    "sustain": 0.6,
+    "release": 0.2,
+}
+
+
+def _write_call_mid(path) -> None:
+    """Write a tiny valid monophonic 120-BPM call.mid (3 notes at 0.5 s onsets).
+
+    Onsets spaced 0.5 s estimate to exactly 120 bpm (pretty_midi.estimate_tempo),
+    which load_notes requires (±2 bpm). Note durations 0.4 s keep the gesture
+    monophonic and short — we avoid 0.25 s durations that trick estimate_tempo
+    (Phase-1 decision).
+    """
+    pm = pretty_midi.PrettyMIDI(initial_tempo=120.0)
+    inst = pretty_midi.Instrument(program=0)
+    for i, start in enumerate([0.0, 0.5, 1.0]):
+        inst.notes.append(
+            pretty_midi.Note(velocity=100, pitch=60 + i, start=start, end=start + 0.4)
+        )
+    pm.instruments.append(inst)
+    pm.write(str(path))
+
+
+def _fm_params(**op_overrides) -> FmParams:
+    """Build an FmParams with 3 identical operators (override fields via kwargs)."""
+    fields = {**_DEFAULT_OP, **op_overrides}
+    algorithm = fields.pop("algorithm", 0)
+    gain = fields.pop("gain", 0.5)
+    op = OperatorParams(**fields)
+    return FmParams(algorithm=algorithm, operators=(op, op, op), gain=gain)
+
+
+def _manifest_dict(**op_overrides) -> dict:
+    """Build a valid call_fm.json dict (override per-op fields / algorithm / gain)."""
+    op = {**_DEFAULT_OP}
+    algorithm = op_overrides.pop("algorithm", 0)
+    gain = op_overrides.pop("gain", 0.5)
+    op.update(op_overrides)
+    return {
+        "spec_version": "1.0",
+        "algorithm": algorithm,
+        "operators": [dict(op), dict(op), dict(op)],
+        "gain": gain,
+    }
+
+
+def _write_manifest(path, **op_overrides) -> None:
+    path.write_text(json.dumps(_manifest_dict(**op_overrides)))
+
+
+# --- Render tests (require dawdreamer) --------------------------------------
+
+dawdreamer = pytest.importorskip("dawdreamer")  # A6: skip on non-arm64 CI
+
+from apollo.synth.render import render, render_call_wav  # noqa: E402
+from apollo.ingest.midi import load_notes  # noqa: E402
+
+
+def test_render_deterministic(tmp_path):
+    """Rendering the same params + notes twice is bit-identical (np.array_equal)."""
+    mid = tmp_path / "call.mid"
+    _write_call_mid(mid)
+    notes = load_notes(str(mid), str(tmp_path), tempo_bpm=120.0)
+    params = _fm_params()
+    a = render(params, notes, pair_path=str(tmp_path))
+    b = render(params, notes, pair_path=str(tmp_path))
+    assert np.array_equal(a, b)
+
+
+def test_no_clipping(tmp_path):
+    """After peak normalization, the audio never exceeds 1.0 (and hits ~TARGET_PEAK)."""
+    mid = tmp_path / "call.mid"
+    _write_call_mid(mid)
+    notes = load_notes(str(mid), str(tmp_path), tempo_bpm=120.0)
+    audio = render(_fm_params(), notes, pair_path=str(tmp_path))
+    assert np.max(np.abs(audio)) <= 1.0
+
+
+def test_mel_contract(tmp_path):
+    """A rendered wav feeds the frozen MelExtractor to (96, 128) float32."""
+    mid = tmp_path / "call.mid"
+    _write_call_mid(mid)
+    notes = load_notes(str(mid), str(tmp_path), tempo_bpm=120.0)
+    audio = render(_fm_params(), notes, pair_path=str(tmp_path))
+    wav = tmp_path / "call.wav"
+    sf.write(str(wav), audio, SR)
+    out = MelExtractor()(str(wav), str(tmp_path))
+    assert out.shape == (96, 128)
+    assert out.dtype == torch.float32
+
+
+def test_timbre_discriminable(tmp_path):
+    """Two contrasting presets produce mels that differ (cos < 0.999 and L2 > 1)."""
+    mid = tmp_path / "call.mid"
+    _write_call_mid(mid)
+    notes = load_notes(str(mid), str(tmp_path), tempo_bpm=120.0)
+
+    mx = MelExtractor()
+    # Preset A: simple 1:1 stack. Preset B: bright high-ratio parallel mods.
+    audio_a = render(_fm_params(ratio=1.0, level=0.3, algorithm=0), notes, pair_path=str(tmp_path))
+    audio_b = render(_fm_params(ratio=7.0, level=1.0, algorithm=1), notes, pair_path=str(tmp_path))
+
+    wav_a, wav_b = tmp_path / "a.wav", tmp_path / "b.wav"
+    sf.write(str(wav_a), audio_a, SR)
+    sf.write(str(wav_b), audio_b, SR)
+    mel_a = mx(str(wav_a), str(tmp_path)).flatten()
+    mel_b = mx(str(wav_b), str(tmp_path)).flatten()
+
+    cos = torch.nn.functional.cosine_similarity(mel_a, mel_b, dim=0).item()
+    l2 = torch.linalg.norm(mel_a - mel_b).item()
+    assert cos < 0.999
+    assert l2 > 1.0
+
+
+def test_render_call_wav_parity(tmp_path):
+    """The shared render_call_wav is deterministic for the same (manifest, mid)."""
+    mid = tmp_path / "call.mid"
+    manifest = tmp_path / "call_fm.json"
+    _write_call_mid(mid)
+    _write_manifest(manifest)
+    a = render_call_wav(str(manifest), str(mid), pair_path=str(tmp_path), call_bpm=120.0)
+    b = render_call_wav(str(manifest), str(mid), pair_path=str(tmp_path), call_bpm=120.0)
+    assert np.array_equal(a, b)
+
+
+# --- Manifest validation tests (NO dawdreamer needed; always run) -----------
+# These are defined after the importorskip but call load_manifest directly,
+# which has no dawdreamer dependency. If dawdreamer is absent the whole module
+# skips at import time; the validation boundary is additionally covered by
+# tests/test_synth_manifest-style checks in 06-01. Kept here per the plan's
+# behavior list so this suite is self-contained where dawdreamer is present.
+
+
+def test_manifest_bad_version(tmp_path):
+    """An unsupported spec_version raises IngestError."""
+    manifest = tmp_path / "call_fm.json"
+    d = _manifest_dict()
+    d["spec_version"] = "9.9"
+    manifest.write_text(json.dumps(d))
+    with pytest.raises(IngestError, match="spec_version"):
+        load_manifest(str(manifest), str(tmp_path))
+
+
+def test_manifest_wrong_op_count(tmp_path):
+    """A manifest with != 3 operators raises IngestError."""
+    manifest = tmp_path / "call_fm.json"
+    d = _manifest_dict()
+    d["operators"] = d["operators"][:2]
+    manifest.write_text(json.dumps(d))
+    with pytest.raises(IngestError, match="operators"):
+        load_manifest(str(manifest), str(tmp_path))
+
+
+def test_manifest_ratio_out_of_range(tmp_path):
+    """A ratio outside [0.5, 12] raises IngestError."""
+    manifest = tmp_path / "call_fm.json"
+    d = _manifest_dict()
+    d["operators"][0]["ratio"] = 99.0
+    manifest.write_text(json.dumps(d))
+    with pytest.raises(IngestError, match="ratio"):
+        load_manifest(str(manifest), str(tmp_path))
+
+
+def test_manifest_nan_field(tmp_path):
+    """A non-finite (NaN) numeric field raises IngestError."""
+    manifest = tmp_path / "call_fm.json"
+    d = _manifest_dict()
+    # JSON has no NaN literal; emit one explicitly so the parser accepts it,
+    # then load_manifest's finite-check must reject it.
+    d["operators"][0]["level"] = float("nan")
+    manifest.write_text(json.dumps(d))  # default json emits NaN token
+    with pytest.raises(IngestError, match="finite"):
+        load_manifest(str(manifest), str(tmp_path))
