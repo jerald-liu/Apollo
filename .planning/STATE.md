@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: phase_06_complete
-stopped_at: Phase 6 COMPLETE — Plan 06-03 executed (generate.py train/serve parity wiring + de-Ableton doc/requirements reconciliation). generate.py renders inference call.wav from call_fm.json via the shared render_call_wav (single call_bpm/call_notes parse, no double-parse); CORPUS-CONVENTIONS.md is now the FM-manifest authoring guide; REQUIREMENTS.md DATA-01/02 superseded by DATA-06 (DATA-06 done); rendered call.wav gitignored. Full suite 175 passing. Phase 6 done — DATA-05 corpus authoring is now unblocked against the FM-manifest workflow.
+status: phase_07_planned
+stopped_at: Phase 7 (Synth Automation / LFO) PLANNED — 3 plans in 2 waves, plan-checker PASSED on re-check (0 blockers; 2 warnings + 1 info from first pass all resolved in revision). Wave 1 = 07-01 (spec.py→v1.1 LFO enums/dataclass + dsp_string branch, manifest.py {1.0,1.1} accept + lfo-requires-1.1 validation, render.py runtime lfo-slider set, __init__ re-export); Wave 2 (parallel, disjoint files) = 07-02 (tests: golden v1.0 bit-identity anchor, determinism, 6 Hz mel time-variation, validation) + 07-03 (CORPUS-CONVENTIONS lfo block doc). Ready to execute. Backward-compat (v1.0 manifest renders bit-identically) is the load-bearing guarantee, proven via committed per-algorithm golden DSP strings + depth-0 np.array_equal.
 last_updated: "2026-06-02T00:00:00Z"
-last_activity: 2026-06-02 -- Executed 06-03: Option A inference parity (generate.py drops call.wav positional, renders from call_fm.json via shared render_call_wav with single shared MIDI parse), tests migrated (call_fm.json fixture, no call.wav positional, dawdreamer-guarded real-render tests), de-Ableton CORPUS-CONVENTIONS.md + REQUIREMENTS.md DATA-01/02-superseded-by-DATA-06 + gitignore call.wav; full suite 175 passed
+last_activity: 2026-06-02 -- Planned Phase 7 (Synth Automation / LFO): research (DawDreamer/Faust LFO determinism + backward-compat empirically validated) → pattern map (5/5 in-repo analogs) → 3 plans → plan-checker revision loop (PASSED on iteration 2). Also fixed WR-01 (silent renders no longer amplified; 177 tests) and promoted backlog 999.2 call-side to Phase 7 (SYNTH-01).
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 21
+  total_plans: 24
   completed_plans: 21
   percent: 100
   note: percent is code-side for Phases 1-4 + Phase 6 (all complete); Phase 5 (Local App & In-Browser Synth) not started. Phase 6 closed (3/3 plans — 06-01 spec+manifest, 06-02 renderer+CLI, 06-03 inference parity + doc reconciliation). DATA-05 corpus authoring now unblocked. v1 ship gate (DATA-05 ≥30 pairs, EVAL-05 two consecutive improving iterations) still unmet
