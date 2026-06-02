@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: code_complete_corpus_pending
-stopped_at: All 4 phases executed & verified (Phase 04 UAT 12/12 pass). Ship gate blocked on human corpus authoring (DATA-05) + iteration loop (EVAL-05).
-last_updated: "2026-05-31T00:00:00Z"
-last_activity: 2026-05-31 -- Reconciled stale STATE; deleted mock UAT fixtures (data/pairs/000..019, eval/scores.jsonl, eval/runs.jsonl, render manifest, UAT checkpoint) ahead of real corpus authoring
+status: phase_06_planned
+stopped_at: Phase 6 (Synth-Independent Corpus Rendering) planned — 3 plans in 3 sequential waves, plan-checker PASSED. Ready to execute. Phase 6 is a prerequisite for DATA-05 corpus authoring (call.wav now rendered in Python, no Ableton).
+last_updated: "2026-06-02T00:00:00Z"
+last_activity: 2026-06-02 -- Operator-replacement research + spikes 001/002 (DawDreamer+Faust FM validated) → /gsd-explore decision (adopt owned 3-op Python FM family) → Phase 6 added + planned (DATA-06)
 progress:
-  total_phases: 4
+  total_phases: 6
   completed_phases: 4
-  total_plans: 17
+  total_plans: 20
   completed_plans: 17
   percent: 100
-  note: percent is code-side only; v1 ship gate (DATA-05 ≥30 pairs, EVAL-05 two consecutive improving iterations) is unmet
+  note: percent is code-side for Phases 1-4 only; Phase 6 planned (3 plans, not yet executed); v1 ship gate (DATA-05 ≥30 pairs, EVAL-05 two consecutive improving iterations) is unmet
 ---
 
 # Project State
@@ -108,6 +108,7 @@ None yet.
 
 ### Roadmap Evolution
 
+- 2026-06-02: Phase 6 added & planned — Synth-Independent Corpus Rendering. Drops Ableton/Operator: an owned headless Python FM synth (DawDreamer + Faust, 3-op) renders `call.wav` deterministically from a per-pair FM-param manifest, feeding the unchanged MelExtractor (COND-01). New requirement DATA-06; supersedes the manual-bounce premise of DATA-01/02. Prerequisite for DATA-05 corpus authoring. Defines the single FM spec that Phase 5's browser synth will consume. Backed by /gsd-explore decision (.planning/notes/synth-independence-decision.md) + spikes 001/002 (packaged as the spike-findings-apollo skill). Deferred: full 4-op/11-algorithm engine → SEED-009.
 - 2026-06-01: Phase 5 added — Local App & In-Browser Synth. Purely local user-facing app: drag-drop pair ingest, corpus-growth flow, in-browser Operator-style FM synth (Web Audio, removes manual Ableton bounce), manual + auto-retrain triggers, configurable response storage, call→response flow. New requirements (candidate APP-*) to be authored at plan time.
 
 ## Deferred Items
