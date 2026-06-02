@@ -73,3 +73,7 @@ This repo uses Graphite (`gt`) stacked branches. Invoke stack operations implici
 Persistent memory for this project lives in `~/.claude/projects/-Users-jerald-Projects-apollo/memory/`:
 - `user_profile.md` — collaboration style (design-first, deep ML, prefers honest answers)
 - `corpus_direction.md` — call-and-response v2.0 direction (this milestone)
+
+## Spike Findings
+
+- **Spike findings for Apollo** (synth-independent rendering: DawDreamer+Faust FM, mel-conditioning patterns, gotchas) → `Skill("spike-findings-apollo")`
