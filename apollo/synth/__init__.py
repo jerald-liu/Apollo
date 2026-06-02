@@ -7,12 +7,12 @@ Public surface:
     - OperatorParams   (frozen dataclass: one operator's ratio/level/ADSR)
     - dsp_string       (FmParams -> Faust DSP source; only place a patch is built)
     - load_manifest    (path, pair_path -> FmParams; IngestError on bad input)
-
-Note: `render` / `render_call_wav` (the DawDreamer render path) are added in
-Plan 06-02 — this package init does NOT import a `.render` module yet.
+    - render           (params, notes -> np.ndarray; deterministic + normalized)
+    - render_call_wav  (manifest_path, mid_path -> np.ndarray; shared parity path)
 """
 
 from .manifest import load_manifest
+from .render import render, render_call_wav
 from .spec import SPEC_VERSION, Algorithm, FmParams, OperatorParams, dsp_string
 
 __all__ = [
@@ -22,4 +22,6 @@ __all__ = [
     "OperatorParams",
     "dsp_string",
     "load_manifest",
+    "render",
+    "render_call_wav",
 ]
