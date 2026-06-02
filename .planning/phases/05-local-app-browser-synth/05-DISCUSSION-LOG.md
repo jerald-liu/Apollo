@@ -56,3 +56,52 @@
 
 - Play-a-call on the synth keyboard (in-app keyboard authoring).
 - Synth-level / preset response output (already in backlog 999.1/999.2).
+
+---
+
+# Update Session — 2026-06-02 (Phase 6 renderer + Phase 7 LFO reconciliation)
+
+**Areas discussed:** Canonical render path · Browser synth role/fidelity · FM-patch authoring UI · LFO authoring & audition
+**Reason:** Phase 6 shipped `apollo/synth/render_call_wav` (the renderer the 2026-06-01 context flagged as the #1 missing risk); Phase 7 added the v1.1 optional LFO. The original synth/parity decisions needed reconciliation against shipped reality.
+
+## Canonical Render Path
+
+| Question | Options | Selected |
+|----------|---------|----------|
+| Canonical renderer for call.wav (authoring + inference) | Server-side Python (render_call_wav) / Browser-side Web Audio / Hybrid | Server-side Python ✓ |
+| call.wav treatment | Always re-render from manifest / Accept provided call.wav / Defer to planning | Always re-render from manifest ✓ |
+
+**Notes:** Resolves old D-11 risk — the canonical renderer now exists and is shipped. Manifest (`call_fm.json`) is the source of truth; uniform mel distribution guaranteed (no legacy-Ableton-bounce mix). → D-11(revised), D-14, D-15.
+
+## Browser Synth Role / Fidelity
+
+| Question | Options | Selected |
+|----------|---------|----------|
+| In-browser synth role | Interactive preview + live audition / Drop the Web Audio synth / Faithful audition mirror only | Interactive preview + live audition ✓ |
+| Response.mid playback timbre | Same patch as the call / Fixed default / User-selectable | Same patch as the call ✓ (user-selectable deferred — "extend to 3 later") |
+
+**Notes:** Browser synth mirrors 3-op v1.1 incl. LFO but never produces canonical audio. → D-16, D-17.
+
+## FM-Patch Authoring UI
+
+| Question | Options | Selected |
+|----------|---------|----------|
+| How user supplies call_fm.json | In-app patch editor + presets / Preset picker only / Upload raw JSON | In-app patch editor + presets ✓ |
+
+**Notes:** Phase 6 explicitly handed "the synth UI" to Phase 5. Editor drives the live preview synth, writes call_fm.json. → D-18.
+
+## LFO Authoring & Audition
+
+| Question | Options | Selected |
+|----------|---------|----------|
+| v1.1 LFO handling | Editable + audible in v1 / Pass-through only / Audible but not editable | Editable + audible in v1 ✓ |
+
+**Notes:** Collapsible LFO section in editor; preview renders tremolo/vibrato live to match server render. → D-19.
+
+## Locked without discussion (housekeeping)
+
+- 4-op → 3-op v1.1: UI-SPEC's 4-operator references overridden by the shared `apollo/synth/spec.py`. → D-20.
+
+## New Deferred Ideas (this session)
+
+- User-selectable / tweakable response audition timbre (v1 uses the call's own patch).
