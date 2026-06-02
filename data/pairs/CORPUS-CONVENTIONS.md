@@ -34,7 +34,7 @@ The **derived** file (rendered, gitignored, never hand-authored):
 | Call vs. response timbre | **Same or different is free choice per pair.** No constraint. | D-06 |
 | Pitch-shift augmentation | **Deferred.** Do not author pitch-shifted variants. | D-07 |
 
-## The `call_fm.json` schema (spec_version "1.0")
+## The `call_fm.json` schema (spec_version "1.0" or "1.1")
 
 The authoritative spec lives in `apollo/synth/spec.py` (`SPEC_VERSION`, `Algorithm`, `FmParams`/`OperatorParams`); the validator is `apollo/synth/manifest.py`. A manifest is a JSON object:
 
@@ -51,9 +51,21 @@ The authoritative spec lives in `apollo/synth/spec.py` (`SPEC_VERSION`, `Algorit
 }
 ```
 
+A v1.1 manifest may add an **optional** `lfo` block (one global LFO per patch). Omit it for a static, Phase-6-identical patch. Because the main example above is strict JSON, the optional extension is shown separately here as commented `jsonc` (the on-disk `call_fm.json` is still strict JSON — drop the comment):
+
+```jsonc
+{
+  "spec_version": "1.1",                                       // lfo REQUIRES "1.1"
+  "algorithm": 0,
+  "operators": [ /* …three operators, exactly as above… */ ],
+  "gain": 0.5,
+  "lfo": { "rate": 6.0, "depth": 0.8, "wave": 0, "target": 0 }  // optional; omit ⇒ static (Phase-6-identical)
+}
+```
+
 | Field | Type | Range | Notes |
 |---|---|---|---|
-| `spec_version` | string | must equal `"1.0"` | Mismatch → `IngestError`; an old corpus cannot silently re-render under a changed spec. |
+| `spec_version` | string | must equal `"1.0"` **or** `"1.1"` | Any other value → `IngestError` (an old corpus cannot silently re-render under a changed spec). An `lfo` block **requires** `"1.1"` — a `"1.0"` manifest carrying `lfo` is rejected. v1.0 manifests still render **bit-identically** (no behavior change for existing pairs). |
 | `algorithm` | int | `0..2` | Routing topology: **0 = STACK** (3→2→1, one carrier), **1 = PARALLEL_MODS** ((2+3)→1), **2 = CARRIER_PAIR** (3→1 plus op2 as an independent carrier). |
 | `operators` | array | **exactly 3** | One entry per operator; any other count → `IngestError`. |
 | `operators[].ratio` | float | `0.5 .. 12.0` | Oscillator frequency multiplier of the note fundamental. |
@@ -63,6 +75,26 @@ The authoritative spec lives in `apollo/synth/spec.py` (`SPEC_VERSION`, `Algorit
 | `operators[].sustain` | float | `0.0 .. 1.0` | ADSR sustain level. |
 | `operators[].release` | float (s) | `0.0 .. 2.0` | ADSR release. |
 | `gain` | float | `0.0 .. 1.0` | Master output gain (pre-normalization). |
+| `lfo` | object | optional (v1.1) | One global LFO for the whole patch. Absent ⇒ static, Phase-6-identical render. Present ⇒ requires `spec_version "1.1"`. See **LFO (v1.1)** below. |
+| `lfo.rate` | number | `0.05 .. 20.0` (Hz) | LFO speed. Low rates give a slow **partial sweep** over the 0.5–1.5 s gesture (intended slow-drift expression). |
+| `lfo.depth` | number | `0.0 .. 1.0` | Modulation amount; `0` ⇒ no audible modulation. |
+| `lfo.wave` | int | `{0, 1, 2}` | `0 = sine`, `1 = triangle`, `2 = square`. (`3 = saw` reserved for a later spec, **not implemented** in v1.1.) |
+| `lfo.target` | int | `{0, 1}` | `0 = level (tremolo)`, `1 = pitch (vibrato)`. (`2 = FM-mod-depth` reserved, **not implemented** in v1.1.) |
+
+### LFO (v1.1) — synth modulation
+
+The `lfo` block adds **one global LFO per patch**, applied to **all carriers uniformly** (for `CARRIER_PAIR`, both carriers move together — there is no per-operator LFO in v1.1). It modulates either carrier **level** (tremolo) or carrier **pitch** (vibrato), selected by `lfo.target`.
+
+The single source of truth is `apollo/synth/spec.py` (`LfoWave`, `LfoTarget`, `LfoParams`, and `dsp_string`); validation is `apollo/synth/manifest.py`. **Phase 5's browser synth must mirror the exact math below** so it sounds bit-for-bit like the renderer:
+
+- **Bipolar LFO:** `lfo_bi ∈ [-1, 1]` — the raw oscillator output (`sine` / `triangle` / `square` selected by `lfo.wave`).
+- **Unipolar (for tremolo):** `lfo_uni = (lfo_bi + 1) / 2` — maps to `[0, 1]`.
+- **Tremolo (`target = 0`, level):** `lvl_mod = 1 - depth * (1 - lfo_uni)`. Multiply each carrier's output by `lvl_mod` (gain swings in `[1 - depth, 1]`).
+- **Vibrato (`target = 1`, pitch):** `pitch_mul = pow(2, (lfo_bi * depth * 50) / 1200)`. Multiply each carrier oscillator's frequency by `pitch_mul`. The **50** is the max deviation in cents at `depth = 1` (**50-cent default**, musical vibrato; a discuss-phase could refine it to 100 for a more dramatic sweep).
+
+**Per-note phase:** the LFO phase **resets to 0 at each note onset** — modulation is deterministic and onset-relative (Faust `os.osc` resets per polyphonic voice). Identical manifest + MIDI ⇒ bit-identical render.
+
+**Low-rate partial sweep:** at low `lfo.rate` over a short 0.5–1.5 s gesture the LFO contributes only a **partial cycle** rather than a full periodic wobble. This is intentional — it reads as slow expressive drift, not a glitch.
 
 ## Authoring workflow (FM-manifest, no Ableton)
 
