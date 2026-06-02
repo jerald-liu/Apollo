@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: phase_06_planned
-stopped_at: Phase 6 (Synth-Independent Corpus Rendering) planned — 3 plans in 3 sequential waves, plan-checker PASSED. Ready to execute. Phase 6 is a prerequisite for DATA-05 corpus authoring (call.wav now rendered in Python, no Ableton).
+status: phase_06_in_progress
+stopped_at: Phase 6 Plan 06-01 executed (synth spec + manifest foundation). A4 risk gate CLEARED — dawdreamer 0.8.3 + torch 2.12 coexist in one .venv on arm64/Py3.11. apollo/synth/{spec,manifest,__init__}.py created; 166 tests passing. Ready for 06-02 (render.py + render_corpus CLI).
 last_updated: "2026-06-02T00:00:00Z"
-last_activity: 2026-06-02 -- Operator-replacement research + spikes 001/002 (DawDreamer+Faust FM validated) → /gsd-explore decision (adopt owned 3-op Python FM family) → Phase 6 added + planned (DATA-06)
+last_activity: 2026-06-02 -- Executed 06-01: dawdreamer pinned + A4 coexistence verified; FM single-source-of-truth spec.py (SPEC_VERSION, 3 algorithms, dsp_string compiles all 3 templates in DawDreamer) + manifest.py validator (fail-loud IngestError)
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 20
   completed_plans: 17
   percent: 100
-  note: percent is code-side for Phases 1-4 only; Phase 6 planned (3 plans, not yet executed); v1 ship gate (DATA-05 ≥30 pairs, EVAL-05 two consecutive improving iterations) is unmet
+  note: percent is code-side for Phases 1-4 only; Phase 6 in progress (1/3 plans executed — 06-01 synth spec+manifest landed); v1 ship gate (DATA-05 ≥30 pairs, EVAL-05 two consecutive improving iterations) is unmet
 ---
 
 # Project State
@@ -97,6 +97,11 @@ Recent decisions affecting current work:
 - 02-05: load_checkpoint uses weights_only=False (D-24, trusted-local-only, documented in module docstring)
 - 02-05: mel_encoder_state_dict saved as separate top-level key (D-23) via model.mel_enc.state_dict() — preserves Phase 3 independent loading option
 - 02-05: Phase 2 closed: type_accuracy=1.0000 (gate >0.95), wall_clock=1.88s (budget 120s), checkpoint=3.7MB
+- 06-01: A4 CLEARED — dawdreamer==0.8.3 + torch 2.12.0 import cleanly in one .venv (arm64/Py3.11); no venv isolation needed for 06-02/06-03
+- 06-01: FM spec is the versioned single source of truth (SPEC_VERSION=1.0); engine consts SR=44100/BLOCK=512/NUM_VOICES=8/TARGET_PEAK=0.89 live in spec.py (determinism-critical)
+- 06-01: 3 fixed algorithms — STACK(3→2→1), PARALLEL_MODS((2+3)→1), CARRIER_PAIR(3→1 + op2 carrier); all 3 dsp_string templates verified to compile in DawDreamer
+- 06-01: Per-op slider naming = op{i}_ratio/level/attack/decay/sustain/release (i 1-based); render.py resolves names→indices at runtime via get_parameters_description() (no hardcoded indices — spike landmine)
+- 06-01: Mono Faust output (single _); manifest validator rejects bools + NaN/Inf in numeric fields (T-06-01); ranges mirror Faust hslider ranges
 
 ### Pending Todos
 
