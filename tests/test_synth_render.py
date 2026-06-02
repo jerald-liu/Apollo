@@ -247,6 +247,106 @@ def test_manifest_bad_version(tmp_path):
         load_manifest(str(manifest), str(tmp_path))
 
 
+def test_manifest_accepts_v10_no_lfo(tmp_path):
+    """A valid v1.0 manifest still loads (lfo None) under the v1.1 loader."""
+    manifest = tmp_path / "call_fm.json"
+    manifest.write_text(json.dumps(_manifest_dict(spec_version="1.0")))
+    fp = load_manifest(str(manifest), str(tmp_path))
+    assert fp.lfo is None
+
+
+def test_manifest_accepts_v11_with_lfo(tmp_path):
+    """A valid v1.1 manifest with an lfo block loads into an LfoParams."""
+    manifest = tmp_path / "call_fm.json"
+    manifest.write_text(
+        json.dumps(
+            _manifest_dict(
+                spec_version="1.1",
+                lfo={"rate": 6.0, "depth": 0.8, "wave": 0, "target": 0},
+            )
+        )
+    )
+    fp = load_manifest(str(manifest), str(tmp_path))
+    assert isinstance(fp.lfo, LfoParams)
+    assert fp.lfo.rate == 6.0 and fp.lfo.depth == 0.8
+    assert fp.lfo.wave == 0 and fp.lfo.target == 0
+
+
+def test_lfo_requires_v11(tmp_path):
+    """An lfo block under spec_version 1.0 is rejected, naming 1.1."""
+    manifest = tmp_path / "call_fm.json"
+    manifest.write_text(
+        json.dumps(
+            _manifest_dict(
+                spec_version="1.0",
+                lfo={"rate": 6.0, "depth": 0.8, "wave": 0, "target": 0},
+            )
+        )
+    )
+    with pytest.raises(IngestError, match="1.1"):
+        load_manifest(str(manifest), str(tmp_path))
+
+
+def test_lfo_rate_out_of_range(tmp_path):
+    """An lfo.rate outside [0.05, 20] raises IngestError."""
+    manifest = tmp_path / "call_fm.json"
+    manifest.write_text(
+        json.dumps(
+            _manifest_dict(
+                spec_version="1.1",
+                lfo={"rate": 99.0, "depth": 0.8, "wave": 0, "target": 0},
+            )
+        )
+    )
+    with pytest.raises(IngestError, match="lfo rate"):
+        load_manifest(str(manifest), str(tmp_path))
+
+
+def test_lfo_wave_bad_enum(tmp_path):
+    """An lfo.wave not in {0,1,2} raises IngestError."""
+    manifest = tmp_path / "call_fm.json"
+    manifest.write_text(
+        json.dumps(
+            _manifest_dict(
+                spec_version="1.1",
+                lfo={"rate": 6.0, "depth": 0.8, "wave": 9, "target": 0},
+            )
+        )
+    )
+    with pytest.raises(IngestError, match="lfo wave"):
+        load_manifest(str(manifest), str(tmp_path))
+
+
+def test_lfo_nan_rate(tmp_path):
+    """A non-finite lfo.rate raises IngestError (finite check)."""
+    manifest = tmp_path / "call_fm.json"
+    manifest.write_text(
+        json.dumps(
+            _manifest_dict(
+                spec_version="1.1",
+                lfo={"rate": float("nan"), "depth": 0.8, "wave": 0, "target": 0},
+            )
+        )
+    )
+    with pytest.raises(IngestError, match="finite"):
+        load_manifest(str(manifest), str(tmp_path))
+
+
+def test_lfo_bool_rejected(tmp_path):
+    """A bool in an lfo enum field is rejected (not a valid int)."""
+    manifest = tmp_path / "call_fm.json"
+    manifest.write_text(
+        json.dumps(
+            _manifest_dict(
+                spec_version="1.1",
+                lfo={"rate": 6.0, "depth": 0.8, "wave": True, "target": 0},
+            )
+        )
+    )
+    with pytest.raises(IngestError, match="lfo wave"):
+        load_manifest(str(manifest), str(tmp_path))
+
+
 def test_manifest_wrong_op_count(tmp_path):
     """A manifest with != 3 operators raises IngestError."""
     manifest = tmp_path / "call_fm.json"
