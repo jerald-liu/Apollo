@@ -144,6 +144,24 @@ def render(params: FmParams, notes, *, pair_path: str) -> np.ndarray:
                     )
                 synth.set_parameter(int(name_to_index[slider]), float(getattr(op, field)))
 
+        # --- LFO sliders (v1.1). Pitfall 3: guard the WHOLE block on
+        # `params.lfo is not None` — when absent, dsp_string emits NO lfo_*
+        # sliders, so name_to_index won't contain them and we must not look them
+        # up. Numeric-only: lfo_wave is passed as a float (Faust's
+        # select3(int(lfo_wave), ...) re-discretizes it); no string is ever set.
+        # lfo.target is NOT a runtime slider — it selected the DSP wiring branch
+        # at compile time in dsp_string (like algorithm), so it is not set here.
+        if params.lfo is not None:
+            for slider, val in (("lfo_rate", params.lfo.rate),
+                                ("lfo_depth", params.lfo.depth),
+                                ("lfo_wave", float(params.lfo.wave))):
+                if slider not in name_to_index:
+                    raise IngestError(
+                        pair_path,
+                        f"render engine is missing expected param {slider!r}",
+                    )
+                synth.set_parameter(int(name_to_index[slider]), float(val))
+
         # --- Notes: velocity passes straight through (DawDreamer maps
         # velocity -> gain internally; do NOT double-apply manifest gain).
         for n in notes:

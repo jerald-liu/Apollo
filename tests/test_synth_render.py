@@ -218,6 +218,49 @@ def test_timbre_discriminable(tmp_path):
     assert l2 > 1.0
 
 
+def test_lfo_render_deterministic(tmp_path):
+    """An LFO render is bit-identical across runs (np.array_equal)."""
+    mid = tmp_path / "call.mid"
+    _write_call_mid(mid)
+    notes = load_notes(str(mid), str(tmp_path), tempo_bpm=120.0)
+    params = _fm_params(lfo=LfoParams(6.0, 0.8, 0, 0))
+    a = render(params, notes, pair_path=str(tmp_path))
+    b = render(params, notes, pair_path=str(tmp_path))
+    assert np.array_equal(a, b)
+
+
+def test_lfo_changes_audio(tmp_path):
+    """An LFO patch renders differently from the no-lfo patch."""
+    mid = tmp_path / "call.mid"
+    _write_call_mid(mid)
+    notes = load_notes(str(mid), str(tmp_path), tempo_bpm=120.0)
+    nolfo = render(_fm_params(), notes, pair_path=str(tmp_path))
+    lfo = render(_fm_params(lfo=LfoParams(6.0, 0.8, 0, 0)), notes, pair_path=str(tmp_path))
+    assert not np.array_equal(nolfo, lfo)
+
+
+def test_lfo_render_no_clipping(tmp_path):
+    """An LFO render still normalizes below 1.0 (Pitfall 5)."""
+    mid = tmp_path / "call.mid"
+    _write_call_mid(mid)
+    notes = load_notes(str(mid), str(tmp_path), tempo_bpm=120.0)
+    audio = render(_fm_params(lfo=LfoParams(6.0, 0.8, 2, 0)), notes, pair_path=str(tmp_path))
+    assert np.max(np.abs(audio)) <= 1.0
+
+
+def test_lfo_pitch_render(tmp_path):
+    """A pitch-target (vibrato) LFO renders deterministically and differs."""
+    mid = tmp_path / "call.mid"
+    _write_call_mid(mid)
+    notes = load_notes(str(mid), str(tmp_path), tempo_bpm=120.0)
+    nolfo = render(_fm_params(), notes, pair_path=str(tmp_path))
+    vib = _fm_params(lfo=LfoParams(6.0, 0.8, 0, 1))
+    a = render(vib, notes, pair_path=str(tmp_path))
+    b = render(vib, notes, pair_path=str(tmp_path))
+    assert np.array_equal(a, b)
+    assert not np.array_equal(nolfo, a)
+
+
 def test_render_call_wav_parity(tmp_path):
     """The shared render_call_wav is deterministic for the same (manifest, mid)."""
     mid = tmp_path / "call.mid"
