@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: phase_06_in_progress
-stopped_at: Phase 6 Plan 06-02 executed (deterministic renderer + corpus render CLI). render.py (render + shared render_call_wav), render_corpus.py CLI, test_synth_render.py — 175 tests passing. Determinism np.array_equal True, peak 0.89, mel (96,128), timbre cos 0.874 / L2 792. Ready for 06-03 (generate.py parity wiring + doc reconciliation).
+status: phase_06_complete
+stopped_at: Phase 6 COMPLETE — Plan 06-03 executed (generate.py train/serve parity wiring + de-Ableton doc/requirements reconciliation). generate.py renders inference call.wav from call_fm.json via the shared render_call_wav (single call_bpm/call_notes parse, no double-parse); CORPUS-CONVENTIONS.md is now the FM-manifest authoring guide; REQUIREMENTS.md DATA-01/02 superseded by DATA-06 (DATA-06 done); rendered call.wav gitignored. Full suite 175 passing. Phase 6 done — DATA-05 corpus authoring is now unblocked against the FM-manifest workflow.
 last_updated: "2026-06-02T00:00:00Z"
-last_activity: 2026-06-02 -- Executed 06-02: deterministic 3-op FM renderer (runtime slider-index resolution, duration cap, peak-normalize) + single shared render_call_wav parity entrypoint + render_corpus CLI (0/1/2 exit codes); 9 new tests (determinism/no-clip/mel-contract/timbre/validation/parity), full suite 175 passed
+last_activity: 2026-06-02 -- Executed 06-03: Option A inference parity (generate.py drops call.wav positional, renders from call_fm.json via shared render_call_wav with single shared MIDI parse), tests migrated (call_fm.json fixture, no call.wav positional, dawdreamer-guarded real-render tests), de-Ableton CORPUS-CONVENTIONS.md + REQUIREMENTS.md DATA-01/02-superseded-by-DATA-06 + gitignore call.wav; full suite 175 passed
 progress:
   total_phases: 6
-  completed_phases: 4
-  total_plans: 20
-  completed_plans: 18
+  completed_phases: 5
+  total_plans: 21
+  completed_plans: 21
   percent: 100
-  note: percent is code-side for Phases 1-4 only; Phase 6 in progress (2/3 plans executed — 06-01 spec+manifest, 06-02 renderer+CLI landed); v1 ship gate (DATA-05 ≥30 pairs, EVAL-05 two consecutive improving iterations) is unmet
+  note: percent is code-side for Phases 1-4 + Phase 6 (all complete); Phase 5 (Local App & In-Browser Synth) not started. Phase 6 closed (3/3 plans — 06-01 spec+manifest, 06-02 renderer+CLI, 06-03 inference parity + doc reconciliation). DATA-05 corpus authoring now unblocked. v1 ship gate (DATA-05 ≥30 pairs, EVAL-05 two consecutive improving iterations) still unmet
 ---
 
 # Project State
@@ -107,6 +107,10 @@ Recent decisions affecting current work:
 - 06-02: render_call_wav(manifest_path, mid_path, *, pair_path, call_bpm, notes=None) is the SINGLE shared render path — generate.py (06-03) must call it with already-parsed call_notes + estimate_tempo() bpm so MIDI is parsed once and corpus/inference renders are bit-identical.
 - 06-02: render_corpus enumerates pairs by call_fm.json+call.mid presence (NOT discover_pairs, which requires call.wav to pre-exist) — call.wav is a derived artifact.
 - 06-02: Determinism confirmed np.array_equal True; peak after normalization = 0.89 (== TARGET_PEAK); timbre across contrasting presets cos 0.874 / L2 792 (matches spike 0.85/783)
+- 06-03: Option A (render-only) — generate.py REMOVED the call.wav positional entirely (no --call-wav override); inference always renders call.wav from <pair_dir>/call_fm.json via the shared render_call_wav. Single inference code path = cleanest train/serve parity guarantee (T-06-12); no real caller passed a wav.
+- 06-03: Single-parse pitfall avoided — call_bpm (estimate_tempo) + call_notes (load_notes) computed once before render; render_call_wav called with call_bpm=call_bpm AND notes=call_notes so the call MIDI is parsed exactly once, shared by render + tokenize.
+- 06-03: Rendered audio array -> NamedTemporaryFile .wav at spec.SR -> frozen MelExtractor by path; mel (1,1,96,128) and all downstream sampling/decode/output-naming unchanged. IngestError (bad call_fm.json/MIDI) exits 1.
+- 06-03: CORPUS-CONVENTIONS.md de-Ableton'd (authored = call.mid + call_fm.json + response.mid; call.wav derived/gitignored; render_corpus step + full call_fm.json schema documented; call_fm.json vs eval/render_manifest.py distinction noted; venv/bin -> .venv/bin). REQUIREMENTS DATA-01/02 marked superseded-by-DATA-06; DATA-06 done.
 
 ### Pending Todos
 

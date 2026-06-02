@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Corpus & Inference** - Author ≥30 pairs, generate.py, sampling controls (code shipped; corpus authoring pending)
 - [x] **Phase 4: Evaluation Loop** - Scoring rubric, grading workflow, iteration tracking, ship gate
 - [ ] **Phase 5: Local App & In-Browser Synth** - Local-only user app: drag-drop pairs, in-browser FM synth, train triggers, call→response flow
-- [ ] **Phase 6: Synth-Independent Corpus Rendering** - Single source-of-truth FM spec + headless Python/Faust 3-op renderer that produces `call.wav` deterministically with no Ableton (prerequisite for corpus authoring; Phase 5's browser synth consumes the same spec)
+- [x] **Phase 6: Synth-Independent Corpus Rendering** - Single source-of-truth FM spec + headless Python/Faust 3-op renderer that produces `call.wav` deterministically with no Ableton (prerequisite for corpus authoring; Phase 5's browser synth consumes the same spec)
 
 ## Phase Details
 
@@ -113,7 +113,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 - [x] 06-01-PLAN.md — Add dawdreamer dep (verify single-venv coexistence) + FM spec source-of-truth (spec.py) + manifest validator (manifest.py) (DATA-06)
 - [x] 06-02-PLAN.md — Deterministic 3-op DawDreamer/Faust renderer (render.py) + render_corpus CLI + determinism/mel/timbre/parity tests (DATA-06)
-- [ ] 06-03-PLAN.md — generate.py train/serve parity wiring (render from call_fm.json) + de-Ableton CORPUS-CONVENTIONS/REQUIREMENTS reconcile + gitignore (DATA-06)
+- [x] 06-03-PLAN.md — generate.py train/serve parity wiring (render from call_fm.json) + de-Ableton CORPUS-CONVENTIONS/REQUIREMENTS reconcile + gitignore (DATA-06)
 
 ## Progress
 
@@ -127,7 +127,7 @@ Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel*
 | 3. Corpus & Inference | 0/3 | Not started | - |
 | 4. Evaluation Loop | 0/TBD | Not started | - |
 | 5. Local App & In-Browser Synth | 0/TBD | Not started | - |
-| 6. Synth-Independent Corpus Rendering | 1/3 | In progress | - |
+| 6. Synth-Independent Corpus Rendering | 3/3 | Complete | 2026-06-02 |
 
 ## Backlog
 
