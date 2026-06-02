@@ -209,3 +209,29 @@ def test_manifest_nan_field(tmp_path):
     manifest.write_text(json.dumps(d))  # default json emits NaN token
     with pytest.raises(IngestError, match="finite"):
         load_manifest(str(manifest), str(tmp_path))
+
+
+# --- Normalization tests (WR-01; no dawdreamer needed) ----------------------
+# _normalize_peak is a pure array function; importing it does not touch the
+# dawdreamer wheel (that import is local to render()).
+
+
+def test_normalize_peak_leaves_silence_silent():
+    """WR-01: a near-silent buffer is NOT amplified into full-scale noise."""
+    from apollo.synth.render import _normalize_peak
+
+    dust = np.array([1e-8, -5e-9, 0.0, 2e-9], dtype=np.float32)
+    out = _normalize_peak(dust)
+    # Old behavior divided by the ~1e-8 peak, scaling dust up to ~TARGET_PEAK
+    # (0.89); the silence floor leaves it as silence.
+    assert np.max(np.abs(out)) < 1e-6
+
+
+def test_normalize_peak_scales_real_audio():
+    """A normal buffer is scaled to exactly TARGET_PEAK (determinism preserved)."""
+    from apollo.synth.render import _normalize_peak
+    from apollo.synth.spec import TARGET_PEAK
+
+    sig = np.array([0.1, -0.4, 0.25], dtype=np.float32)
+    out = _normalize_peak(sig)
+    assert np.isclose(np.max(np.abs(out)), TARGET_PEAK, atol=1e-6)

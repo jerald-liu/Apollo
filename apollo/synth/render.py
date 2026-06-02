@@ -55,6 +55,15 @@ from apollo.synth.spec import (
 # runs. MelExtractor truncates anything longer anyway.
 MAX_RENDER_SECONDS = 30.0  # mirror MelExtractor.MAX_WAV_SECONDS (T-01-08 class)
 
+# Peak below which a render is treated as silence and left UNSCALED (WR-01). A
+# valid patch can be silent (e.g. all carrier `level` = 0); its buffer is then
+# only numerical dust. Dividing by that dust to hit TARGET_PEAK would amplify it
+# ~1e8x into full-scale noise — poisoning the mel-conditioning signal with
+# garbage that never clips (so `test_no_clipping` would never catch it). Real
+# audio sits far above this floor, so non-silent renders normalize identically
+# to before (determinism preserved).
+SILENCE_PEAK_FLOOR = 1e-6
+
 # Per-operator settable slider fields, mapped to the OperatorParams attribute.
 # Only `ratio` and `level` are exposed as runtime-settable Faust hsliders by
 # spec.dsp_string; the ADSR fields (attack/decay/sustain/release) are compiled
@@ -153,10 +162,21 @@ def render(params: FmParams, notes, *, pair_path: str) -> np.ndarray:
 
     # --- Normalize: scalar peak gain with headroom (deterministic, linear).
     # Pure gain preserves spectral shape, so the mel timbre signal survives.
-    peak = float(np.max(np.abs(audio)))
-    audio = audio / max(peak, 1e-9) * TARGET_PEAK
+    return _normalize_peak(audio)
 
-    return audio.astype(np.float32, copy=False)
+
+def _normalize_peak(audio: np.ndarray) -> np.ndarray:
+    """Scale `audio` to TARGET_PEAK by a single linear gain, leaving silence silent.
+
+    Above SILENCE_PEAK_FLOOR the gain is exactly `audio / peak * TARGET_PEAK`
+    (identical to the prior behavior for all real audio). At or below the floor
+    the buffer is numerical dust from a silent patch and is returned unscaled —
+    NOT amplified into full-scale noise (WR-01).
+    """
+    peak = float(np.max(np.abs(audio)))
+    if peak <= SILENCE_PEAK_FLOOR:
+        return audio.astype(np.float32, copy=False)
+    return (audio / peak * TARGET_PEAK).astype(np.float32, copy=False)
 
 
 def render_call_wav(
