@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apollo — Architecture One-Pager</title>
+<style>
+  /* Self-contained, no external deps — drop this whole file into any web app,
+     or copy the <style> + <body> markup into a component. */
+  :root {
+    --ink: #1a1d24;
+    --muted: #5b6472;
+    --line: #e3e7ec;
+    --accent: #4f46e5;
+    --accent-soft: #eef0fe;
+    --warn: #b45309;
+    --warn-soft: #fef3e2;
+    --good: #0f766e;
+    --good-soft: #e6f4f2;
+    --bg: #fbfcfd;
+    --card: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 40px 28px 80px; }
+  header.hero {
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 20px;
+    margin-bottom: 8px;
+  }
+  .eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin: 0 0 6px;
+  }
+  h1 { font-size: 30px; margin: 0 0 10px; letter-spacing: -0.02em; }
+  .thesis {
+    font-size: 16px;
+    color: var(--muted);
+    max-width: 70ch;
+    margin: 0;
+  }
+  .thesis strong { color: var(--ink); font-weight: 600; }
+  h2 {
+    font-size: 13px;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 38px 0 14px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--line);
+  }
+  h3 { font-size: 16px; margin: 0 0 4px; }
+  p { margin: 0 0 10px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 14px;
+  }
+  .card .why { color: var(--ink); }
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 5px;
+    margin-bottom: 8px;
+  }
+  .tag.decision { background: var(--accent-soft); color: var(--accent); }
+  .tradeoff {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: var(--warn-soft);
+    border-left: 3px solid var(--warn);
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  .tradeoff b { color: var(--warn); }
+  .gain {
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: var(--good-soft);
+    border-left: 3px solid var(--good);
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  .gain b { color: var(--good); }
+
+  table { width: 100%; border-collapse: collapse; margin: 4px 0 8px; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 700; }
+  td code, p code, li code {
+    background: #f1f3f7;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+  }
+  .pipeline {
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    background: var(--ink);
+    color: #d7dbe6;
+    padding: 18px 20px;
+    border-radius: 10px;
+    overflow-x: auto;
+    line-height: 1.7;
+    white-space: pre;
+  }
+  .pipeline .hl { color: #a5b4fc; }
+  .pipeline .dim { color: #7b8494; }
+  ul.tight { margin: 4px 0 8px; padding-left: 20px; }
+  ul.tight li { margin-bottom: 5px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 680px) { .grid2 { grid-template-columns: 1fr; } }
+  .stat-row { display: flex; flex-wrap: wrap; gap: 10px; margin: 6px 0 2px; }
+  .stat {
+    flex: 1 1 130px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 14px;
+    background: var(--card);
+  }
+  .stat .n { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+  .stat .l { font-size: 12px; color: var(--muted); }
+  footer { margin-top: 40px; font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 16px; }
+  .pull { font-size: 16px; font-style: italic; color: var(--ink); border-left: 3px solid var(--accent); padding-left: 14px; margin: 14px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <p class="eyebrow">Apollo · Call-and-Response Generative MIDI Model</p>
+    <h1>Architecture &amp; Decision Rationale</h1>
+    <p class="thesis">
+      Apollo takes a short MIDI phrase (a <strong>call</strong>) played through an Ableton Operator FM
+      preset and generates a complementary MIDI <strong>response</strong> in my own style. The design
+      thesis: <strong>build a tool for myself first</strong> — where I can be both the domain expert and
+      the only user — then generalize into a paved path for others. Every architectural choice trades
+      generality for a small, learnable, locally-trainable system that sits at the intersection of my
+      music and engineering expertise.
+    </p>
+  </header>
+
+  <p class="pull">
+    "The model is small on purpose. The hard part isn't scale — it's defining a clean problem where a
+    corpus I can author by hand is enough signal to learn from."
+  </p>
+
+  <section>
+    <h2>System at a Glance</h2>
+    <div class="stat-row">
+      <div class="stat"><div class="n">~976K</div><div class="l">transformer params</div></div>
+      <div class="stat"><div class="n">~109K</div><div class="l">mel encoder params</div></div>
+      <div class="stat"><div class="n">112 / 256</div><div class="l">active / reserved vocab</div></div>
+      <div class="stat"><div class="n">MPS</div><div class="l">trains locally, no cloud</div></div>
+      <div class="stat"><div class="n">~2s</div><div class="l">smoke-train wall clock</div></div>
+    </div>
+    <div class="pipeline"><span class="dim">call.wav  ──▶</span> Mel Spectrogram <span class="hl">(96×128)</span> ──▶ MelEncoder CNN ──▶ timbre vector <span class="hl">(128-d)</span>
+                                                              │
+                                                  injected as <span class="hl">prefix token @ pos 0</span>
+                                                              ▼
+<span class="dim">call.mid  ──▶</span> Tokenize ──▶ <span class="hl">[BOS, call, SEP]</span> ──▶ Decoder-only Transformer (4 layers, causal)
+                                                              │
+                                            autoregressive sampling (temp + top-k)
+                                                              ▼
+<span class="dim">response.mid ◀──</span> Decode tokens ◀── <span class="hl">[resp tokens, EOS]</span>  <span class="dim">// loss masked to response only</span></div>
+  </section>
+
+  <section>
+    <h2>Core Design Decisions — Why &amp; Tradeoffs</h2>
+
+    <div class="card">
+      <span class="tag decision">Representation</span>
+      <h3>Notes as discrete 4-token groups, quantized to bins</h3>
+      <p class="why">Each note is <code>[time_shift, pitch, velocity, duration]</code> — four IDs drawn from
+        quantized bins on a single 256-wide number line. This reframes generation as <b>classification</b>
+        (pick 1 of N per step), not regression over continuous values.</p>
+      <div class="gain"><b>Win:</b> Classification is far easier to train on a tiny corpus than regressing
+        floats. Quantized bins also match how I actually author — grid-locked in Ableton — so the
+        discretization throws away noise, not signal.</div>
+      <div class="tradeoff"><b>Cost:</b> No micro-timing, no off-grid groove, no continuous dynamics.
+        I'm deliberately living in the "quantized, tiny gesture" regime (2–6 notes, &lt;2s). Humanized
+        timing is a later corpus extension, not a re-architecture.</div>
+    </div>
+
+    <div class="card">
+      <span class="tag decision">Forward Compatibility</span>
+      <h3>Vocab reserves 144 empty slots (IDs 112–255)</h3>
+      <p class="why">v1 uses 112 token IDs (notes + <code>BOS</code>/<code>EOS</code>/<code>SEP</code>).
+        The embedding table is allocated at 256 rows; the rest sit unused.</p>
+      <div class="gain"><b>Win:</b> Pitch-bend / mod-wheel / CC tokens can be added later <i>without
+        renumbering any existing ID</i> — so a checkpoint I train today still loads after the vocab grows.
+        Cheap insurance: a few hundred unused embedding rows cost almost nothing.</div>
+      <div class="tradeoff"><b>Cost:</b> A slightly larger embedding table and the discipline of never
+        mutating frozen IDs without bumping a schema version. Trivial price for not orphaning checkpoints.</div>
+    </div>
+
+    <div class="card">
+      <span class="tag decision">Conditioning</span>
+      <h3>Mel-condition the call audio via a jointly-trained CNN</h3>
+      <p class="why">The same notes through a bright pluck vs. a soft pad warrant different responses, so
+        timbre is real signal. I render <code>call.wav</code> → log-mel <code>(96×128)</code> → a small
+        CNN → one 128-d "timbre fingerprint," injected as a prefix token the transformer can attend to.</p>
+      <div class="gain"><b>Win:</b> Training the encoder <i>jointly from scratch</i> (vs. a frozen CLAP/AudioMAE)
+        lets it specialize to the narrow, predictable spectral structure of one FM synth family — learnable
+        on a small corpus precisely because the timbre space is bounded.</div>
+      <div class="tradeoff"><b>Cost:</b> A general pretrained encoder would transfer across instruments;
+        mine won't. Accepted — v1 is Operator-only by design. Also a real <b>asymmetry</b>: the mel can
+        capture an LFO pulse in the <i>call</i>, but the response channel is MIDI-only, so the model can
+        answer with note rhythm but not synthesis-level rhythm. Logged as a known limitation.</div>
+    </div>
+
+    <div class="card">
+      <span class="tag decision">Model</span>
+      <h3>Decoder-only transformer with a mel prefix token</h3>
+      <p class="why">A causal <code>TransformerEncoderLayer</code> stack (4 layers, 4 heads, d=128) acts as a
+        decoder-only LM. The mel vector is concatenated at position 0; tokens attend back to it. Loss and
+        generation flow left-to-right over <code>[BOS, call, SEP, response, EOS]</code>.</p>
+      <div class="gain"><b>Win:</b> One unified attention mechanism handles both "read the call + timbre"
+        and "write the response" — no separate encoder/decoder cross-attention to wire up. Small enough
+        (~976K params) to train and iterate on locally in seconds.</div>
+      <div class="tradeoff"><b>Cost:</b> Prefix-conditioning is less expressive than full encoder-decoder
+        cross-attention. At this scale and corpus size, the simplicity is worth more than the marginal
+        capacity.</div>
+    </div>
+
+    <div class="card">
+      <span class="tag decision">Training Objective</span>
+      <h3>Cross-entropy loss masked to response tokens only</h3>
+      <p class="why">The <code>SEP</code> token marks the call/response boundary; loss is computed only on
+        positions at or after it. The model is never graded on reproducing the call.</p>
+      <div class="gain"><b>Win:</b> Forces the model to learn <i>generation</i> (call → response), not
+        autoencoding (copy the input). Every gradient dollar goes toward the actual task. The call is
+        context, not a prediction target.</div>
+      <div class="tradeoff"><b>Cost:</b> Slightly more bookkeeping (find SEP, build the mask with the correct
+        <code>j &gt;= sep_pos</code> boundary — an off-by-one here silently drops the first response token).
+        Worth it; the mask is the whole point of the framing.</div>
+    </div>
+
+    <div class="card">
+      <span class="tag decision">Initialization</span>
+      <h3>Train from scratch — no MAESTRO / piano warm-start</h3>
+      <p class="why">A prior milestone trained on MAESTRO piano and hit a representation-level blocker: the
+        91–95% pedal-active prior was load-bearing in the output distribution. That code is archived on a
+        <code>deprecated</code> branch as reference, not lineage.</p>
+      <div class="gain"><b>Win:</b> Piano priors (pedal behavior, piano dynamics envelope) actively
+        <i>conflict</i> with FM/Operator material. A clean random init learns the right distribution instead
+        of fighting an imported one.</div>
+      <div class="tradeoff"><b>Cost:</b> No transfer-learning head start; I'm fully dependent on corpus
+        quality. Acceptable because the model is tiny and the domain is narrow — from-scratch converges fast.</div>
+    </div>
+
+    <div class="card">
+      <span class="tag decision">Generation Control</span>
+      <h3>Learned <code>EOS</code> stop + hard max-token budget</h3>
+      <p class="why">The model learns to emit <code>EOS</code> when a response "feels complete." A
+        <code>max_tokens</code> budget (default 24 = 6 notes × 4 tokens) is a hard backstop. Sampling uses
+        temperature (0.8) + top-k (10).</p>
+      <div class="gain"><b>Win:</b> <code>EOS</code> gives clean variable-length output with near-zero cost
+        (one vocab slot). The budget guarantees termination even if a confused model never emits it. Two
+        layers of safety, both cheap.</div>
+      <div class="tradeoff"><b>Cost:</b> A fixed budget can clip a legitimately long response — but that's
+        out of scope by design (tiny gestures only), so the ceiling doubles as a scope guardrail.</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Scope Tradeoffs — What I Cut and Why</h2>
+    <table>
+      <tr><th>Cut from v1</th><th>Why it's the right call</th></tr>
+      <tr><td>Polyphony</td><td>Monophonic = clean tokenization, smaller model, and it matches the gestural style I author. Chords are a separate problem class.</td></tr>
+      <tr><td>Off-grid / humanized timing</td><td>Quantized grid shrinks the time vocab and gives a cleaner training signal. Groove enters later as corpus complexity, not architecture.</td></tr>
+      <tr><td>Pitch-bend / mod-wheel / CC</td><td>Notes-only keeps the first pass small. Vocab headroom is already reserved so this adds without breaking checkpoints.</td></tr>
+      <tr><td>Audio output from the model</td><td>Response is symbolic MIDI; I pick the response preset in Ableton. Generating audio is a scope explosion that doesn't validate the core idea.</td></tr>
+      <tr><td>Real-time Max-for-Live</td><td>v1 is offline <code>.mid → .mid</code>. Validate the <i>musical</i> bar before the <i>latency</i> bar.</td></tr>
+      <tr><td>Cloud / Modal training</td><td>Model + corpus are small enough for Apple Silicon (MPS). No infra to manage, fast iteration loop.</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>The Real Product: the Active-Learning Loop</h2>
+    <div class="card">
+      <p class="why">A single trained checkpoint is <i>not</i> the deliverable. The methodology is:
+        <b>author ≥30 pairs → train → listen to held-out responses → score call-response fit (1–5) →
+        identify gaps → author more → retrain → confirm scores moved.</b></p>
+      <ul class="tight">
+        <li><b>20% held-out, deterministic split</b> (hashed by folder name) — never trained on, so scores are honest.</li>
+        <li><b>Ship gate:</b> v1 ships only when <i>two consecutive iterations both improve</i> mean held-out fit — proof the loop works, not a single lucky model.</li>
+        <li><b>Why this framing:</b> it's the part that generalizes. The model is bespoke to me; the
+          <i>loop</i> is the paved path I'd hand to the next person.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>The 30-Second Interview Story</h2>
+    <div class="card">
+      <p>"Apollo is a generative call-and-response model for FM synthesis. I built it for <b>myself</b> first —
+        I'm the domain expert and the only user — so I could make aggressive scope cuts most teams can't:
+        monophonic, quantized, tiny gestures, one synth. That let me get to a <b>small model that trains
+        locally in seconds</b> and a corpus I can hand-author."</p>
+      <p>"The interesting engineering is in the <b>framing</b>, not the scale: discrete tokenization so
+        generation is classification not regression; <b>mel-conditioning</b> so the model responds to timbre,
+        not just notes; <b>response-only loss</b> so it learns to generate rather than autoencode; and a
+        vocab that <b>reserves space for future expression tokens</b> so today's checkpoints survive tomorrow's
+        features."</p>
+      <p>"The actual product is the <b>active-learning loop</b> — author, train, listen, score, iterate —
+        which is the piece that generalizes from a tool-for-me into a <b>paved path for anyone</b>. That
+        intersection of deep music intuition and ML engineering is exactly where I wanted to build."</p>
+    </div>
+  </section>
+
+  <footer>
+    Apollo v2.0 · Call-and-Response v1 · Single-file reference, no external dependencies — copy the
+    <code>&lt;style&gt;</code> + markup straight into your prep app.
+  </footer>
+
+</div>
+</body>
+</html>
