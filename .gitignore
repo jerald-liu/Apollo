@@ -45,3 +45,8 @@ eval/runs.jsonl
 eval/render_manifests/*.json
 !eval/render_manifests/.gitkeep
 data/pairs/*/eval/
+
+# Phase 6 — rendered call.wav is a DERIVED artifact (reproducible from
+# call_fm.json + call.mid via apollo.scripts.render_corpus). Authored
+# call.mid / call_fm.json / response.mid stay tracked.
+data/pairs/**/call.wav
