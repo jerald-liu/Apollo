@@ -55,7 +55,7 @@
 
 ### Synthesis (SYNTH)
 
-- [ ] **SYNTH-01**: The owned FM synth supports an optional per-patch **LFO** (rate, depth, waveform, target) authored in `call_fm.json`, rendered **deterministically** by the shared engine and documented for the Phase 5 browser synth. The FM spec is versioned to **v1.1**; a v1.0 manifest (no `lfo` block) renders **bit-identically** to the Phase 6 output (no corpus invalidation) and the loader accepts both versions. Rendered audio still feeds `MelExtractor` (COND-01) unchanged. *(Promotes the call-side expression mechanism of backlog 999.2 — the LFO-driven rhythmic/timbral motion FM is known for.)*
+- [x] **SYNTH-01**: The owned FM synth supports an optional per-patch **LFO** (rate, depth, waveform, target) authored in `call_fm.json`, rendered **deterministically** by the shared engine and documented for the Phase 5 browser synth. The FM spec is versioned to **v1.1**; a v1.0 manifest (no `lfo` block) renders **bit-identically** to the Phase 6 output (no corpus invalidation) and the loader accepts both versions. Rendered audio still feeds `MelExtractor` (COND-01) unchanged. *(Promotes the call-side expression mechanism of backlog 999.2 — the LFO-driven rhythmic/timbral motion FM is known for.)*
 
 ## v2 Requirements
 
@@ -106,7 +106,7 @@ Deferred to a later milestone. Tracked here so they don't get lost.
 | DATA-04 | Phase 1: Tokenizer & Ingest | Done (01-04) |
 | DATA-05 | Phase 3: Corpus & Inference | Pending (real corpus authoring) |
 | DATA-06 | Phase 6: Synth-Independent Corpus Rendering | Done (06-01 spec/manifest, 06-02 renderer/CLI, 06-03 inference parity + doc reconciliation) |
-| SYNTH-01 | Phase 7: Synth Automation (LFO) | Pending (promoted from backlog 999.2 — call-side LFO) |
+| SYNTH-01 | Phase 7: Synth Automation (LFO) | Complete (2026-06-02 — v1.1 LFO spec, validation, render, tests, doc; verified 6/6) |
 | TOK-01 | Phase 1: Tokenizer & Ingest | Done (01-02) |
 | TOK-02 | Phase 1: Tokenizer & Ingest | Done (01-02) |
 | TOK-03 | Phase 1: Tokenizer & Ingest | Done (01-01) |

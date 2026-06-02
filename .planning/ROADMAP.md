@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Evaluation Loop** - Scoring rubric, grading workflow, iteration tracking, ship gate
 - [ ] **Phase 5: Local App & In-Browser Synth** - Local-only user app: drag-drop pairs, in-browser FM synth, train triggers, call→response flow
 - [x] **Phase 6: Synth-Independent Corpus Rendering** - Single source-of-truth FM spec + headless Python/Faust 3-op renderer that produces `call.wav` deterministically with no Ableton (prerequisite for corpus authoring; Phase 5's browser synth consumes the same spec)
-- [ ] **Phase 7: Synth Automation (LFO)** - Add a deterministic per-patch LFO to the owned FM synth (FM spec → v1.1, backward-compatible), so a call's timbre/pitch can evolve over a note; mirrored by Phase 5's browser synth (promoted from backlog 999.2)
+- [x] **Phase 7: Synth Automation (LFO)** - Add a deterministic per-patch LFO to the owned FM synth (FM spec → v1.1, backward-compatible), so a call's timbre/pitch can evolve over a note; mirrored by Phase 5's browser synth (promoted from backlog 999.2)
 
 ## Phase Details
 
@@ -130,9 +130,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   6. **Hand-authorable.** The LFO is a small, optional `lfo` block in `call_fm.json`, documented in `CORPUS-CONVENTIONS.md`.
 **Minimal scope (lock exact values in discuss-phase)**: one global LFO per patch; waveform ∈ {sine, triangle, square}; rate in Hz (e.g. 0.05–20); depth [0,1]; target a small fixed set (e.g. operator level for tremolo/timbre, and/or pitch for vibrato). Note `call.mid` is short (0.5–1.5 s) — at low rates the LFO contributes a partial sweep, which is the intended expressive motion.
 **Plans**: 3 plans
-- [ ] 07-01-PLAN.md — spec.py → v1.1 (LfoWave/LfoTarget/LfoParams + optional FmParams.lfo + numeric-only dsp_string branch) + manifest.py ({1.0,1.1} accept, lfo-requires-1.1, fail-loud lfo validation) + render.py (set lfo sliders by runtime index, guarded) (SYNTH-01)
-- [ ] 07-02-PLAN.md — LFO tests: bit-identity (no-lfo + depth-0), determinism, 6 Hz mel time-variation, (96,128)/no-clip, v1.1 acceptance + lfo-requires-1.1 + range/enum/NaN validation (SYNTH-01)
-- [ ] 07-03-PLAN.md — Document the optional lfo block in CORPUS-CONVENTIONS.md (JSON example + field table + {1.0,1.1} rule + tremolo/vibrato parity math for Phase 5) (SYNTH-01)
+- [x] 07-01-PLAN.md — spec.py → v1.1 (LfoWave/LfoTarget/LfoParams + optional FmParams.lfo + numeric-only dsp_string branch) + manifest.py ({1.0,1.1} accept, lfo-requires-1.1, fail-loud lfo validation) + render.py (set lfo sliders by runtime index, guarded) (SYNTH-01)
+- [x] 07-02-PLAN.md — LFO tests: bit-identity (no-lfo + depth-0), determinism, 6 Hz mel time-variation, (96,128)/no-clip, v1.1 acceptance + lfo-requires-1.1 + range/enum/NaN validation (SYNTH-01)
+- [x] 07-03-PLAN.md — Document the optional lfo block in CORPUS-CONVENTIONS.md (JSON example + field table + {1.0,1.1} rule + tremolo/vibrato parity math for Phase 5) (SYNTH-01)
 
 ## Progress
 
@@ -147,7 +147,7 @@ Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel*
 | 4. Evaluation Loop | 0/TBD | Not started | - |
 | 5. Local App & In-Browser Synth | 0/TBD | Not started | - |
 | 6. Synth-Independent Corpus Rendering | 3/3 | Complete | 2026-06-02 |
-| 7. Synth Automation (LFO) | 0/3 | Planned | - |
+| 7. Synth Automation (LFO) | 3/3 | Complete | 2026-06-02 |
 
 ## Backlog
 

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: phase_07_planned
-stopped_at: Phase 7 (Synth Automation / LFO) PLANNED — 3 plans in 2 waves, plan-checker PASSED on re-check (0 blockers; 2 warnings + 1 info from first pass all resolved in revision). Wave 1 = 07-01 (spec.py→v1.1 LFO enums/dataclass + dsp_string branch, manifest.py {1.0,1.1} accept + lfo-requires-1.1 validation, render.py runtime lfo-slider set, __init__ re-export); Wave 2 (parallel, disjoint files) = 07-02 (tests: golden v1.0 bit-identity anchor, determinism, 6 Hz mel time-variation, validation) + 07-03 (CORPUS-CONVENTIONS lfo block doc). Ready to execute. Backward-compat (v1.0 manifest renders bit-identically) is the load-bearing guarantee, proven via committed per-algorithm golden DSP strings + depth-0 np.array_equal.
+status: phase_07_complete
+stopped_at: Phase 7 (Synth Automation / LFO) COMPLETE — 3/3 plans executed & verified (6/6 must-haves, SYNTH-01). Wave 1 = 07-01 (spec.py→v1.1: LfoWave/LfoTarget IntEnums + frozen LfoParams + optional FmParams.lfo + numeric-only dsp_string LFO branch; manifest.py {1.0,1.1} accept + lfo-requires-1.1 + fail-loud bounds/enum validation; render.py runtime lfo-slider set guarded on params.lfo; __init__ re-export). Wave 2 = 07-02 (tests: committed per-algorithm golden v1.0 dsp_string bit-identity anchors, determinism, depth-0==static, 6 Hz mel time-variation measured cos 0.997650 < 0.999, validation) + 07-03 (CORPUS-CONVENTIONS v1.1 lfo block doc + Phase-5 tremolo/vibrato parity math). Full suite 204 passed. Code review 0 critical/0 warning/3 info (non-blocking; IN-01 = depth-0==static bit-identity only asserted for LEVEL target, not PITCH). Backward-compat (v1.0 renders bit-identically) verified via committed goldens + np.array_equal.
 last_updated: "2026-06-02T00:00:00Z"
-last_activity: 2026-06-02 -- Planned Phase 7 (Synth Automation / LFO): research (DawDreamer/Faust LFO determinism + backward-compat empirically validated) → pattern map (5/5 in-repo analogs) → 3 plans → plan-checker revision loop (PASSED on iteration 2). Also fixed WR-01 (silent renders no longer amplified; 177 tests) and promoted backlog 999.2 call-side to Phase 7 (SYNTH-01).
+last_activity: 2026-06-02 -- Executed Phase 7 (Synth Automation / LFO): Wave 1 (07-01 spec/manifest/render v1.1 LFO core) → Wave 2 (07-02 LFO test suite, 07-03 corpus doc) → full suite 204 passed → code review (clean) → verification PASSED (6/6, SYNTH-01).
 progress:
   total_phases: 7
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 24
-  completed_plans: 21
+  completed_plans: 24
   percent: 100
   note: percent is code-side for Phases 1-4 + Phase 6 (all complete); Phase 5 (Local App & In-Browser Synth) not started. Phase 6 closed (3/3 plans — 06-01 spec+manifest, 06-02 renderer+CLI, 06-03 inference parity + doc reconciliation). DATA-05 corpus authoring now unblocked. v1 ship gate (DATA-05 ≥30 pairs, EVAL-05 two consecutive improving iterations) still unmet
 ---
