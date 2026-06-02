@@ -26,7 +26,16 @@ import torch
 
 from apollo.ingest import IngestError, MelExtractor
 from apollo.synth.manifest import load_manifest
-from apollo.synth.spec import SR, FmParams, OperatorParams
+from apollo.synth.spec import (
+    SPEC_VERSION,
+    SR,
+    FmParams,
+    LfoParams,
+    LfoTarget,
+    LfoWave,
+    OperatorParams,
+    dsp_string,
+)
 
 # --- Test helpers -----------------------------------------------------------
 
@@ -64,8 +73,9 @@ def _fm_params(**op_overrides) -> FmParams:
     fields = {**_DEFAULT_OP, **op_overrides}
     algorithm = fields.pop("algorithm", 0)
     gain = fields.pop("gain", 0.5)
+    lfo = fields.pop("lfo", None)
     op = OperatorParams(**fields)
-    return FmParams(algorithm=algorithm, operators=(op, op, op), gain=gain)
+    return FmParams(algorithm=algorithm, operators=(op, op, op), gain=gain, lfo=lfo)
 
 
 def _manifest_dict(**op_overrides) -> dict:
@@ -73,13 +83,71 @@ def _manifest_dict(**op_overrides) -> dict:
     op = {**_DEFAULT_OP}
     algorithm = op_overrides.pop("algorithm", 0)
     gain = op_overrides.pop("gain", 0.5)
+    spec_version = op_overrides.pop("spec_version", "1.0")
+    lfo = op_overrides.pop("lfo", None)
     op.update(op_overrides)
-    return {
-        "spec_version": "1.0",
+    out = {
+        "spec_version": spec_version,
         "algorithm": algorithm,
         "operators": [dict(op), dict(op), dict(op)],
         "gain": gain,
     }
+    if lfo is not None:
+        out["lfo"] = lfo
+    return out
+
+
+# --- LFO spec tests (dsp_string is pure; no dawdreamer needed) ---------------
+
+
+def test_spec_version_is_1_1():
+    """SPEC_VERSION bumped to 1.1 for the optional LFO."""
+    assert SPEC_VERSION == "1.1"
+
+
+def test_lfo_enums():
+    """Waveform and target enum values are stable integers."""
+    assert (LfoWave.SINE, LfoWave.TRIANGLE, LfoWave.SQUARE) == (0, 1, 2)
+    assert (LfoTarget.LEVEL, LfoTarget.PITCH) == (0, 1)
+
+
+def test_dsp_string_no_lfo_omits_lfo():
+    """With lfo=None the emitted DSP source contains no lfo_ declarations."""
+    s = dsp_string(_fm_params())
+    assert "lfo_" not in s
+
+
+def test_dsp_string_lfo_level_numeric_only():
+    """An LFO-level patch emits the numeric select3 block and applies lvl_mod."""
+    s = dsp_string(_fm_params(lfo=LfoParams(6.0, 0.8, 0, 0)))
+    assert "select3(int(lfo_wave)" in s
+    assert "os.lf_triangle" in s
+    assert "os.lf_squarewave" in s
+    assert "lvl_mod" in s
+    # No manifest enum NAME is interpolated into the DSP source.
+    assert "SINE" not in s and "LEVEL" not in s
+
+
+def test_dsp_string_lfo_pitch_emits_pow():
+    """An LFO-pitch patch emits the pow(2, cents/1200) vibrato multiplier."""
+    s = dsp_string(_fm_params(lfo=LfoParams(6.0, 0.8, 0, 1)))
+    assert "pow(2" in s
+
+
+def test_dsp_string_carrier_pair_lfo_both_carriers():
+    """CARRIER_PAIR (algorithm 2) LFO-level modulates both car1 and car2."""
+    s = dsp_string(_fm_params(algorithm=2, lfo=LfoParams(6.0, 0.8, 0, 0)))
+    assert "car1" in s and "car2" in s
+    # both carriers carry the lvl_mod factor
+    assert s.count("lvl_mod") >= 3  # declaration + two carrier applications
+
+
+def test_package_root_reexports_lfo():
+    """LfoParams/LfoWave/LfoTarget are reachable from the package root."""
+    from apollo.synth import LfoParams as P, LfoTarget as T, LfoWave as W
+
+    assert (W.SQUARE, T.PITCH) == (2, 1)
+    assert P(6.0, 0.8, 0, 0).rate == 6.0
 
 
 def _write_manifest(path, **op_overrides) -> None:
