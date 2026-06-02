@@ -18,6 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Evaluation Loop** - Scoring rubric, grading workflow, iteration tracking, ship gate
 - [ ] **Phase 5: Local App & In-Browser Synth** - Local-only user app: drag-drop pairs, in-browser FM synth, train triggers, call→response flow
 - [x] **Phase 6: Synth-Independent Corpus Rendering** - Single source-of-truth FM spec + headless Python/Faust 3-op renderer that produces `call.wav` deterministically with no Ableton (prerequisite for corpus authoring; Phase 5's browser synth consumes the same spec)
+- [ ] **Phase 7: Synth Automation (LFO)** - Add a deterministic per-patch LFO to the owned FM synth (FM spec → v1.1, backward-compatible), so a call's timbre/pitch can evolve over a note; mirrored by Phase 5's browser synth (promoted from backlog 999.2)
 
 ## Phase Details
 
@@ -115,6 +116,20 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 06-02-PLAN.md — Deterministic 3-op DawDreamer/Faust renderer (render.py) + render_corpus CLI + determinism/mel/timbre/parity tests (DATA-06)
 - [x] 06-03-PLAN.md — generate.py train/serve parity wiring (render from call_fm.json) + de-Ableton CORPUS-CONVENTIONS/REQUIREMENTS reconcile + gitignore (DATA-06)
 
+### Phase 7: Synth Automation (LFO)
+**Goal**: Add deterministic **time-varying modulation** (an LFO) to the owned FM synth, bumping the FM **spec to v1.1**, so a call's timbre/pitch can evolve over a note — the rhythmic/timbral motion FM is known for, which the static v1.0 patch cannot express. The LFO is authored as an **optional** block in the per-pair `call_fm.json`, rendered by the existing DawDreamer/Faust path, mirrored by Phase 5's browser synth, and fully **backward-compatible** (a v1.0 manifest with no LFO renders bit-identically). This promotes the **call-side** half of backlog 999.2: it provides the expression mechanism that a future response-side model (EXPR-02 / 999.2b) would learn to answer.
+**Depends on**: Phase 6 (FM spec + deterministic renderer + manifest validator). No dependency on Phase 3/4/5.
+**Relationship to Phase 5**: Extends the shared FM spec to v1.1; Phase 5's browser synth consumes the same LFO definition so both renderers still match.
+**Requirements**: SYNTH-01 (new, promoted from 999.2). Candidate additional reqs (author at plan time): LFO param schema + ranges; spec-version backward-compat policy (accept v1.0 and v1.1); determinism of LFO phase (fixed start phase).
+**Success Criteria** (what must be TRUE):
+  1. **Time-varying.** A patch with an LFO renders audio whose mel frames vary across time in a way a static-only render does not (measurable intra-render variation).
+  2. **Versioned + backward-compatible.** `SPEC_VERSION` is bumped to `1.1`; a v1.0 manifest (no `lfo` block) renders **bit-identically** to the Phase 6 output, and `load_manifest` accepts both versions.
+  3. **Deterministic.** Re-rendering the same v1.1 manifest + MIDI is bit-identical (LFO phase starts deterministically).
+  4. **Single source of truth.** The LFO schema (rate, depth, waveform, target) lives in the versioned `spec.py` and is documented for the Phase 5 browser synth.
+  5. **Drop-in conditioning.** Rendered audio still feeds the existing `MelExtractor` (COND-01) unchanged to the `(96,128)` contract.
+  6. **Hand-authorable.** The LFO is a small, optional `lfo` block in `call_fm.json`, documented in `CORPUS-CONVENTIONS.md`.
+**Minimal scope (lock exact values in discuss-phase)**: one global LFO per patch; waveform ∈ {sine, triangle, square}; rate in Hz (e.g. 0.05–20); depth [0,1]; target a small fixed set (e.g. operator level for tremolo/timbre, and/or pitch for vibrato). Note `call.mid` is short (0.5–1.5 s) — at low rates the LFO contributes a partial sweep, which is the intended expressive motion.
+
 ## Progress
 
 **Execution Order:**
@@ -128,6 +143,7 @@ Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel*
 | 4. Evaluation Loop | 0/TBD | Not started | - |
 | 5. Local App & In-Browser Synth | 0/TBD | Not started | - |
 | 6. Synth-Independent Corpus Rendering | 3/3 | Complete | 2026-06-02 |
+| 7. Synth Automation (LFO) | 0/TBD | Not started | - |
 
 ## Backlog
 
@@ -140,7 +156,9 @@ Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel*
 **Plans:** 0 plans
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
-### Phase 999.2: Synthesis-Level Rhythmic Response (BACKLOG)
+### Phase 999.2: Synthesis-Level Rhythmic Response (BACKLOG — partially promoted)
+
+> **Call-side promoted to Phase 7 (Synth Automation / LFO), 2026-06-02.** The LFO expression *mechanism* (the synth being able to produce LFO-driven rhythmic/timbral motion in the first place) is now Phase 7 / SYNTH-01. What remains in backlog here is the **response-side** half: the model answering with synthesis-parameter suggestions, or CC/mod-wheel tokens (EXPR-02) that proxy synthesis-level rhythm. Re-scope this entry once Phase 7 lands.
 
 **Goal:** Close the asymmetry between call and response rhythmic channels. In v1, calls can carry timbral rhythm via LFO/envelope (a filter LFO on a held note creates a perceived pulse), but the model can only answer with MIDI note events. A future milestone should either (a) extend the response channel to include synthesis parameter suggestions (LFO rate, envelope shape) or (b) augment the tokenizer with CC/mod-wheel tokens that can proxy synthesis-level rhythm.
 **Motivation:** Operator FM patches frequently use LFOs for rhythmic expression. Constraining corpus authoring to note-event rhythm (the v1 workaround) limits musical range and is unnatural for FM sound design.

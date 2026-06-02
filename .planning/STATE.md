@@ -7,7 +7,7 @@ stopped_at: Phase 6 COMPLETE — Plan 06-03 executed (generate.py train/serve pa
 last_updated: "2026-06-02T00:00:00Z"
 last_activity: 2026-06-02 -- Executed 06-03: Option A inference parity (generate.py drops call.wav positional, renders from call_fm.json via shared render_call_wav with single shared MIDI parse), tests migrated (call_fm.json fixture, no call.wav positional, dawdreamer-guarded real-render tests), de-Ableton CORPUS-CONVENTIONS.md + REQUIREMENTS.md DATA-01/02-superseded-by-DATA-06 + gitignore call.wav; full suite 175 passed
 progress:
-  total_phases: 6
+  total_phases: 7
   completed_phases: 5
   total_plans: 21
   completed_plans: 21
@@ -122,6 +122,7 @@ None yet.
 
 ### Roadmap Evolution
 
+- 2026-06-02: Phase 7 added — Synth Automation (LFO). Promotes the call-side half of backlog 999.2: a deterministic per-patch LFO on the owned FM synth (FM spec → v1.1, backward-compatible with v1.0 manifests), mirrored by Phase 5's browser synth. New requirement SYNTH-01. Lets a call's timbre/pitch evolve over a note (the rhythmic/timbral motion FM is known for) — the expression mechanism a future response-side model (EXPR-02 / 999.2b) would learn to answer. Also fixed WR-01 (silent renders no longer amplified to full-scale noise; 177 tests). Not yet planned — run /gsd-plan-phase 7 (or /gsd-discuss-phase 7 first).
 - 2026-06-02: Phase 6 added & planned — Synth-Independent Corpus Rendering. Drops Ableton/Operator: an owned headless Python FM synth (DawDreamer + Faust, 3-op) renders `call.wav` deterministically from a per-pair FM-param manifest, feeding the unchanged MelExtractor (COND-01). New requirement DATA-06; supersedes the manual-bounce premise of DATA-01/02. Prerequisite for DATA-05 corpus authoring. Defines the single FM spec that Phase 5's browser synth will consume. Backed by /gsd-explore decision (.planning/notes/synth-independence-decision.md) + spikes 001/002 (packaged as the spike-findings-apollo skill). Deferred: full 4-op/11-algorithm engine → SEED-009.
 - 2026-06-01: Phase 5 added — Local App & In-Browser Synth. Purely local user-facing app: drag-drop pair ingest, corpus-growth flow, in-browser Operator-style FM synth (Web Audio, removes manual Ableton bounce), manual + auto-retrain triggers, configurable response storage, call→response flow. New requirements (candidate APP-*) to be authored at plan time.
 
