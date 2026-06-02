@@ -17,6 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Corpus & Inference** - Author ≥30 pairs, generate.py, sampling controls (code shipped; corpus authoring pending)
 - [x] **Phase 4: Evaluation Loop** - Scoring rubric, grading workflow, iteration tracking, ship gate
 - [ ] **Phase 5: Local App & In-Browser Synth** - Local-only user app: drag-drop pairs, in-browser FM synth, train triggers, call→response flow
+- [ ] **Phase 6: Synth-Independent Corpus Rendering** - Single source-of-truth FM spec + headless Python/Faust 3-op renderer that produces `call.wav` deterministically with no Ableton (prerequisite for corpus authoring; Phase 5's browser synth consumes the same spec)
 
 ## Phase Details
 
@@ -92,12 +93,29 @@ Decimal phases appear between their surrounding integers in numeric order.
   6. **Configurable response storage.** The user can configure where generated responses are written (a chosen local directory), and produced responses are listed/auditionable in-app.
   7. **Call→response flow.** A user uploads (or plays) a call, the app renders its audio via the in-browser synth, runs inference, and returns a playable `response.mid` (auditioned in-app via the same synth).
 **Research note**: In-browser Operator alternative — Web Audio API `OscillatorNode`×4 wired per Operator's algorithm set + `GainNode` ADSR is the faithful, dependency-light approach; Tone.js (`FMSynth`) is convenient but only 2-operator. Faust or Rust→WASM are heavier options if performance/algorithm fidelity demands it.
+**Cross-phase note (added 2026-06-02)**: Phase 6 owns the **single source-of-truth FM spec** (param schema + algorithm set + envelope semantics). Phase 5's in-browser synth must implement *that* spec so app-rendered and corpus-rendered `call.wav` stay sonically matched (train/serve consistency). Reconcile op count: v1 spec is **3-op** (per `synth-independence-decision`); Phase 5 SC#4 currently says 4-op — align to the shared spec at plan time.
+**Plans**: TBD
+
+### Phase 6: Synth-Independent Corpus Rendering
+**Goal**: Replace the manual Ableton/Operator `call.wav` bounce with an **owned FM synth rendered headlessly in Python**. Define a single source-of-truth FM **spec** (parameter schema + algorithm set + envelope semantics), implement a deterministic **3-operator** Faust renderer (via DawDreamer) that turns a per-pair FM-param manifest + `call.mid` into `call.wav`, and wire it so the **same engine renders inference-time calls** — eliminating Ableton from both training and serving with no domain gap. Operator's *sound* is explicitly not cloned (see `.planning/notes/synth-independence-decision.md`); only a controllable FM family is provided.
+**Depends on**: Phase 1 (COND-01 mel contract — already shipped, consumes `call.wav` unchanged). No dependency on Phase 4/5.
+**Blocks**: DATA-05 (real corpus authoring) — pairs can't be authored without a way to render `call.wav`. Sequence before corpus authoring resumes.
+**Relationship to Phase 5**: Phase 6 defines the shared FM spec; Phase 5's browser synth (SC#4) is retargeted to consume it so both renderers produce matching audio. The two engines are validated against each other.
+**Requirements**: DATA-06 (new). Candidate additional reqs (author at plan time): per-pair FM-param manifest format; renderer determinism guarantee; headroom/normalization before PCM write.
+**Success Criteria** (what must be TRUE):
+  1. **No Ableton.** A pair's `call.wav` is produced entirely in Python from `call.mid` + an FM-param manifest; Ableton/Operator are not in the loop for training or inference.
+  2. **Single FM spec.** Param schema + algorithm set + envelope semantics live in one place, versioned, consumed by the Python renderer (and, downstream, the Phase 5 browser synth).
+  3. **Deterministic.** Re-rendering the same manifest + MIDI is bit-identical (reproducible training data).
+  4. **Drop-in conditioning.** Rendered audio feeds the existing `MelExtractor` (COND-01) unchanged to the `(96,128)` contract; no pipeline change.
+  5. **Hand-authorable.** Per-pair timbre is a small, documented FM-param manifest (JSON/code) a human authors by hand — no synth UI required for v1.
+  6. **Train/serve parity.** Inference-time call rendering uses the same engine + manifest format as corpus rendering.
+**Research note**: Validated by spikes 001 (`dawdreamer` arm64 wheel, deterministic Faust FM render) and 002 (FM audio → exact COND-01 mel, timbre-discriminable). Build gotchas captured in the `spike-findings-apollo` skill: poly Faust params via integer index not path; clip/headroom before PCM; benign `undefined symbol: effect` warning.
 **Plans**: TBD
 
 ## Progress
 
 **Execution Order:**
-Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel** — it depends only on shipped code (Phase 2 model + Phase 3 CLIs), not on corpus completion, so it can be built as a separate workstream while corpus tuning continues.
+Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel** — it depends only on shipped code (Phase 2 model + Phase 3 CLIs), not on corpus completion, so it can be built as a separate workstream while corpus tuning continues. **Phase 6 is a prerequisite for DATA-05** (real corpus authoring) — it must land before pair authoring resumes, since `call.wav` can no longer come from Ableton. Phase 6 also defines the FM spec that Phase 5's browser synth consumes.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -106,6 +124,7 @@ Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel*
 | 3. Corpus & Inference | 0/3 | Not started | - |
 | 4. Evaluation Loop | 0/TBD | Not started | - |
 | 5. Local App & In-Browser Synth | 0/TBD | Not started | - |
+| 6. Synth-Independent Corpus Rendering | 0/TBD | Not started | - |
 
 ## Backlog
 

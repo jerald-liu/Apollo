@@ -12,6 +12,7 @@
 - [x] **DATA-03**: An ingestion pipeline reads `data/pairs/*/` and tokenizes pairs into training tensors (MIDI tokens + mel features per pair)
 - [x] **DATA-04**: The pipeline reserves 20% of pairs as a held-out evaluation split, deterministically (same split every run)
 - [ ] **DATA-05**: Corpus reaches ≥30 authored pairs before first real training run
+- [ ] **DATA-06**: Apollo renders a pair's `call.wav` **deterministically** from a per-pair FM parameter manifest using a headless, **no-Ableton** FM synth (DawDreamer + Faust; 3-operator for v1), producing audio that feeds COND-01 unchanged. The same engine renders inference-time calls so training and serving share one renderer (no domain gap). *Supersedes the manual-Ableton-bounce premise of DATA-01/DATA-02; see `.planning/notes/synth-independence-decision.md`.*
 
 ### Tokenizer (TOK)
 
@@ -100,6 +101,7 @@ Deferred to a later milestone. Tracked here so they don't get lost.
 | DATA-03 | Phase 1: Tokenizer & Ingest | Done (01-04) |
 | DATA-04 | Phase 1: Tokenizer & Ingest | Done (01-04) |
 | DATA-05 | Phase 3: Corpus & Inference | Pending (real corpus authoring) |
+| DATA-06 | Synth-Independent Corpus Rendering (new phase, placement TBD) | Planned (decided 2026-06-02; spikes 001/002 validated) |
 | TOK-01 | Phase 1: Tokenizer & Ingest | Done (01-02) |
 | TOK-02 | Phase 1: Tokenizer & Ingest | Done (01-02) |
 | TOK-03 | Phase 1: Tokenizer & Ingest | Done (01-01) |
