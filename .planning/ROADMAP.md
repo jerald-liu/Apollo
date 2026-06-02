@@ -112,7 +112,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Research note**: Validated by spikes 001 (`dawdreamer` arm64 wheel, deterministic Faust FM render) and 002 (FM audio → exact COND-01 mel, timbre-discriminable). Build gotchas captured in the `spike-findings-apollo` skill: poly Faust params via integer index not path; clip/headroom before PCM; benign `undefined symbol: effect` warning.
 **Plans**: 3 plans
 - [x] 06-01-PLAN.md — Add dawdreamer dep (verify single-venv coexistence) + FM spec source-of-truth (spec.py) + manifest validator (manifest.py) (DATA-06)
-- [ ] 06-02-PLAN.md — Deterministic 3-op DawDreamer/Faust renderer (render.py) + render_corpus CLI + determinism/mel/timbre/parity tests (DATA-06)
+- [x] 06-02-PLAN.md — Deterministic 3-op DawDreamer/Faust renderer (render.py) + render_corpus CLI + determinism/mel/timbre/parity tests (DATA-06)
 - [ ] 06-03-PLAN.md — generate.py train/serve parity wiring (render from call_fm.json) + de-Ableton CORPUS-CONVENTIONS/REQUIREMENTS reconcile + gitignore (DATA-06)
 
 ## Progress

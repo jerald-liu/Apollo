@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: phase_06_in_progress
-stopped_at: Phase 6 Plan 06-01 executed (synth spec + manifest foundation). A4 risk gate CLEARED — dawdreamer 0.8.3 + torch 2.12 coexist in one .venv on arm64/Py3.11. apollo/synth/{spec,manifest,__init__}.py created; 166 tests passing. Ready for 06-02 (render.py + render_corpus CLI).
+stopped_at: Phase 6 Plan 06-02 executed (deterministic renderer + corpus render CLI). render.py (render + shared render_call_wav), render_corpus.py CLI, test_synth_render.py — 175 tests passing. Determinism np.array_equal True, peak 0.89, mel (96,128), timbre cos 0.874 / L2 792. Ready for 06-03 (generate.py parity wiring + doc reconciliation).
 last_updated: "2026-06-02T00:00:00Z"
-last_activity: 2026-06-02 -- Executed 06-01: dawdreamer pinned + A4 coexistence verified; FM single-source-of-truth spec.py (SPEC_VERSION, 3 algorithms, dsp_string compiles all 3 templates in DawDreamer) + manifest.py validator (fail-loud IngestError)
+last_activity: 2026-06-02 -- Executed 06-02: deterministic 3-op FM renderer (runtime slider-index resolution, duration cap, peak-normalize) + single shared render_call_wav parity entrypoint + render_corpus CLI (0/1/2 exit codes); 9 new tests (determinism/no-clip/mel-contract/timbre/validation/parity), full suite 175 passed
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 20
-  completed_plans: 17
+  completed_plans: 18
   percent: 100
-  note: percent is code-side for Phases 1-4 only; Phase 6 in progress (1/3 plans executed — 06-01 synth spec+manifest landed); v1 ship gate (DATA-05 ≥30 pairs, EVAL-05 two consecutive improving iterations) is unmet
+  note: percent is code-side for Phases 1-4 only; Phase 6 in progress (2/3 plans executed — 06-01 spec+manifest, 06-02 renderer+CLI landed); v1 ship gate (DATA-05 ≥30 pairs, EVAL-05 two consecutive improving iterations) is unmet
 ---
 
 # Project State
@@ -102,6 +102,11 @@ Recent decisions affecting current work:
 - 06-01: 3 fixed algorithms — STACK(3→2→1), PARALLEL_MODS((2+3)→1), CARRIER_PAIR(3→1 + op2 carrier); all 3 dsp_string templates verified to compile in DawDreamer
 - 06-01: Per-op slider naming = op{i}_ratio/level/attack/decay/sustain/release (i 1-based); render.py resolves names→indices at runtime via get_parameters_description() (no hardcoded indices — spike landmine)
 - 06-01: Mono Faust output (single _); manifest validator rejects bools + NaN/Inf in numeric fields (T-06-01); ranges mirror Faust hslider ranges
+- 06-02: ADSR is compiled as numeric literals inside en.adsr(...) — NOT runtime-settable sliders; only op{i}_ratio/level are runtime params (render.py sets only those by index). ADSR still takes effect (baked from manifest at compile time). Corrects the 06-01 slider-contract claim.
+- 06-02: Unmangled slider name is in the DawDreamer description `label` field; `name` holds the mangled /Polyphonic/Voices/dawdreamer/<slider> path. Index map matches on label (trailing-path fallback).
+- 06-02: render_call_wav(manifest_path, mid_path, *, pair_path, call_bpm, notes=None) is the SINGLE shared render path — generate.py (06-03) must call it with already-parsed call_notes + estimate_tempo() bpm so MIDI is parsed once and corpus/inference renders are bit-identical.
+- 06-02: render_corpus enumerates pairs by call_fm.json+call.mid presence (NOT discover_pairs, which requires call.wav to pre-exist) — call.wav is a derived artifact.
+- 06-02: Determinism confirmed np.array_equal True; peak after normalization = 0.89 (== TARGET_PEAK); timbre across contrasting presets cos 0.874 / L2 792 (matches spike 0.85/783)
 
 ### Pending Todos
 
