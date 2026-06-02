@@ -94,7 +94,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   6. **Configurable response storage.** The user can configure where generated responses are written (a chosen local directory), and produced responses are listed/auditionable in-app.
   7. **Call→response flow.** A user uploads (or plays) a call, the app renders its audio via the in-browser synth, runs inference, and returns a playable `response.mid` (auditioned in-app via the same synth).
 **Research note**: In-browser Operator alternative — Web Audio API `OscillatorNode`×4 wired per Operator's algorithm set + `GainNode` ADSR is the faithful, dependency-light approach; Tone.js (`FMSynth`) is convenient but only 2-operator. Faust or Rust→WASM are heavier options if performance/algorithm fidelity demands it.
-**Cross-phase note (added 2026-06-02)**: Phase 6 owns the **single source-of-truth FM spec** (param schema + algorithm set + envelope semantics). Phase 5's in-browser synth must implement *that* spec so app-rendered and corpus-rendered `call.wav` stay sonically matched (train/serve consistency). Reconcile op count: v1 spec is **3-op** (per `synth-independence-decision`); Phase 5 SC#4 currently says 4-op — align to the shared spec at plan time.
+**Cross-phase note (added 2026-06-02)**: Phase 6 owns the **single source-of-truth FM spec** (param schema + algorithm set + envelope semantics). Phase 5's in-browser synth must implement *that* spec so app-rendered and corpus-rendered `call.wav` stay sonically matched (train/serve consistency). Reconcile op count: v1 spec is **3-op** (per `synth-independence-decision`); Phase 5 SC#4 currently says 4-op — align to the shared spec at plan time. **LFO note (added 2026-06-02)**: Phase 7 extends that shared spec to **v1.1** with an optional `lfo` block; Phase 5's browser synth must also mirror the LFO (waveform/target enums + the tremolo/vibrato formulas documented in `CORPUS-CONVENTIONS.md`).
 **Plans**: TBD
 
 ### Phase 6: Synth-Independent Corpus Rendering
@@ -129,11 +129,15 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. **Drop-in conditioning.** Rendered audio still feeds the existing `MelExtractor` (COND-01) unchanged to the `(96,128)` contract.
   6. **Hand-authorable.** The LFO is a small, optional `lfo` block in `call_fm.json`, documented in `CORPUS-CONVENTIONS.md`.
 **Minimal scope (lock exact values in discuss-phase)**: one global LFO per patch; waveform ∈ {sine, triangle, square}; rate in Hz (e.g. 0.05–20); depth [0,1]; target a small fixed set (e.g. operator level for tremolo/timbre, and/or pitch for vibrato). Note `call.mid` is short (0.5–1.5 s) — at low rates the LFO contributes a partial sweep, which is the intended expressive motion.
+**Plans**: 3 plans
+- [ ] 07-01-PLAN.md — spec.py → v1.1 (LfoWave/LfoTarget/LfoParams + optional FmParams.lfo + numeric-only dsp_string branch) + manifest.py ({1.0,1.1} accept, lfo-requires-1.1, fail-loud lfo validation) + render.py (set lfo sliders by runtime index, guarded) (SYNTH-01)
+- [ ] 07-02-PLAN.md — LFO tests: bit-identity (no-lfo + depth-0), determinism, 6 Hz mel time-variation, (96,128)/no-clip, v1.1 acceptance + lfo-requires-1.1 + range/enum/NaN validation (SYNTH-01)
+- [ ] 07-03-PLAN.md — Document the optional lfo block in CORPUS-CONVENTIONS.md (JSON example + field table + {1.0,1.1} rule + tremolo/vibrato parity math for Phase 5) (SYNTH-01)
 
 ## Progress
 
 **Execution Order:**
-Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel** — it depends only on shipped code (Phase 2 model + Phase 3 CLIs), not on corpus completion, so it can be built as a separate workstream while corpus tuning continues. **Phase 6 is a prerequisite for DATA-05** (real corpus authoring) — it must land before pair authoring resumes, since `call.wav` can no longer come from Ableton. Phase 6 also defines the FM spec that Phase 5's browser synth consumes.
+Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel** — it depends only on shipped code (Phase 2 model + Phase 3 CLIs), not on corpus completion, so it can be built as a separate workstream while corpus tuning continues. **Phase 6 is a prerequisite for DATA-05** (real corpus authoring) — it must land before pair authoring resumes, since `call.wav` can no longer come from Ableton. Phase 6 also defines the FM spec that Phase 5's browser synth consumes. **Phase 7 (LFO)** extends that spec to v1.1; it depends only on Phase 6 and is otherwise independent.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -143,7 +147,7 @@ Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel*
 | 4. Evaluation Loop | 0/TBD | Not started | - |
 | 5. Local App & In-Browser Synth | 0/TBD | Not started | - |
 | 6. Synth-Independent Corpus Rendering | 3/3 | Complete | 2026-06-02 |
-| 7. Synth Automation (LFO) | 0/TBD | Not started | - |
+| 7. Synth Automation (LFO) | 0/3 | Planned | - |
 
 ## Backlog
 
