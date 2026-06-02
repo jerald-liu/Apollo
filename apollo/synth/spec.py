@@ -238,6 +238,15 @@ def dsp_string(p: FmParams) -> str:
         # ORCHESTRATOR DEFAULT A1: 50-cent max deviation at depth=1 (musical
         # vibrato; discuss-phase could refine to 100 for dramatic). 50.0 is a
         # baked Faust numeric literal. Applied to ALL carriers (A4).
+        #
+        # Depth-0 note: at depth=0, pitch_mul == pow(2,0) == 1.0, so the output
+        # is mathematically identical to the no-lfo path. However bit-identity
+        # (array_equal) only holds for PARALLEL_MODS and CARRIER_PAIR — STACK's
+        # `freq * ratio * pitch_mul` inside os.osc() triggers LLVM float
+        # reassociation that produces a ~7.5e-5 relative diff vs the no-lfo
+        # expression. The render is still fully deterministic and numerically
+        # equivalent (allclose atol=1e-4). Bit-identity at depth=0 is a
+        # LEVEL-target property; for PITCH use allclose, not array_equal.
         header = header + (
             "\npitch_mul = pow(2.0, (lfo_bi * lfo_depth * 50.0) / 1200.0);"
         )

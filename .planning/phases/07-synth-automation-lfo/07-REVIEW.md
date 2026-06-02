@@ -58,6 +58,8 @@ phase.
 
 ### IN-01: Depth-0 bit-identity is only asserted for the LEVEL target, not PITCH
 
+**Status: CLOSED** (characterized 2026-06-02)
+
 **File:** `tests/test_synth_render.py:364-377`
 **Issue:** `test_lfo_depth0_matches_static` proves a depth-0 LFO renders
 bit-identically to the no-LFO path, but only for `LfoParams(6.0, 0.0, 0, 0)`
@@ -70,19 +72,22 @@ is *mathematically* equal to the `op2` macro, but it is a structurally different
 Faust expression whose sample-level identity relies on the compiler folding
 `* 1.0` and CSE-ing the two oscillator instances identically. The depth-0 ==
 static guarantee for the pitch/CARRIER_PAIR combination is asserted nowhere.
-**Fix:** Add a depth-0 pitch-target identity test to close the gap, e.g.:
-```python
-def test_lfo_pitch_depth0_matches_static(tmp_path):
-    # cover CARRIER_PAIR specifically — its pitch body re-emits car2
-    notes = load_notes(...)
-    static = render(_fm_params(algorithm=2), notes, pair_path=str(tmp_path))
-    depth0 = render(_fm_params(algorithm=2, lfo=LfoParams(6.0, 0.0, 0, 1)),
-                    notes, pair_path=str(tmp_path))
-    assert np.array_equal(static, depth0)
-```
-If this fails on real DawDreamer output, the depth-0 == static promise simply
-does not extend to the pitch target and the docstring/spec note should say so;
-if it passes, it hardens a load-bearing claim. Either outcome is worth knowing.
+
+**Resolution:** `test_lfo_pitch_depth0_matches_static` added covering all three
+algorithms. Findings:
+- PARALLEL_MODS (1) and CARRIER_PAIR (2): **bit-identical** (`array_equal` passes).
+  The CARRIER_PAIR re-emission of `car2` folds correctly — LLVM CSEs the two
+  identical oscillator instances.
+- STACK (0): **not bit-identical** — max abs diff ~6.7e-5 (rel ~7.5e-5). The
+  divergence is a compiler float-reassociation artifact: `freq * op1_ratio *
+  pitch_mul` inside `os.osc()` compiles differently from `freq * op1_ratio` even
+  when `pitch_mul == 1.0`. The render is fully deterministic and numerically
+  equivalent (`allclose atol=1e-4`); the diff is inaudible and below the mel floor.
+
+Depth-0 bit-identity is a LEVEL-target property. For PITCH the guarantee is
+numerical equivalence (allclose), not byte identity for STACK. Documented in
+`spec.py` (the `else: # LfoTarget.PITCH` block) and encoded in the test with
+per-algorithm assertions.
 
 ### IN-02: `_check_enum_int` rejects integral floats that JSON-load equivalently
 

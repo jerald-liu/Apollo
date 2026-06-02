@@ -377,6 +377,54 @@ def test_lfo_depth0_matches_static(tmp_path):
     assert np.array_equal(static, depth0)
 
 
+def test_lfo_pitch_depth0_matches_static(tmp_path):
+    """Depth-0 PITCH-target renders are numerically equivalent to static.
+
+    Closes review finding IN-01. At depth=0, pitch_mul == pow(2,0) == 1.0, so
+    the pitch body is mathematically identical to the static body. Results per
+    algorithm (verified empirically):
+
+      PARALLEL_MODS (1), CARRIER_PAIR (2): bit-identical (array_equal).
+      STACK (0): NOT bit-identical — max abs diff ~6.7e-5, max rel ~7.5e-5.
+        The divergence is a compiler float-reassociation artifact: STACK's pitch
+        body emits `freq * op1_ratio * pitch_mul + mod2` inside os.osc(), and
+        LLVM folds `ratio * 1.0` differently than the original `ratio` expression.
+        The render is fully deterministic (same inputs → same output every run);
+        only the strict byte-for-byte equality with the no-lfo path breaks.
+        The diff is inaudible and well below the mel extractor's numerical floor.
+
+    Depth-0 bit-identity is therefore a LEVEL-target property. For PITCH, the
+    guarantee is numerical equivalence (allclose atol=1e-4), not byte identity.
+    """
+    mid = tmp_path / "call.mid"
+    _write_call_mid(mid)
+    notes = load_notes(str(mid), str(tmp_path), tempo_bpm=120.0)
+
+    # PARALLEL_MODS and CARRIER_PAIR: strict bit-identity holds.
+    for algorithm in (1, 2):
+        static = render(
+            _fm_params(algorithm=algorithm), notes, pair_path=str(tmp_path)
+        )
+        depth0 = render(
+            _fm_params(algorithm=algorithm, lfo=LfoParams(6.0, 0.0, 0, 1)),
+            notes,
+            pair_path=str(tmp_path),
+        )
+        assert np.array_equal(static, depth0), f"pitch depth-0 != static (algorithm={algorithm})"
+
+    # STACK: numerically equivalent but NOT byte-identical (compiler artifact).
+    static_stack = render(_fm_params(algorithm=0), notes, pair_path=str(tmp_path))
+    depth0_stack = render(
+        _fm_params(algorithm=0, lfo=LfoParams(6.0, 0.0, 0, 1)),
+        notes,
+        pair_path=str(tmp_path),
+    )
+    assert np.allclose(static_stack, depth0_stack, atol=1e-4), \
+        "pitch depth-0 STACK not even numerically equivalent to static"
+    assert not np.array_equal(static_stack, depth0_stack), \
+        "STACK unexpectedly became bit-identical — re-verify compiler behavior"
+
+
 def test_lfo_time_varies(tmp_path):
     """An LFO render is measurably time-varying vs static through the mel (SC#1).
 
