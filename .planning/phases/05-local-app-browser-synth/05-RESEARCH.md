@@ -804,27 +804,31 @@ The planner should formalize these as requirements. They cover the full Phase 5 
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **MIDI upload for call.mid from browser**
    - What we know: The browser needs to upload a MIDI file for the call. HTML `<input type="file" accept=".mid">` works.
    - What's unclear: Whether the editor should also allow replacing `call.mid` after the patch is saved, or if it's one-shot per pair.
    - Recommendation: One-shot per pair for v1. The user uploads call.mid + submits the patch editor → pair is created. No mid-pair MIDI swap.
+   - RESOLVED (Plan 04, Task 2): generate.html uses a one-shot `<input type="file" id="call-mid-input" accept=".mid">`; no mid-pair MIDI swap. (Corpus ingest upload is the analogous one-shot input in Plan 03, Task 2.)
 
 2. **Checkpoint selection for generate**
    - What we know: `generate.py` requires a checkpoint path. Multiple checkpoints accumulate in `models/` over training iterations.
    - What's unclear: Should the app always use the most recent checkpoint, or let the user pick?
    - Recommendation: Always use the most recent checkpoint (sorted by mtime or embedded timestamp). "Use latest" is the correct UX for a demo app. Expose the checkpoint path in the UI for transparency but don't require the user to choose.
+   - RESOLVED (Plan 04, Task 2): `_latest_checkpoint()` globs `models/*.pt` and returns max by `st_mtime`; the chosen path is surfaced in the /generate JSON (`"checkpoint"`) for UI transparency.
 
 3. **Response.mid storage path vs. data/pairs/NNN/**
    - What we know: generate.py writes `response_NNN.mid` alongside `call.mid` in the pair directory (D-17 of generate.py). D-12 says responses go to a configurable location.
    - What's unclear: D-12 and generate.py's behavior conflict — generate.py writes to the pair dir, not a separate responses dir.
    - Recommendation: Pass `--output-dir` (or accept the pair dir default from generate.py) and then copy/move the result to the configurable responses dir. Or: don't use generate.py's default path — instead pass the response output path explicitly. Check generate.py's actual arg surface at plan time.
+   - RESOLVED (Plan 04, Task 2): generate.py has NO `--output-dir`; it writes `response_NNN.mid` into the pair dir. The /generate route copies the newest `response_*.mid` into `RESPONSES_DIR` (D-12 configurable store) after the subprocess returns.
 
 4. **Pair directory allocates NNN — race condition on concurrent uploads?**
    - What we know: Pairs are `data/pairs/NNN/` with sequential NNN. The app must allocate the next NNN.
    - What's unclear: If two browser tabs upload simultaneously, they could race on the same NNN.
    - Recommendation: Hold a threading.Lock around "find max NNN + mkdir(NNN+1)". Single-user local app makes this unlikely, but the lock costs nothing.
+   - RESOLVED (Plan 03, Task 1): `_allocate_next_nnn()` holds `_alloc_lock` around find-max-NNN + `mkdir`, eliminating the concurrent-upload race.
 
 ---
 
