@@ -340,6 +340,101 @@ def test_render_call_wav_parity(tmp_path):
     assert np.array_equal(a, b)
 
 
+# --- LFO render contract tests (SYNTH-01 SC#1-3, #5; require dawdreamer) -----
+
+
+def test_lfo_absent_bit_identical(tmp_path):
+    """No-lfo render is deterministic AND its dsp_string == the golden v1.0 string.
+
+    SYNTH-01 SC#2: backward-compat bit-identity is anchored TWO ways — the array
+    re-render is identical, and the emitted source equals the committed verbatim
+    Phase-6 v1.0 STACK golden byte-for-byte (the strong anchor; `"lfo_" not in`
+    alone is too weak — it passes even if the v1.0 body were mutated elsewhere).
+    """
+    mid = tmp_path / "call.mid"
+    _write_call_mid(mid)
+    notes = load_notes(str(mid), str(tmp_path), tempo_bpm=120.0)
+    a = render(_fm_params(), notes, pair_path=str(tmp_path))
+    b = render(_fm_params(), notes, pair_path=str(tmp_path))
+    assert np.array_equal(a, b)
+    # Strong source anchor: byte-for-byte equality with the committed v1.0 golden.
+    assert dsp_string(_fm_params()) == _GOLDEN_V1_0[0]
+
+
+def test_lfo_depth0_matches_static(tmp_path):
+    """A depth-0 lfo render is bit-identical to the no-lfo (static) render.
+
+    SYNTH-01 SC#2 array-level anchor (RESEARCH VERIFIED max diff 0.0 this
+    session). An authored-but-disabled LFO must not perturb the audio.
+    """
+    mid = tmp_path / "call.mid"
+    _write_call_mid(mid)
+    notes = load_notes(str(mid), str(tmp_path), tempo_bpm=120.0)
+    static = render(_fm_params(), notes, pair_path=str(tmp_path))
+    depth0 = render(
+        _fm_params(lfo=LfoParams(6.0, 0.0, 0, 0)), notes, pair_path=str(tmp_path)
+    )
+    assert np.array_equal(static, depth0)
+
+
+def test_lfo_time_varies(tmp_path):
+    """An LFO render is measurably time-varying vs static through the mel (SC#1).
+
+    Renders a 6 Hz, depth-1.0 tremolo patch and a depth-0 (static) patch, passes
+    each through the frozen MelExtractor, and asserts cosine similarity < 0.999.
+    Rate is pinned at 6 Hz (NOT the 0.05 Hz partial-sweep edge — RESEARCH
+    Pitfall 4). Depth is 1.0 (rather than RESEARCH's 0.8 baseline) so the
+    measured cos sits comfortably below the 0.999 threshold (07-02 measured
+    cos=0.997650 at 6 Hz/1.0 — a ~0.00135 margin, vs ~0.00028 at depth 0.8).
+    The threshold is NOT loosened; the modulation is made more separable.
+    """
+    mid = tmp_path / "call.mid"
+    _write_call_mid(mid)
+    notes = load_notes(str(mid), str(tmp_path), tempo_bpm=120.0)
+    audio_lfo = render(
+        _fm_params(lfo=LfoParams(6.0, 1.0, 0, 0)), notes, pair_path=str(tmp_path)
+    )
+    audio_static = render(
+        _fm_params(lfo=LfoParams(6.0, 0.0, 0, 0)), notes, pair_path=str(tmp_path)
+    )
+
+    mx = MelExtractor()
+    wav_lfo, wav_static = tmp_path / "lfo.wav", tmp_path / "static.wav"
+    sf.write(str(wav_lfo), audio_lfo, SR)
+    sf.write(str(wav_static), audio_static, SR)
+    mel_lfo = mx(str(wav_lfo), str(tmp_path)).flatten()
+    mel_static = mx(str(wav_static), str(tmp_path)).flatten()
+
+    cos = torch.nn.functional.cosine_similarity(mel_lfo, mel_static, dim=0).item()
+    assert cos < 0.999
+
+
+def test_lfo_mel_contract(tmp_path):
+    """An lfo render still feeds the frozen MelExtractor to (96, 128) float32 (SC#5)."""
+    mid = tmp_path / "call.mid"
+    _write_call_mid(mid)
+    notes = load_notes(str(mid), str(tmp_path), tempo_bpm=120.0)
+    audio = render(
+        _fm_params(lfo=LfoParams(6.0, 0.8, 0, 0)), notes, pair_path=str(tmp_path)
+    )
+    wav = tmp_path / "call.wav"
+    sf.write(str(wav), audio, SR)
+    out = MelExtractor()(str(wav), str(tmp_path))
+    assert out.shape == (96, 128)
+    assert out.dtype == torch.float32
+
+
+def test_lfo_no_clipping(tmp_path):
+    """A deep square-wave lfo render never exceeds 1.0 after normalization (Pitfall 5)."""
+    mid = tmp_path / "call.mid"
+    _write_call_mid(mid)
+    notes = load_notes(str(mid), str(tmp_path), tempo_bpm=120.0)
+    audio = render(
+        _fm_params(lfo=LfoParams(6.0, 1.0, 2, 0)), notes, pair_path=str(tmp_path)
+    )
+    assert np.max(np.abs(audio)) <= 1.0
+
+
 # --- Manifest validation tests (NO dawdreamer needed; always run) -----------
 # These are defined after the importorskip but call load_manifest directly,
 # which has no dawdreamer dependency. If dawdreamer is absent the whole module
