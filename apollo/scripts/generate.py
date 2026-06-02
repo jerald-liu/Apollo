@@ -1,9 +1,19 @@
 """apollo/scripts/generate.py — autoregressive inference CLI.
 
-INFER-01: Accepts checkpoint + call.mid + call.wav, emits response.mid.
+INFER-01: Accepts checkpoint + call.mid, renders call.wav from the per-pair
+          call_fm.json FM manifest (train/serve parity), emits response.mid.
 INFER-02: --max-tokens flag.
 INFER-03: --temperature, --top-k flags.
 INFER-04: --n flag for batch sampling.
+
+Train/serve parity (DATA-06): the call's `call.wav` is NOT a supplied file — it
+is rendered on-the-fly from `<pair_dir>/call_fm.json` via the SAME
+`apollo.synth.render.render_call_wav` the corpus uses. Inference therefore feeds
+the mel encoder audio drawn from the identical renderer + manifest format as
+training, with no domain gap. The call MIDI is parsed exactly once (`call_bpm`
+via estimate_tempo + `call_notes` via load_notes) and that single parse is shared
+between the render and the tokenizer — the MIDI is never parsed twice under
+differing tempo assumptions (RESEARCH §"Train/Serve Parity Wiring" pitfall).
 
 Decisions:
 - D-13: BPM read from call MIDI via pretty_midi.PrettyMIDI(path).estimate_tempo()
@@ -16,15 +26,20 @@ from __future__ import annotations
 
 import argparse
 import sys
+import tempfile
 from pathlib import Path
 
 import pretty_midi
+import soundfile as sf
 import torch
 
 from apollo.ingest.audio import MelExtractor
+from apollo.ingest.errors import IngestError
 from apollo.ingest.midi import load_notes
 from apollo.model import ApolloModel, BOS, EOS, SEP, get_device
 from apollo.model.train import load_checkpoint
+from apollo.synth.render import render_call_wav
+from apollo.synth.spec import SR
 from apollo.tokenizer.decoder import decode_tokens
 from apollo.tokenizer.encoder import Tokenizer
 from apollo.tokenizer.vocab import Vocab
@@ -118,8 +133,11 @@ def main(argv=None) -> int:
         description="Generate a MIDI response to an Apollo call/wav pair."
     )
     parser.add_argument("checkpoint", help="Path to .pt checkpoint file")
-    parser.add_argument("call_mid", help="Path to call.mid")
-    parser.add_argument("call_wav", help="Path to call.wav")
+    parser.add_argument(
+        "call_mid",
+        help="Path to call.mid. call.wav is RENDERED on-the-fly from the "
+        "sibling call_fm.json FM manifest (train/serve parity); it is not supplied.",
+    )
     parser.add_argument(
         "--n", type=int, default=1,
         help="Number of responses to generate (INFER-04, default 1)",
@@ -140,12 +158,17 @@ def main(argv=None) -> int:
 
     try:
         call_mid_path = Path(args.call_mid)
-        call_wav_path = Path(args.call_wav)
+        pair_dir = call_mid_path.parent
+        manifest_path = pair_dir / "call_fm.json"
         if not call_mid_path.exists():
             print(f"ERROR: call.mid not found: {call_mid_path}", file=sys.stderr)
             return 1
-        if not call_wav_path.exists():
-            print(f"ERROR: call.wav not found: {call_wav_path}", file=sys.stderr)
+        if not manifest_path.exists():
+            print(
+                f"ERROR: call_fm.json not found: {manifest_path} "
+                "(call.wav is rendered from it — author the FM manifest beside call.mid)",
+                file=sys.stderr,
+            )
             return 1
 
         # 1. Load checkpoint and reconstruct model (Phase 2 5-key format)
@@ -170,16 +193,29 @@ def main(argv=None) -> int:
         # encode() returns raw note tokens (no BOS/EOS — encoder.py is note-only)
         call_token_ids = tokenizer.encode(call_notes)
 
-        # 4. Mel extraction from call.wav -> (96,128) -> (1,1,96,128)
+        # 4. Render call.wav on-the-fly via the SHARED render_call_wav (train/serve
+        #    parity — same engine + manifest as the corpus). Pass the SAME parsed
+        #    call_notes + call_bpm so the MIDI is not parsed a second time under a
+        #    different tempo assumption (RESEARCH pitfall). Then feed the rendered
+        #    audio to the FROZEN MelExtractor (COND-01) via a temp wav.
+        audio = render_call_wav(
+            str(manifest_path),
+            str(call_mid_path),
+            pair_path=str(pair_dir),
+            call_bpm=call_bpm,
+            notes=call_notes,
+        )
         mx = MelExtractor()
-        mel = mx(str(call_wav_path), str(call_wav_path.parent))
+        with tempfile.NamedTemporaryFile(suffix=".wav") as tmp:
+            sf.write(tmp.name, audio, SR)
+            # MelExtractor takes a wav PATH; mel step output (96,128) is unchanged.
+            mel = mx(tmp.name, str(pair_dir))
         mel_batch = mel.unsqueeze(0).unsqueeze(0).to(device)  # (1,1,96,128)
 
         # 5. Inference prefix: [BOS, call_tokens..., SEP] (matches training packer layout)
         prefix_ids = [BOS] + call_token_ids + [SEP]
 
         # 6. Sample N responses
-        pair_dir = call_mid_path.parent
         for _sample_idx in range(args.n):
             generated = _sample_one_response(
                 model=model,
@@ -203,7 +239,8 @@ def main(argv=None) -> int:
 
         return 0
 
-    except FileNotFoundError as e:
+    except (FileNotFoundError, IngestError) as e:
+        # IngestError: malformed call_fm.json or call.mid (fail-loud, names pair).
         print(f"ERROR: {e}", file=sys.stderr)
         return 1
     except Exception as e:
