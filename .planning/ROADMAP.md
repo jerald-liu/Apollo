@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Model & Training** - Mel encoder, transformer, masked loss, smoke train, checkpoints
 - [x] **Phase 3: Corpus & Inference** - Author ≥30 pairs, generate.py, sampling controls (code shipped; corpus authoring pending)
 - [x] **Phase 4: Evaluation Loop** - Scoring rubric, grading workflow, iteration tracking, ship gate
-- [ ] **Phase 5: Local App & In-Browser Synth** - Local-only user app: drag-drop pairs, in-browser FM synth, train triggers, call→response flow
+- [ ] **Phase 5: Local App & In-Browser Synth** - Local-only user app: drag-drop pairs, in-browser FM synth, train triggers, call→response flow, model version-history + rollback
 - [x] **Phase 6: Synth-Independent Corpus Rendering** - Single source-of-truth FM spec + headless Python/Faust 3-op renderer that produces `call.wav` deterministically with no Ableton (prerequisite for corpus authoring; Phase 5's browser synth consumes the same spec)
 - [x] **Phase 7: Synth Automation (LFO)** - Add a deterministic per-patch LFO to the owned FM synth (FM spec → v1.1, backward-compatible), so a call's timbre/pitch can evolve over a note; mirrored by Phase 5's browser synth (promoted from backlog 999.2)
 
@@ -84,7 +84,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Goal**: A purely local, user-facing app that lets a user build a corpus by drag-and-drop, render call/response audio in-browser (no Ableton required), trigger training, and upload a call to get a generated response back — closing the whole loop in one app. **Primary purpose: a public demonstration front-end** that shows Apollo training and generating locally to anyone, regardless of whether they own Ableton.
 **Depends on**: Phase 2 (model) + Phase 3 *code* (`train.py`, `generate.py`) — both shipped. Does **not** depend on corpus completion or the Phase 4 ship gate.
 **Parallelizable**: Yes. This phase runs as a parallel workstream alongside ongoing corpus authoring / model tuning (Phase 3 corpus work, Phase 4 iterations). It is unblocked now and demos against whatever checkpoint currently exists.
-**Requirements**: APP-01, APP-02, APP-03, APP-04, APP-05, APP-06, APP-07, APP-08, APP-09, APP-10, APP-11, APP-12, APP-13 (authored 2026-06-02 at plan time; see REQUIREMENTS.md §Local App)
+**Requirements**: APP-01, APP-02, APP-03, APP-04, APP-05, APP-06, APP-07, APP-08, APP-09, APP-10, APP-11, APP-12, APP-13, APP-14, APP-15 (authored 2026-06-02 at plan time; APP-14/APP-15 added 2026-06-02 for model version-history + rollback; see REQUIREMENTS.md §Local App)
 **Success Criteria** (what must be TRUE):
   1. **Local-only.** The app runs entirely on the user's machine (local server + browser, or fully offline). No data leaves the device; no cloud calls required to author, train, or infer.
   2. **Drag-and-drop pair ingest.** A user can drag MIDI (and/or play/record) call+response into the app and it lands as a valid `data/pairs/NNN/` folder, validated against `CORPUS-CONVENTIONS.md` with clear inline errors.
@@ -93,13 +93,15 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. **Training triggers.** A manual "Train" button kicks off `train.py`; a setting toggles auto-retrain-on-every-pair-upload. Training status/progress is surfaced in the UI and never blocks the authoring flow.
   6. **Configurable response storage.** The user can configure where generated responses are written (a chosen local directory), and produced responses are listed/auditionable in-app.
   7. **Call→response flow.** A user uploads (or plays) a call, the app renders its audio via the in-browser synth, runs inference, and returns a playable `response.mid` (auditioned in-app via the same synth).
+  8. **Model version-history & rollback.** Each training run is preserved and listed with its provenance (timestamp, corpus size, loss); the user can audition past models and roll back generation to any prior checkpoint, and a rollback persists across later retrains.
 **Research note**: In-browser Operator alternative — Web Audio API `OscillatorNode`×4 wired per Operator's algorithm set + `GainNode` ADSR is the faithful, dependency-light approach; Tone.js (`FMSynth`) is convenient but only 2-operator. Faust or Rust→WASM are heavier options if performance/algorithm fidelity demands it.
-**Cross-phase note (added 2026-06-02)**: Phase 6 owns the **single source-of-truth FM spec** (param schema + algorithm set + envelope semantics). Phase 5's in-browser synth must implement *that* spec so app-rendered and corpus-rendered `call.wav` stay sonically matched (train/serve consistency). Reconcile op count: v1 spec is **3-op** (per `synth-independence-decision`); Phase 5 SC#4's 4-op language is OVERRIDDEN by D-20 → target the shared 3-op v1.1 spec. **LFO note (added 2026-06-02)**: Phase 7 extends that shared spec to **v1.1** with an optional `lfo` block; Phase 5's browser synth also mirrors the LFO (waveform/target enums + the tremolo/vibrato formulas documented in `CORPUS-CONVENTIONS.md`). **Render-parity note**: SC#4/SC#7's "in-browser synth renders call.wav" is OVERRIDDEN by D-11/D-15 — canonical `call.wav` is always server-rendered via `apollo.synth.render_call_wav`; the browser synth is audition/preview only.
-**Plans**: 4 plans
+**Cross-phase note (added 2026-06-02)**: Phase 6 owns the **single source-of-truth FM spec** (param schema + algorithm set + envelope semantics). Phase 5's in-browser synth must implement *that* spec so app-rendered and corpus-rendered `call.wav` stay sonically matched (train/serve consistency). Reconcile op count: v1 spec is **3-op** (per `synth-independence-decision`); Phase 5 SC#4's 4-op language is OVERRIDDEN by D-20 → target the shared 3-op v1.1 spec. **LFO note (added 2026-06-02)**: Phase 7 extends that shared spec to **v1.1** with an optional `lfo` block; Phase 5's browser synth also mirrors the LFO (waveform/target enums + the tremolo/vibrato formulas documented in `CORPUS-CONVENTIONS.md`). **Render-parity note**: SC#4/SC#7's "in-browser synth renders call.wav" is OVERRIDDEN by D-11/D-15 — canonical `call.wav` is always server-rendered via `apollo.synth.render_call_wav`; the browser synth is audition/preview only. **Version-history note (added 2026-06-02)**: SC#8 (APP-14/APP-15) is built on the immutable, never-overwritten checkpoint history (`models/run-{iteration}-{timestamp}.pt`, D-10). The run registry (`models/runs.jsonl`) is written by the **app layer** at training completion, not by `train.py`; `corpus_hash` flags corpus drift but does not snapshot the corpus (full snapshotting deferred to SEED-011).
+**Plans**: 5 plans
 - [ ] 05-01-PLAN.md — Flask scaffold (`python -m apollo.app`, 127.0.0.1) + dashboard + CSS tokens + spec_constants.js + TrainingJob + /audio,/midi,/status routes (APP-01, APP-02)
 - [ ] 05-02-PLAN.md — Browser 3-op v1.1 Web Audio FM synth + LFO + corpus drill-in audition via /midi note JSON (APP-05, APP-10, APP-11)
 - [ ] 05-03-PLAN.md — Drag-drop ingest (load_manifest+load_notes, in-process call.wav render) + manual/debounced-auto train subprocess + live progress/loss curve + configurable response store (APP-03, APP-07, APP-08, APP-12)
 - [ ] 05-04-PLAN.md — FM patch editor (spec-locked + live preview) + call→response generate flow + 3 bundled presets (APP-04, APP-06, APP-09, APP-13)
+- [ ] 05-05-PLAN.md — Model version-history + rollback: app-layer run registry (models/runs.jsonl + corpus_hash) + models/ACTIVE pin + _active_checkpoint() /generate swap + /models view & activate route (APP-14, APP-15)
 
 ### Phase 6: Synth-Independent Corpus Rendering
 **Goal**: Replace the manual Ableton/Operator `call.wav` bounce with an **owned FM synth rendered headlessly in Python**. Define a single source-of-truth FM **spec** (parameter schema + algorithm set + envelope semantics), implement a deterministic **3-operator** Faust renderer (via DawDreamer) that turns a per-pair FM-param manifest + `call.mid` into `call.wav`, and wire it so the **same engine renders inference-time calls** — eliminating Ableton from both training and serving with no domain gap. Operator's *sound* is explicitly not cloned (see `.planning/notes/synth-independence-decision.md`); only a controllable FM family is provided.
@@ -149,7 +151,7 @@ Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel*
 | 2. Model & Training | 5/5 | Complete | 2026-05-20 |
 | 3. Corpus & Inference | 0/3 | Not started | - |
 | 4. Evaluation Loop | 0/TBD | Not started | - |
-| 5. Local App & In-Browser Synth | 0/4 | Planned | - |
+| 5. Local App & In-Browser Synth | 0/5 | Planned | - |
 | 6. Synth-Independent Corpus Rendering | 3/3 | Complete | 2026-06-02 |
 | 7. Synth Automation (LFO) | 3/3 | Complete | 2026-06-02 |
 
@@ -183,3 +185,4 @@ Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel*
 **Requirements:** TBD
 **Plans:** 0 plans
 - [ ] TBD (promote with /gsd-review-backlog when ready)
+</content>

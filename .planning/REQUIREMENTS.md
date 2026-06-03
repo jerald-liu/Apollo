@@ -59,7 +59,7 @@
 
 ### Local App (APP) — Phase 5
 
-Authored 2026-06-02 at plan time (candidate APP-* from ROADMAP §Phase 5). Each maps to ≥1 Phase 5 success criterion (SC#1–SC#7). The synth targets the shared 3-op v1.1 FM spec (D-20); the in-browser synth is audition/preview only (D-15) — canonical `call.wav` is always server-rendered (D-11).
+Authored 2026-06-02 at plan time (candidate APP-* from ROADMAP §Phase 5). Each maps to ≥1 Phase 5 success criterion (SC#1–SC#8). The synth targets the shared 3-op v1.1 FM spec (D-20); the in-browser synth is audition/preview only (D-15) — canonical `call.wav` is always server-rendered (D-11).
 
 - [ ] **APP-01**: `apollo/app/` Flask app launches with `python -m apollo.app`, binds `127.0.0.1` (never `0.0.0.0`, `debug=False`), opens the browser to the dashboard. *(SC#1; D-01, D-04)*
 - [ ] **APP-02**: Dashboard shows three equal-weight tiles — Corpus (pair count at Display size + progress vs 30), Training (status + CTA), Generate (CTA + recent responses) — with a persistent local-only trust badge. *(SC#1, SC#3; UI-SPEC Layout)*
@@ -74,6 +74,8 @@ Authored 2026-06-02 at plan time (candidate APP-* from ROADMAP §Phase 5). Each 
 - [ ] **APP-11**: Corpus pair audition: each pair's `call.mid` is auditionable in the corpus list via the same MIDI-to-JSON + browser synth. *(SC#3; D-16)*
 - [ ] **APP-12**: Configurable response storage: an in-app setting persists the response output directory (default `data/responses/`); responses are listed and auditionable in-app. *(SC#6; D-12)*
 - [ ] **APP-13**: Bundled FM presets: ≥3 starter `call_fm.json` presets covering different algorithms/timbres, loadable in the patch editor as starting points. *(SC#4; D-18)*
+- [ ] **APP-14**: Training run registry: every completed run is recorded in an append-only `models/runs.jsonl` with checkpoint basename, timestamp, iteration, corpus pair count + content hash, and train/held losses; the history is listable (`registry.list_runs` + `GET /models`). Written by the app layer at training-completion (not by `train.py`); CLI-only training does not populate the registry in v1. The `corpus_hash` is a one-way content flag ("trained on a different corpus than you have now"), not a corpus snapshot — full corpus snapshotting is deferred to SEED-011. *(SC#8; D-05, D-10; precedent: `eval/runs.jsonl`)*
+- [ ] **APP-15**: Model version-history & rollback UI: the app lists run history at `GET /models`, marks the active model, and lets the user activate (pin) any prior checkpoint for generation via `POST /models/activate` (registry-membership-guarded, mirroring the `_validate_nnn` pattern). `/generate` resolves the checkpoint via `_active_checkpoint()` (pinned `models/ACTIVE` if present, else newest-by-mtime); a pin survives subsequent auto/manual retrains until the user re-pins or returns to latest. *(SC#8; D-06)*
 
 ## v2 Requirements
 
@@ -113,6 +115,7 @@ Deferred to a later milestone. Tracked here so they don't get lost.
 | Cloud / Modal training | Model + corpus are small enough to train locally on MPS |
 | Pretrained mel encoders (e.g. AudioMAE, CLAP) | First version trains the mel encoder jointly so it specializes to the Operator-FM spectral family on this corpus |
 | Multi-instrument training (e.g. piano + bass + drums) | v1 is solo Operator only; multi-track ensemble is a separate problem class |
+| Full corpus snapshotting / checkpoint→corpus reproducibility | Deferred to SEED-011; APP-14's `corpus_hash` only flags corpus drift, it does not snapshot the corpus that produced a checkpoint |
 
 ## Traceability
 
@@ -162,12 +165,15 @@ Deferred to a later milestone. Tracked here so they don't get lost.
 | APP-11 | Phase 5: Local App & In-Browser Synth | Planned (05-02) |
 | APP-12 | Phase 5: Local App & In-Browser Synth | Planned (05-03) |
 | APP-13 | Phase 5: Local App & In-Browser Synth | Planned (05-04) |
+| APP-14 | Phase 5: Local App & In-Browser Synth | Planned (05-05) |
+| APP-15 | Phase 5: Local App & In-Browser Synth | Planned (05-05) |
 
 **Coverage:**
-- v1 requirements: 42 total (29 original + SYNTH-01 + DATA-06 already counted; +13 APP)
-- Mapped to phases: 42
+- v1 requirements: 44 total (29 original + SYNTH-01 + DATA-06 already counted; +15 APP)
+- Mapped to phases: 44
 - Unmapped: 0 ✓
-- Phase 5 (APP-01..APP-13): all 13 mapped across plans 05-01..05-04; every SC#1–SC#7 covered.
+- Phase 5 (APP-01..APP-15): all 15 mapped across plans 05-01..05-05; every SC#1–SC#8 covered.
 
 ---
 *Requirements defined: 2026-05-19*
+</content>
