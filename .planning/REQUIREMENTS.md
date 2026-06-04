@@ -61,8 +61,8 @@
 
 Authored 2026-06-02 at plan time (candidate APP-* from ROADMAP §Phase 5). Each maps to ≥1 Phase 5 success criterion (SC#1–SC#8). The synth targets the shared 3-op v1.1 FM spec (D-20); the in-browser synth is audition/preview only (D-15) — canonical `call.wav` is always server-rendered (D-11).
 
-- [ ] **APP-01**: `apollo/app/` Flask app launches with `python -m apollo.app`, binds `127.0.0.1` (never `0.0.0.0`, `debug=False`), opens the browser to the dashboard. *(SC#1; D-01, D-04)*
-- [ ] **APP-02**: Dashboard shows three equal-weight tiles — Corpus (pair count at Display size + progress vs 30), Training (status + CTA), Generate (CTA + recent responses) — with a persistent local-only trust badge. *(SC#1, SC#3; UI-SPEC Layout)*
+- [x] **APP-01**: `apollo/app/` Flask app launches with `python -m apollo.app`, binds `127.0.0.1` (never `0.0.0.0`, `debug=False`), opens the browser to the dashboard. *(SC#1; D-01, D-04)*
+- [x] **APP-02**: Dashboard shows three equal-weight tiles — Corpus (pair count at Display size + progress vs 30), Training (status + CTA), Generate (CTA + recent responses) — with a persistent local-only trust badge. *(SC#1, SC#3; UI-SPEC Layout)*
 - [ ] **APP-03**: Corpus drag-drop ingest: upload `call.mid` + `call_fm.json`, validated server-side via `apollo.synth.load_manifest` + `apollo.ingest.load_notes` (same errors as the CLI), written to `data/pairs/NNN/` with `call.wav` rendered in-process; invalid input returns the IngestError reason and writes no orphan dir. *(SC#2; D-09, D-13, D-14)*
 - [ ] **APP-04**: FM patch editor: algorithm selector + per-operator ratio/level/ADSR + optional collapsible LFO section, all client-validated against `spec_constants.js` BOUNDS; saves a `load_manifest`-valid `call_fm.json`. *(SC#4, SC#7; D-18, D-19, D-20)*
 - [ ] **APP-05**: Browser FM synth: hand-rolled 3-op v1.1 Web Audio graph (no Tone.js), per-algorithm topology + `op_level*freq` mod scaling from `spec.py`, LFO tremolo/vibrato per `CORPUS-CONVENTIONS.md` formulas. Audition only — never canonical. *(SC#4; D-15, D-16, D-19, D-20)*

@@ -97,7 +97,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Research note**: In-browser Operator alternative — Web Audio API `OscillatorNode`×4 wired per Operator's algorithm set + `GainNode` ADSR is the faithful, dependency-light approach; Tone.js (`FMSynth`) is convenient but only 2-operator. Faust or Rust→WASM are heavier options if performance/algorithm fidelity demands it.
 **Cross-phase note (added 2026-06-02)**: Phase 6 owns the **single source-of-truth FM spec** (param schema + algorithm set + envelope semantics). Phase 5's in-browser synth must implement *that* spec so app-rendered and corpus-rendered `call.wav` stay sonically matched (train/serve consistency). Reconcile op count: v1 spec is **3-op** (per `synth-independence-decision`); Phase 5 SC#4's 4-op language is OVERRIDDEN by D-20 → target the shared 3-op v1.1 spec. **LFO note (added 2026-06-02)**: Phase 7 extends that shared spec to **v1.1** with an optional `lfo` block; Phase 5's browser synth also mirrors the LFO (waveform/target enums + the tremolo/vibrato formulas documented in `CORPUS-CONVENTIONS.md`). **Render-parity note**: SC#4/SC#7's "in-browser synth renders call.wav" is OVERRIDDEN by D-11/D-15 — canonical `call.wav` is always server-rendered via `apollo.synth.render_call_wav`; the browser synth is audition/preview only. **Version-history note (added 2026-06-02)**: SC#8 (APP-14/APP-15) is built on the immutable, never-overwritten checkpoint history (`models/run-{iteration}-{timestamp}.pt`, D-10). The run registry (`models/runs.jsonl`) is written by the **app layer** at training completion, not by `train.py`; `corpus_hash` flags corpus drift but does not snapshot the corpus (full snapshotting deferred to SEED-011).
 **Plans**: 5 plans
-- [ ] 05-01-PLAN.md — Flask scaffold (`python -m apollo.app`, 127.0.0.1) + dashboard + CSS tokens + spec_constants.js + TrainingJob + /audio,/midi,/status routes (APP-01, APP-02)
+- [x] 05-01-PLAN.md — Flask scaffold (`python -m apollo.app`, 127.0.0.1) + dashboard + CSS tokens + spec_constants.js + TrainingJob + /audio,/midi,/status routes (APP-01, APP-02)
 - [ ] 05-02-PLAN.md — Browser 3-op v1.1 Web Audio FM synth + LFO + corpus drill-in audition via /midi note JSON (APP-05, APP-10, APP-11)
 - [ ] 05-03-PLAN.md — Drag-drop ingest (load_manifest+load_notes, in-process call.wav render) + manual/debounced-auto train subprocess + live progress/loss curve + configurable response store (APP-03, APP-07, APP-08, APP-12)
 - [ ] 05-04-PLAN.md — FM patch editor (spec-locked + live preview) + call→response generate flow + 3 bundled presets (APP-04, APP-06, APP-09, APP-13)
@@ -151,7 +151,7 @@ Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel*
 | 2. Model & Training | 5/5 | Complete | 2026-05-20 |
 | 3. Corpus & Inference | 0/3 | Not started | - |
 | 4. Evaluation Loop | 0/TBD | Not started | - |
-| 5. Local App & In-Browser Synth | 0/5 | Planned | - |
+| 5. Local App & In-Browser Synth | 1/5 | In Progress|  |
 | 6. Synth-Independent Corpus Rendering | 3/3 | Complete | 2026-06-02 |
 | 7. Synth Automation (LFO) | 3/3 | Complete | 2026-06-02 |
 
@@ -163,7 +163,7 @@ Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel*
 **Motivation:** Apollo's preset-as-transformation approach (999.1) learns parameter mutations within Operator's schema. Extending this to other instruments requires either (a) manual ontology mapping — research each instrument's manual, define parameter analogs to Operator, translate the learned transformation into the target dialect — or (b) a learned cross-synth timbral embedding where audio bridges parameter spaces across instruments. The latter may be a genuinely new field: no existing system handles arbitrary synth plugin parameter mapping at the semantic level.
 **Prerequisites:** 999.1 (FM patch generation head) complete; Operator parameter schema validated; `.adg` corpus capture workflow established.
 **Requirements:** TBD
-**Plans:** 0 plans
+**Plans:** 1/5 plans executed
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ### Phase 999.2: Synthesis-Level Rhythmic Response (BACKLOG — partially promoted)

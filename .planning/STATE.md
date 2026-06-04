@@ -2,17 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: phase_05_planned
-stopped_at: Phase 5 (Local App & In-Browser Synth) PLANNED — 5 plans (05-01..05-05, 5 sequential waves) created & verified (plan-checker PASSED — 05-01..04 on iteration 2, 05-05 clean first pass; APP-01..APP-15 authored in REQUIREMENTS.md, all 15 mapped, all 8 ROADMAP success criteria traceable). Research (HIGH confidence) + pattern map committed. Wave 1 = 05-01 (Flask scaffold `python -m apollo.app` on 127.0.0.1, dashboard, CSS tokens, spec_constants.js, TrainingJob, /audio /midi /status). Wave 2 = 05-02 (browser 3-op v1.1 Web Audio FM synth + LFO tremolo/vibrato, corpus drill-in audition via /midi). Wave 3 = 05-03 (drag-drop ingest reusing load_manifest+load_notes + in-process render, manual/debounced-auto train subprocess, live progress + loss curve, configurable response store). Wave 4 = 05-04 (FM patch editor spec-locked + live preview, call→response generate flow, 3 bundled presets). Wave 5 = 05-05 (model version-history + rollback — app-layer models/runs.jsonl registry via TrainingJob completion hook, models/ACTIVE pointer + _active_checkpoint() pinned-else-latest, /models view + traversal-safe /models/activate; pin survives retrains; APP-14/APP-15, SC#8). Reproducibility caveat: corpus_hash is a drift flag only — full corpus snapshotting deferred to SEED-011. Ready to execute: /gsd-execute-phase 5. PRIOR: Phase 7 (Synth Automation / LFO) COMPLETE — 3/3 plans executed & verified (6/6 must-haves, SYNTH-01). Wave 1 = 07-01 (spec.py→v1.1: LfoWave/LfoTarget IntEnums + frozen LfoParams + optional FmParams.lfo + numeric-only dsp_string LFO branch; manifest.py {1.0,1.1} accept + lfo-requires-1.1 + fail-loud bounds/enum validation; render.py runtime lfo-slider set guarded on params.lfo; __init__ re-export). Wave 2 = 07-02 (tests: committed per-algorithm golden v1.0 dsp_string bit-identity anchors, determinism, depth-0==static, 6 Hz mel time-variation measured cos 0.997650 < 0.999, validation) + 07-03 (CORPUS-CONVENTIONS v1.1 lfo block doc + Phase-5 tremolo/vibrato parity math). Full suite 204 passed. Code review 0 critical/0 warning/3 info (non-blocking; IN-01 = depth-0==static bit-identity only asserted for LEVEL target, not PITCH). Backward-compat (v1.0 renders bit-identically) verified via committed goldens + np.array_equal.
-last_updated: "2026-06-02T00:00:00Z"
-last_activity: 2026-06-02 -- Planned Phase 5 (Local App & In-Browser Synth): research (HIGH) → pattern map → 5 plans (5 sequential waves) → plan-checker PASSED (05-01..04 iter 2, one blocker fixed = missing browser-side /ingest upload UI; 05-05 clean). Added Plan 05-05 (model version-history + rollback, APP-14/APP-15, SC#8) after design discussion. APP-01..APP-15 authored. Planted SEED-010 (decode-time trie memory layers: style-bias + grammar-mask) and SEED-011 (corpus snapshotting for training reproducibility). Ready to execute.
+status: verifying
+stopped_at: Completed 05-01 (Flask scaffold + dashboard + tests)
+last_updated: "2026-06-04T04:23:38.790Z"
+last_activity: 2026-06-04
 progress:
-  total_phases: 7
+  total_phases: 10
   completed_phases: 6
-  total_plans: 24
+  total_plans: 28
   completed_plans: 24
-  percent: 100
-  note: percent is code-side for Phases 1-4 + Phase 6 (all complete); Phase 5 (Local App & In-Browser Synth) not started. Phase 6 closed (3/3 plans — 06-01 spec+manifest, 06-02 renderer+CLI, 06-03 inference parity + doc reconciliation). DATA-05 corpus authoring now unblocked. v1 ship gate (DATA-05 ≥30 pairs, EVAL-05 two consecutive improving iterations) still unmet
+  percent: 86
 ---
 
 # Project State
@@ -28,14 +27,16 @@ See: .planning/PROJECT.md (updated 2026-05-19)
 
 Phase: 04 (evaluation-loop) — Executed & verified (UAT 12/12)
 Plan: 4 of 4 (all complete)
-Status: All 4 phases code-complete — rubric, eval library, CLIs, grading UI shipped; 159/159 tests passing. Mock UAT fixtures deleted 2026-05-31.
-Last activity: 2026-05-31
+Status: Phase complete — ready for verification
+Last activity: 2026-06-04
 
 Progress: [██████████] 100% code-side — but v1 is NOT shippable yet.
 Open ship-gate dependencies (both require the human-in-the-loop, no GSD coding command):
+
 - DATA-05: author ≥30 call/response pairs in Ableton (data/pairs/), each with call.wav bounce
 - First real training run (train.py) + first eval iteration (generate → blind-grade in Flask UI)
 - EVAL-05: two consecutive iteration rounds must both improve mean held-out call-response-fit score
+
 Do NOT run /gsd-complete-milestone until EVAL-05 is satisfied.
 
 ## Performance Metrics
@@ -59,6 +60,7 @@ Do NOT run /gsd-complete-milestone until EVAL-05 is satisfied.
 - Trend: 02-02 was very fast — exact architecture spec from RESEARCH.md, one minor test fix (source-code check narrowed to nn.* prefix).
 
 *Updated after each plan completion*
+| Phase 05 P01 | 20m | - tasks | - files |
 
 ## Accumulated Context
 
@@ -111,6 +113,10 @@ Recent decisions affecting current work:
 - 06-03: Single-parse pitfall avoided — call_bpm (estimate_tempo) + call_notes (load_notes) computed once before render; render_call_wav called with call_bpm=call_bpm AND notes=call_notes so the call MIDI is parsed exactly once, shared by render + tokenize.
 - 06-03: Rendered audio array -> NamedTemporaryFile .wav at spec.SR -> frozen MelExtractor by path; mel (1,1,96,128) and all downstream sampling/decode/output-naming unchanged. IngestError (bad call_fm.json/MIDI) exits 1.
 - 06-03: CORPUS-CONVENTIONS.md de-Ableton'd (authored = call.mid + call_fm.json + response.mid; call.wav derived/gitignored; render_corpus step + full call_fm.json schema documented; call_fm.json vs eval/render_manifest.py distinction noted; venv/bin -> .venv/bin). REQUIREMENTS DATA-01/02 marked superseded-by-DATA-06; DATA-06 done.
+- [Phase ?]: _known_pairs_set checks call.mid+call_fm.json only (NOT discover_pairs) so pairs are enumerable before call.wav is rendered
+- [Phase ?]: 05-01: host=127.0.0.1 in __main__.py only; create_app factory never binds (T-05-02)
+- [Phase ?]: 05-01: TrainingJob uses Popen+daemon thread+line iteration; never communicate() (RESEARCH Pitfall 2)
+- [Phase ?]: 05-01: spec_constants.js BOUNDS copied verbatim from manifest.py; dual client+server validation
 
 ### Pending Todos
 
@@ -136,10 +142,11 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-23T16:00:00Z
-Stopped at: Phase 04 UAT paused after test 9/12. Two real bugs found and fixed inline (PR #17 commit 99d8af9); one cosmetic issue still open (reveal aside newlines). Tests 10–12 require setup (a real checkpoint + response_001.mid in each held-out pair) — full instructions in `.planning/phases/04-evaluation-loop/04-UAT.md` §Resume Notes.
+Last session: 2026-06-04T04:23:38.787Z
+Stopped at: Completed 05-01 (Flask scaffold + dashboard + tests)
 
 Resume:
+
 - `/gsd-verify-work 4` to continue UAT from test 10
 - Or `/gsd-progress` for a full status overview
 - Working branch: `phase-04-fix-grading-ui` (PR #17, stacked on #16)
