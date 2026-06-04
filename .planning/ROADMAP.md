@@ -99,7 +99,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 5 plans
 - [x] 05-01-PLAN.md — Flask scaffold (`python -m apollo.app`, 127.0.0.1) + dashboard + CSS tokens + spec_constants.js + TrainingJob + /audio,/midi,/status routes (APP-01, APP-02)
 - [x] 05-02-PLAN.md — Browser 3-op v1.1 Web Audio FM synth + LFO + corpus drill-in audition via /midi note JSON (APP-05, APP-10, APP-11)
-- [ ] 05-03-PLAN.md — Drag-drop ingest (load_manifest+load_notes, in-process call.wav render) + manual/debounced-auto train subprocess + live progress/loss curve + configurable response store (APP-03, APP-07, APP-08, APP-12)
+- [x] 05-03-PLAN.md — Drag-drop ingest (load_manifest+load_notes, in-process call.wav render) + manual/debounced-auto train subprocess + live progress/loss curve + configurable response store (APP-03, APP-07, APP-08, APP-12)
 - [ ] 05-04-PLAN.md — FM patch editor (spec-locked + live preview) + call→response generate flow + 3 bundled presets (APP-04, APP-06, APP-09, APP-13)
 - [ ] 05-05-PLAN.md — Model version-history + rollback: app-layer run registry (models/runs.jsonl + corpus_hash) + models/ACTIVE pin + _active_checkpoint() /generate swap + /models view & activate route (APP-14, APP-15)
 
@@ -151,7 +151,7 @@ Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel*
 | 2. Model & Training | 5/5 | Complete | 2026-05-20 |
 | 3. Corpus & Inference | 0/3 | Not started | - |
 | 4. Evaluation Loop | 0/TBD | Not started | - |
-| 5. Local App & In-Browser Synth | 2/5 | In Progress|  |
+| 5. Local App & In-Browser Synth | 3/5 | In Progress|  |
 | 6. Synth-Independent Corpus Rendering | 3/3 | Complete | 2026-06-02 |
 | 7. Synth Automation (LFO) | 3/3 | Complete | 2026-06-02 |
 

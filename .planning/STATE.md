@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 05-02 (browser FM synth + /corpus route + audition wiring)
-last_updated: "2026-06-04T04:23:38.790Z"
-last_activity: 2026-06-04
+stopped_at: Completed 05-03 (ingest route + training view + corpus upload UI)
+last_updated: "2026-06-03T00:00:00.000Z"
+last_activity: 2026-06-03
 progress:
   total_phases: 10
   completed_phases: 6
   total_plans: 28
-  completed_plans: 24
-  percent: 86
+  completed_plans: 26
+  percent: 93
 ---
 
 # Project State
@@ -62,6 +62,7 @@ Do NOT run /gsd-complete-milestone until EVAL-05 is satisfied.
 *Updated after each plan completion*
 | Phase 05 P01 | 20m | 3 tasks | 9 files |
 | Phase 05 P02 | ~4m | 3 tasks | 4 files |
+| Phase 05 P03 | ~5m | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -121,6 +122,10 @@ Recent decisions affecting current work:
 - [Phase ?]: 05-02: synth.js hand-rolled Web Audio FM engine; no Tone.js; op_level*freq modulator amplitude (DX-style index); new OscillatorNode per note for LFO phase reset
 - [Phase ?]: 05-02: attachLfo tremolo uses ConstantSource (DC offset) + scaled GainNode to drive carrier gainNode.gain; avoids AudioParam collision
 - [Phase ?]: 05-02: /corpus iterates _known_pairs_set() only (never user-supplied nnn); patch embedded via |tojson in script[type=application/json] (T-05-04, T-05-05)
+- [Phase ?]: 05-03: _allocate_next_nnn lock-guards find-max+mkdir (T-05-07 race); partial dirs removed via shutil.rmtree on IngestError (Pitfall 5)
+- [Phase ?]: 05-03: render() called with in-memory FmParams+notes (not render_call_wav); avoids re-reading just-written files
+- [Phase ?]: 05-03: threading.Timer 3.0s debounce for auto-retrain; _debounce dict avoids closure assignment issues
+- [Phase ?]: 05-03: drawLossCurve strokes train_loss solid #6D28D9, held_loss dashed #15803D on Canvas 2D
 
 ### Pending Todos
 
@@ -146,14 +151,13 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-04T05:00:00.000Z
-Stopped at: Completed 05-02 (browser FM synth + /corpus route + audition wiring)
+Last session: 2026-06-03T00:00:00.000Z
+Stopped at: Completed 05-03 (ingest route + training view + corpus upload UI)
 
 Resume:
 
-- `/gsd-verify-work 4` to continue UAT from test 10
+- Continue Phase 5 with `/gsd-execute-phase 5` (plan 04: generate flow + patch editor)
 - Or `/gsd-progress` for a full status overview
-- Working branch: `phase-04-fix-grading-ui` (PR #17, stacked on #16)
-- Open cosmetic UAT issue: `.mono` CSS needs `white-space: pre-wrap` for reveal aside newlines (apollo/eval/web/static/style.css)
+- Working branch: `gsd/phase-5-local-app-browser-synth`
 
 Mock UAT fixture on disk: `data/pairs/000..019` (5 held-out: 006, 009, 010, 012, 019) + `eval/scores.jsonl` partially filled. Delete before authoring real corpus.
