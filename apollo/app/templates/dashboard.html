@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h1 class="heading" style="margin-bottom: var(--lg);">Apollo</h1>
+
+<div class="tile-grid">
+
+  <!-- Corpus tile -->
+  <div class="tile">
+    {% if n_pairs == 0 %}
+      <p class="heading">No pairs yet</p>
+    {% else %}
+      <span class="display">{{ n_pairs }}</span>
+    {% endif %}
+    <p style="margin: var(--sm) 0;">
+      {% if n_pairs < target %}
+        {{ n_pairs }} of 30 pairs — keep going
+      {% else %}
+        {{ n_pairs }} pairs — more is better
+      {% endif %}
+    </p>
+    <div class="progress-bar" style="margin-bottom: var(--sm);">
+      <div class="progress-bar-fill" style="width: {{ [100, (100 * n_pairs / target) | round | int] | min }}%;"></div>
+    </div>
+    <a class="action accent" href="/corpus">Add pair →</a>
+  </div>
+
+  <!-- Training tile -->
+  <div class="tile">
+    <p class="heading" style="margin-top: 0;">Training</p>
+    <p style="margin: var(--sm) 0;">
+      <span class="status-dot untrained" id="train-dot"></span>
+      <span id="train-status" style="margin-left: var(--xs); font-size: 14px; color: var(--muted);">Not trained</span>
+    </p>
+    <a class="action accent" href="/training">Train now →</a>
+  </div>
+
+  <!-- Generate tile -->
+  <div class="tile">
+    <p class="heading" style="margin-top: 0;">Generate</p>
+    <p style="margin: var(--sm) 0; font-size: 14px; color: var(--muted);">
+      Create a response MIDI for a call phrase.
+    </p>
+    <a class="action accent" href="/generate">Generate response →</a>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='spec_constants.js') }}"></script>
+{% endblock %}
