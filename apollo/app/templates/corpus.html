@@ -5,6 +5,14 @@
 {% block content %}
 <h1 class="heading">Corpus</h1>
 
+<section id="upload-pair" class="card">
+  <h2>Add a pair</h2>
+  <label>Call MIDI (.mid): <input type="file" id="call-mid-input" accept=".mid"></label>
+  <label>Call patch (call_fm.json): <input type="file" id="call-fm-input" accept=".json,application/json"></label>
+  <label>Response MIDI (optional): <input type="file" id="response-mid-input" accept=".mid"></label>
+  <button id="add-pair-btn" class="primary">Add pair</button>
+</section>
+
 {% if n_pairs == 0 %}
   <section class="empty">
     <h2>No pairs yet</h2>
