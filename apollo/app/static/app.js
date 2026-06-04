@@ -1,5 +1,5 @@
 /**
- * app.js — Apollo local app: corpus audition, ingest, training, settings.
+ * app.js — Apollo local app: corpus audition, ingest, training, settings, generate.
  *
  * Corpus page:
  *   - Wires .play-call buttons to fetch /midi/<nnn>/call.mid note JSON and
@@ -11,6 +11,15 @@
  *   - drawLossCurve: canvas 2D loss-over-epochs chart (train solid, held dashed).
  *   - Wires #auto-retrain checkbox and #save-settings to POST /settings.
  *
+ * Generate page:
+ *   - Mounts ApolloEditor.buildEditor into #patch-editor.
+ *   - Populates #preset-select from GET /presets; on change loads preset.
+ *   - Wires #preview-note-btn to ApolloEditor.previewNote().
+ *   - Wires #generate-btn: validates patch client-side, POSTs multipart to
+ *     /generate, appends response to #responses-list, auditions response through
+ *     the call's own patch (D-17).
+ *   - On load refreshes #responses-list from GET /responses.
+ *
  * Guards all DOM wiring with element-existence checks so this file loads safely
  * on every page.
  *
@@ -18,7 +27,8 @@
  *
  * Dependencies (loaded before this file via block scripts):
  *   spec_constants.js  → ALGORITHMS, LFO_TARGETS
- *   synth.js           → window.ApolloSynth.playSequence (corpus page only)
+ *   synth.js           → window.ApolloSynth.playSequence (corpus + generate pages)
+ *   editor.js          → window.ApolloEditor (generate page only)
  */
 
 (function () {
@@ -298,6 +308,147 @@
       });
     }
 
+    // -------------------------------------------------------------------------
+    // Generate page: mount editor + wire preset select + preview + generate
+    // -------------------------------------------------------------------------
+
+    var patchEditorEl = document.getElementById('patch-editor');
+    if (patchEditorEl && window.ApolloEditor) {
+      // Mount the patch editor.
+      window.ApolloEditor.buildEditor(patchEditorEl);
+
+      // Populate preset dropdown from GET /presets.
+      var presetSelect = document.getElementById('preset-select');
+      if (presetSelect) {
+        fetch('/presets').then(function (r) { return r.json(); }).then(function (names) {
+          names.forEach(function (name) {
+            var opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name.replace(/_/g, ' ');
+            presetSelect.appendChild(opt);
+          });
+        }).catch(function () {});
+
+        presetSelect.addEventListener('change', function () {
+          if (presetSelect.value) {
+            window.ApolloEditor.applyPresetByName(presetSelect.value);
+          }
+        });
+      }
+
+      // Preview note button.
+      var previewNoteBtn = document.getElementById('preview-note-btn');
+      if (previewNoteBtn) {
+        previewNoteBtn.addEventListener('click', function () {
+          window.ApolloEditor.previewNote();
+        });
+      }
+
+      // Generate button.
+      var generateBtn = document.getElementById('generate-btn');
+      var generateStatus = document.getElementById('generate-status');
+      if (generateBtn) {
+        generateBtn.addEventListener('click', async function () {
+          var midInput = document.getElementById('call-mid-input');
+          var midFile = midInput && midInput.files[0];
+          if (!midFile) {
+            showError('Please select a call.mid file first');
+            return;
+          }
+
+          var patch = window.ApolloEditor.readPatch();
+          var validation = window.ApolloEditor.validatePatch(patch);
+          if (!validation.ok) {
+            showError('Patch validation failed: ' + validation.errors.join('; '));
+            return;
+          }
+
+          if (generateStatus) generateStatus.textContent = 'Generating…';
+          generateBtn.disabled = true;
+
+          var fd = new FormData();
+          fd.append('call_mid', midFile);
+          fd.append('call_fm', new Blob([JSON.stringify(patch)], {type: 'application/json'}), 'call_fm.json');
+
+          try {
+            var data = await fetch('/generate', {method: 'POST', body: fd}).then(function (r) {
+              return r.json();
+            });
+
+            if (!data.ok) {
+              showError(data.error || 'Generation failed');
+              if (generateStatus) generateStatus.textContent = '';
+              generateBtn.disabled = false;
+              return;
+            }
+
+            if (generateStatus) {
+              generateStatus.textContent = 'Generated — checkpoint: ' + (data.checkpoint || 'unknown');
+            }
+
+            // Audition response through the call's OWN patch (D-17).
+            var nnn = data.nnn;
+            var responseFile = data.response;
+            // Response is stored in RESPONSES_DIR under {nnn}_{response_NNN.mid};
+            // audition via /midi/<nnn>/<response_NNN.mid> using the call's patch.
+            if (nnn && responseFile) {
+              // Extract the response_NNN.mid filename from the copied name (format: {nnn}_{response_NNN.mid})
+              var baseName = responseFile.replace(/^\d+_/, '');
+              try {
+                var notes = await fetch('/midi/' + nnn + '/' + baseName).then(function (r) {
+                  return r.json();
+                });
+                if (Array.isArray(notes) && notes.length > 0) {
+                  window.ApolloSynth.playSequence(getCtx(), patch, notes);
+                }
+              } catch (e) {
+                // Audition failure is non-fatal.
+              }
+            }
+
+            // Refresh responses list.
+            _refreshResponsesList();
+
+          } catch (e) {
+            showError('Network error during generation');
+            if (generateStatus) generateStatus.textContent = '';
+          }
+
+          generateBtn.disabled = false;
+        });
+      }
+
+      // Refresh responses list on page load.
+      _refreshResponsesList();
+    }
+
   });
+
+  // ---------------------------------------------------------------------------
+  // Responses list refresh
+  // ---------------------------------------------------------------------------
+
+  function _refreshResponsesList() {
+    var list = document.getElementById('responses-list');
+    var emptyMsg = document.getElementById('responses-empty');
+    if (!list) return;
+
+    fetch('/responses').then(function (r) { return r.json(); }).then(function (data) {
+      list.innerHTML = '';
+      var names = (data && data.responses) || [];
+      if (names.length === 0) {
+        if (emptyMsg) emptyMsg.style.display = '';
+        return;
+      }
+      if (emptyMsg) emptyMsg.style.display = 'none';
+      names.forEach(function (name) {
+        var li = document.createElement('li');
+        li.className = 'response-item';
+        li.style.cssText = 'padding:var(--xs) 0;border-bottom:1px solid var(--border,#e2e8f0)';
+        li.textContent = name;
+        list.appendChild(li);
+      });
+    }).catch(function () {});
+  }
 
 }());
