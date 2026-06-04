@@ -415,13 +415,35 @@ def create_app(pairs_root: str = "data/pairs") -> Flask:
     def _latest_checkpoint() -> Path | None:
         """Return the most-recently-modified .pt under models/, or None.
 
-        RESEARCH OQ2: checkpoint selection by max mtime — uses the most recent
-        checkpoint without requiring a manifest file.
+        RESEARCH OQ2: checkpoint selection by max mtime — used as the fallback
+        when no ACTIVE pin is set (or the pinned file no longer exists).
         """
         candidates = list(Path("models").glob("*.pt")) if Path("models").is_dir() else []
         if not candidates:
             return None
         return max(candidates, key=lambda p: p.stat().st_mtime)
+
+    def _active_checkpoint() -> Path | None:
+        """Resolve the checkpoint /generate should use.
+
+        Pin-vs-auto-retrain rule (D-06): if models/ACTIVE names a checkpoint
+        that still exists on disk, return THAT (the user pinned a specific model
+        and later retrains must not steal the pin). Otherwise fall back to
+        newest-by-mtime (== "latest", the default when ACTIVE is unset OR the
+        pinned file was deleted — stale pin).
+
+        The candidate path is built from ``registry.get_active("models")`` (a
+        basename) under models/.  The basename only ever reaches models/ACTIVE
+        through the membership-validated /models/activate route (T-05-18), so
+        no raw request input reaches this path construction.
+        """
+        name = registry.get_active("models")
+        if name:
+            candidate = Path("models") / name
+            if candidate.is_file():
+                return candidate
+            # Stale pin (file deleted) → fall through to latest.
+        return _latest_checkpoint()
 
     @app.post("/generate")
     def generate():
@@ -467,8 +489,8 @@ def create_app(pairs_root: str = "data/pairs") -> Flask:
             (pair / "call_fm.json").write_bytes(fm_bytes)
             (pair / "call.mid").write_bytes(mid_bytes)
 
-            # 3. Resolve checkpoint.
-            ckpt = _latest_checkpoint()
+            # 3. Resolve checkpoint (active pin or latest-by-mtime, D-06).
+            ckpt = _active_checkpoint()
             if ckpt is None:
                 shutil.rmtree(pair)
                 return jsonify({
