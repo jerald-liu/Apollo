@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 05-01 (Flask scaffold + dashboard + tests)
+stopped_at: Completed 05-02 (browser FM synth + /corpus route + audition wiring)
 last_updated: "2026-06-04T04:23:38.790Z"
 last_activity: 2026-06-04
 progress:
@@ -60,7 +60,8 @@ Do NOT run /gsd-complete-milestone until EVAL-05 is satisfied.
 - Trend: 02-02 was very fast — exact architecture spec from RESEARCH.md, one minor test fix (source-code check narrowed to nn.* prefix).
 
 *Updated after each plan completion*
-| Phase 05 P01 | 20m | - tasks | - files |
+| Phase 05 P01 | 20m | 3 tasks | 9 files |
+| Phase 05 P02 | ~4m | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -117,6 +118,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 05-01: host=127.0.0.1 in __main__.py only; create_app factory never binds (T-05-02)
 - [Phase ?]: 05-01: TrainingJob uses Popen+daemon thread+line iteration; never communicate() (RESEARCH Pitfall 2)
 - [Phase ?]: 05-01: spec_constants.js BOUNDS copied verbatim from manifest.py; dual client+server validation
+- [Phase ?]: 05-02: synth.js hand-rolled Web Audio FM engine; no Tone.js; op_level*freq modulator amplitude (DX-style index); new OscillatorNode per note for LFO phase reset
+- [Phase ?]: 05-02: attachLfo tremolo uses ConstantSource (DC offset) + scaled GainNode to drive carrier gainNode.gain; avoids AudioParam collision
+- [Phase ?]: 05-02: /corpus iterates _known_pairs_set() only (never user-supplied nnn); patch embedded via |tojson in script[type=application/json] (T-05-04, T-05-05)
 
 ### Pending Todos
 
@@ -142,8 +146,8 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-04T04:23:38.787Z
-Stopped at: Completed 05-01 (Flask scaffold + dashboard + tests)
+Last session: 2026-06-04T05:00:00.000Z
+Stopped at: Completed 05-02 (browser FM synth + /corpus route + audition wiring)
 
 Resume:
 
