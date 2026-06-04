@@ -64,16 +64,16 @@ Authored 2026-06-02 at plan time (candidate APP-* from ROADMAP §Phase 5). Each 
 - [x] **APP-01**: `apollo/app/` Flask app launches with `python -m apollo.app`, binds `127.0.0.1` (never `0.0.0.0`, `debug=False`), opens the browser to the dashboard. *(SC#1; D-01, D-04)*
 - [x] **APP-02**: Dashboard shows three equal-weight tiles — Corpus (pair count at Display size + progress vs 30), Training (status + CTA), Generate (CTA + recent responses) — with a persistent local-only trust badge. *(SC#1, SC#3; UI-SPEC Layout)*
 - [x] **APP-03**: Corpus drag-drop ingest: upload `call.mid` + `call_fm.json`, validated server-side via `apollo.synth.load_manifest` + `apollo.ingest.load_notes` (same errors as the CLI), written to `data/pairs/NNN/` with `call.wav` rendered in-process; invalid input returns the IngestError reason and writes no orphan dir. *(SC#2; D-09, D-13, D-14)*
-- [ ] **APP-04**: FM patch editor: algorithm selector + per-operator ratio/level/ADSR + optional collapsible LFO section, all client-validated against `spec_constants.js` BOUNDS; saves a `load_manifest`-valid `call_fm.json`. *(SC#4, SC#7; D-18, D-19, D-20)*
-- [ ] **APP-05**: Browser FM synth: hand-rolled 3-op v1.1 Web Audio graph (no Tone.js), per-algorithm topology + `op_level*freq` mod scaling from `spec.py`, LFO tremolo/vibrato per `CORPUS-CONVENTIONS.md` formulas. Audition only — never canonical. *(SC#4; D-15, D-16, D-19, D-20)*
-- [ ] **APP-06**: Patch-editor live preview: editing any control immediately previews a test note through the browser synth. *(SC#4; D-16, D-18)*
+- [x] **APP-04**: FM patch editor: algorithm selector + per-operator ratio/level/ADSR + optional collapsible LFO section, all client-validated against `spec_constants.js` BOUNDS; saves a `load_manifest`-valid `call_fm.json`. *(SC#4, SC#7; D-18, D-19, D-20)*
+- [x] **APP-05**: Browser FM synth: hand-rolled 3-op v1.1 Web Audio graph (no Tone.js), per-algorithm topology + `op_level*freq` mod scaling from `spec.py`, LFO tremolo/vibrato per `CORPUS-CONVENTIONS.md` formulas. Audition only — never canonical. *(SC#4; D-15, D-16, D-19, D-20)*
+- [x] **APP-06**: Patch-editor live preview: editing any control immediately previews a test note through the browser synth. *(SC#4; D-16, D-18)*
 - [x] **APP-07**: Training triggers: manual "Train model" button + auto-retrain-on-upload toggle with server-side debounce (one run per bulk drop); `POST /train` subprocesses `apollo.scripts.train` (full retrain from scratch). *(SC#5; D-02, D-03, D-05, D-06)*
 - [x] **APP-08**: Live training visibility: progress bar (epoch/total) + loss-over-epochs canvas curve (train + held), via ~1s polling of `GET /status`. *(SC#5; D-07, D-08)*
-- [ ] **APP-09**: Call→response flow: upload `call.mid` + author patch → `POST /generate` subprocesses `apollo.scripts.generate` → `response.mid` written to the configurable store and auditioned through the call's own patch (D-17). *(SC#7; D-02, D-12, D-17)*
-- [ ] **APP-10**: Response audition: server exposes `GET /midi/<nnn>/<file>` returning note JSON; the browser plays call/response MIDI through the same FM synth (no client MIDI parser). *(SC#7; D-16, D-17)*
-- [ ] **APP-11**: Corpus pair audition: each pair's `call.mid` is auditionable in the corpus list via the same MIDI-to-JSON + browser synth. *(SC#3; D-16)*
+- [x] **APP-09**: Call→response flow: upload `call.mid` + author patch → `POST /generate` subprocesses `apollo.scripts.generate` → `response.mid` written to the configurable store and auditioned through the call's own patch (D-17). *(SC#7; D-02, D-12, D-17)*
+- [x] **APP-10**: Response audition: server exposes `GET /midi/<nnn>/<file>` returning note JSON; the browser plays call/response MIDI through the same FM synth (no client MIDI parser). *(SC#7; D-16, D-17)*
+- [x] **APP-11**: Corpus pair audition: each pair's `call.mid` is auditionable in the corpus list via the same MIDI-to-JSON + browser synth. *(SC#3; D-16)*
 - [x] **APP-12**: Configurable response storage: an in-app setting persists the response output directory (default `data/responses/`); responses are listed and auditionable in-app. *(SC#6; D-12)*
-- [ ] **APP-13**: Bundled FM presets: ≥3 starter `call_fm.json` presets covering different algorithms/timbres, loadable in the patch editor as starting points. *(SC#4; D-18)*
+- [x] **APP-13**: Bundled FM presets: ≥3 starter `call_fm.json` presets covering different algorithms/timbres, loadable in the patch editor as starting points. *(SC#4; D-18)*
 - [x] **APP-14**: Training run registry: every completed run is recorded in an append-only `models/runs.jsonl` with checkpoint basename, timestamp, iteration, corpus pair count + content hash, and train/held losses; the history is listable (`registry.list_runs` + `GET /models`). Written by the app layer at training-completion (not by `train.py`); CLI-only training does not populate the registry in v1. The `corpus_hash` is a one-way content flag ("trained on a different corpus than you have now"), not a corpus snapshot — full corpus snapshotting is deferred to SEED-011. *(SC#8; D-05, D-10; precedent: `eval/runs.jsonl`)*
 - [x] **APP-15**: Model version-history & rollback UI: the app lists run history at `GET /models`, marks the active model, and lets the user activate (pin) any prior checkpoint for generation via `POST /models/activate` (registry-membership-guarded, mirroring the `_validate_nnn` pattern). `/generate` resolves the checkpoint via `_active_checkpoint()` (pinned `models/ACTIVE` if present, else newest-by-mtime); a pin survives subsequent auto/manual retrains until the user re-pins or returns to latest. *(SC#8; D-06)*
 
@@ -152,21 +152,21 @@ Deferred to a later milestone. Tracked here so they don't get lost.
 | EVAL-03 | Phase 4: Evaluation Loop | Done (04-02) |
 | EVAL-04 | Phase 4: Evaluation Loop | Done (04-03) |
 | EVAL-05 | Phase 4: Evaluation Loop | Pending (real corpus iterations) |
-| APP-01 | Phase 5: Local App & In-Browser Synth | Planned (05-01) |
-| APP-02 | Phase 5: Local App & In-Browser Synth | Planned (05-01) |
-| APP-03 | Phase 5: Local App & In-Browser Synth | Implemented (05-03) |
-| APP-04 | Phase 5: Local App & In-Browser Synth | Planned (05-04) |
-| APP-05 | Phase 5: Local App & In-Browser Synth | Planned (05-02) |
-| APP-06 | Phase 5: Local App & In-Browser Synth | Planned (05-04) |
-| APP-07 | Phase 5: Local App & In-Browser Synth | Implemented (05-03) |
-| APP-08 | Phase 5: Local App & In-Browser Synth | Implemented (05-03) |
-| APP-09 | Phase 5: Local App & In-Browser Synth | Planned (05-04) |
-| APP-10 | Phase 5: Local App & In-Browser Synth | Planned (05-02) |
-| APP-11 | Phase 5: Local App & In-Browser Synth | Planned (05-02) |
-| APP-12 | Phase 5: Local App & In-Browser Synth | Implemented (05-03) |
-| APP-13 | Phase 5: Local App & In-Browser Synth | Planned (05-04) |
-| APP-14 | Phase 5: Local App & In-Browser Synth | Implemented (05-05) |
-| APP-15 | Phase 5: Local App & In-Browser Synth | Implemented (05-05) |
+| APP-01 | Phase 5: Local App & In-Browser Synth | Done (05-01) |
+| APP-02 | Phase 5: Local App & In-Browser Synth | Done (05-01) |
+| APP-03 | Phase 5: Local App & In-Browser Synth | Done (05-03) |
+| APP-04 | Phase 5: Local App & In-Browser Synth | Done (05-04) |
+| APP-05 | Phase 5: Local App & In-Browser Synth | Done (05-02) |
+| APP-06 | Phase 5: Local App & In-Browser Synth | Done (05-04) |
+| APP-07 | Phase 5: Local App & In-Browser Synth | Done (05-03) |
+| APP-08 | Phase 5: Local App & In-Browser Synth | Done (05-03) |
+| APP-09 | Phase 5: Local App & In-Browser Synth | Done (05-04) |
+| APP-10 | Phase 5: Local App & In-Browser Synth | Done (05-02) |
+| APP-11 | Phase 5: Local App & In-Browser Synth | Done (05-02) |
+| APP-12 | Phase 5: Local App & In-Browser Synth | Done (05-03) |
+| APP-13 | Phase 5: Local App & In-Browser Synth | Done (05-04) |
+| APP-14 | Phase 5: Local App & In-Browser Synth | Done (05-05) |
+| APP-15 | Phase 5: Local App & In-Browser Synth | Done (05-05) |
 
 **Coverage:**
 - v1 requirements: 44 total (29 original + SYNTH-01 + DATA-06 already counted; +15 APP)

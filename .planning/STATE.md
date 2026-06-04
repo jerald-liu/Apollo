@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: verifying
-stopped_at: Completed 05-05 (model version-history + rollback — registry + /models + activate)
-last_updated: "2026-06-04T05:00:00.000Z"
+status: phase_05_human_uat
+stopped_at: Phase 5 (Local App & In-Browser Synth) CODE COMPLETE — 5/5 plans executed (05-01 scaffold → 05-02 browser FM synth → 05-03 ingest+training → 05-04 patch editor+generate → 05-05 model rollback). Verifier: 15/15 must-haves verified, status=human_needed (6 browser/audio items in 05-HUMAN-UAT.md — inherently manual). APP-01..APP-15 all done; SC#1..SC#8 satisfied in code. 42 Phase-5 app tests pass; full fast suite green except one KNOWN-FLAKY pre-existing Phase-7 synth test (test_lfo_pitch_depth0_matches_static — flagged for separate fix, not a Phase-5 regression). On branch gsd/phase-5-local-app-browser-synth (stacked on feat/owned-fm-synth, itself on main; Phases 6/7 + this app NOT yet merged to main). Awaiting human UAT: launch `.venv/bin/python -m apollo.app` and verify the 6 items, then /gsd-verify-work 5 or approve.
+last_updated: "2026-06-04T05:30:00.000Z"
 last_activity: 2026-06-04
 progress:
-  total_phases: 10
+  total_phases: 7
   completed_phases: 6
-  total_plans: 28
-  completed_plans: 27
-  percent: 96
+  total_plans: 29
+  completed_plans: 29
+  percent: 100
 ---
 
 # Project State
@@ -21,13 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-19)
 
 **Core value:** Given a short MIDI call played through an Operator preset, the model produces a response that feels like the user responding to themselves — and the active-learning loop demonstrably improves it over consecutive iterations.
-**Current focus:** Phase 04 — evaluation-loop (executed; corpus authoring still required for v1 ship gate)
+**Current focus:** Phase 5 — Local App & In-Browser Synth (code complete; awaiting human browser UAT)
 
 ## Current Position
 
-Phase: 04 (evaluation-loop) — Executed & verified (UAT 12/12)
-Plan: 4 of 4 (all complete)
-Status: Phase complete — ready for verification
+Phase: 05 (local-app-browser-synth) — Code complete, verifier status=human_needed
+Plan: 5 of 5 (all executed & spot-checked)
+Status: Awaiting human UAT (6 browser/audio items in 05-HUMAN-UAT.md). Launch: `.venv/bin/python -m apollo.app`
+Branch: gsd/phase-5-local-app-browser-synth (stacked on feat/owned-fm-synth → main; Phases 6/7 + app not yet merged to main)
 Last activity: 2026-06-04
 
 Progress: [██████████] 100% code-side — but v1 is NOT shippable yet.
