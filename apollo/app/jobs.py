@@ -32,9 +32,31 @@ class TrainingJob:
         self.loss_history: list[dict] = []  # [{epoch, train_loss, held_loss}]
         self._proc: subprocess.Popen | None = None
         self._lock = threading.Lock()
+        self._on_complete = None  # set by start(); called after subprocess exits 0
 
-    def start(self, pairs_root: str, epochs: int, output_dir: str) -> bool:
+    def start(
+        self,
+        pairs_root: str,
+        epochs: int,
+        output_dir: str,
+        on_complete=None,
+    ) -> bool:
         """Launch training subprocess in a daemon thread.
+
+        Parameters
+        ----------
+        pairs_root:
+            Path to the corpus pairs directory (passed to train.py argv).
+        epochs:
+            Number of training epochs.
+        output_dir:
+            Directory where train.py writes the checkpoint (passed to argv).
+        on_complete:
+            Optional callable invoked after the subprocess exits with code 0.
+            Signature: ``on_complete(train_loss: float | None, held_loss: float | None)``.
+            Exceptions raised inside ``on_complete`` are caught and logged to
+            stderr — a registry-append failure must NOT crash the training
+            thread (APP-14 completion-hook requirement).
 
         Returns False (no-op) if already running; otherwise True.
         """
@@ -47,6 +69,8 @@ class TrainingJob:
             self.train_loss = None
             self.held_loss = None
             self.loss_history = []
+
+        self._on_complete = on_complete
 
         cmd = [
             "python", "-m", "apollo.scripts.train",
@@ -92,6 +116,16 @@ class TrainingJob:
         ret = self._proc.wait()
         with self._lock:
             self.status = "complete" if ret == 0 else "error"
+
+        # Invoke the completion callback (APP-14 registry hook).
+        # Only called on clean exit (ret == 0).  Exceptions are swallowed so a
+        # registry-append failure never crashes the training daemon thread.
+        if ret == 0 and self._on_complete is not None:
+            try:
+                self._on_complete(self.train_loss, self.held_loss)
+            except Exception as exc:
+                import sys
+                print(f"[TrainingJob] on_complete raised: {exc!r}", file=sys.stderr)
 
     def snapshot(self) -> dict:
         """Return a thread-safe snapshot of current job state."""

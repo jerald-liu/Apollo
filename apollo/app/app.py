@@ -56,6 +56,7 @@ from apollo.synth.manifest import load_manifest
 from apollo.synth.render import render
 from apollo.synth.spec import SR
 from apollo.app.jobs import TrainingJob
+from apollo.app import registry
 
 # Anchored regex for response filenames (T-05-15: traversal-safe, no user string in path).
 _RESPONSE_FILENAME_RE = re.compile(r'^response_\d+\.mid$')
@@ -134,6 +135,44 @@ def create_app(pairs_root: str = "data/pairs") -> Flask:
             pair_dir = root / f"{nxt:03d}"
             pair_dir.mkdir(parents=True)
         return pair_dir
+
+    def _launch_training() -> bool:
+        """Start training with a registry completion hook.
+
+        corpus_hash and pair_count are snapshotted at launch time (before any
+        new pair can land — D-06 race-safety). The on_complete closure captures
+        them so the registry row reflects the corpus state at job start.
+
+        NOTE: appending a run does NOT touch models/ACTIVE (pin-vs-retrain,
+        D-06). A new run only becomes active if the user is on latest (ACTIVE
+        unset) or explicitly activates it via /models/activate. We never
+        auto-move an existing pin.
+        """
+        models_dir = "models"
+        corpus_hash = registry.compute_corpus_hash(app.config["PAIRS_ROOT"])
+        pair_count = len(_known_pairs_set())
+
+        def _on_complete(train_loss, held_loss):
+            ckpt = _latest_checkpoint()   # newest .pt by mtime == the run just produced
+            if ckpt is None:
+                return
+            registry.append_run(
+                models_dir,
+                checkpoint=ckpt.name,
+                iteration=1,              # train.py default iteration (CLI flag not set by app)
+                corpus_pair_count=pair_count,
+                corpus_hash=corpus_hash,
+                held_loss=held_loss,
+                train_loss=train_loss,
+            )
+            # NOTE: pin-vs-retrain (D-06) — appending a run does NOT touch ACTIVE.
+            # A new run only becomes active if the user is on latest (ACTIVE unset)
+            # or explicitly activates it (POST /models/activate). We never
+            # auto-move an existing pin.
+
+        return app.config["TRAINING_JOB"].start(
+            str(app.config["PAIRS_ROOT"]), 300, models_dir, on_complete=_on_complete
+        )
 
     # ------------------------------------------------------------------ routes
 
@@ -279,16 +318,14 @@ def create_app(pairs_root: str = "data/pairs") -> Flask:
             raise
 
         # --- Debounced auto-retrain (D-06, one run per bulk drag-in).
+        # _launch_training() snapshots corpus_hash + pair_count at timer fire
+        # time (the moment the debounce fires, all uploads in the batch are
+        # already on disk — D-06 race-safety).
         if app.config["AUTO_RETRAIN"]:
             if _debounce["timer"] is not None:
                 _debounce["timer"].cancel()
 
-            def _fire_retrain():
-                app.config["TRAINING_JOB"].start(
-                    str(app.config["PAIRS_ROOT"]), 300, "models"
-                )
-
-            t = threading.Timer(3.0, _fire_retrain)
+            t = threading.Timer(3.0, _launch_training)
             t.daemon = True
             t.start()
             _debounce["timer"] = t
@@ -332,10 +369,10 @@ def create_app(pairs_root: str = "data/pairs") -> Flask:
         """Start a background training job (D-02, D-03, D-05).
 
         Returns 409 if already running (one job at a time).
+        Uses _launch_training() to snapshot corpus_hash + pair_count at launch
+        and wire the registry on_complete callback (APP-14).
         """
-        started = app.config["TRAINING_JOB"].start(
-            str(app.config["PAIRS_ROOT"]), 300, "models"
-        )
+        started = _launch_training()
         if not started:
             return jsonify({"ok": False, "error": "Training already running"}), 409
         return jsonify({"ok": True})
