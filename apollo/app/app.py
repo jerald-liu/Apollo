@@ -125,4 +125,33 @@ def create_app(pairs_root: str = "data/pairs") -> Flask:
     def status():
         return jsonify(app.config["TRAINING_JOB"].snapshot())
 
+    @app.get("/corpus")
+    def corpus():
+        """List all known pairs with their call_fm.json patch for audition.
+
+        T-05-04 (path traversal): only iterates the filesystem-enumerated known
+        pairs set — never accepts a user-supplied nnn for this route.
+        T-05-05 (XSS): patch JSON is emitted via Jinja | tojson inside a
+        <script type="application/json"> block; parsed client-side with JSON.parse.
+        T-05-06 (malformed manifest): json.loads failure marks pair invalid without
+        crashing; no patch tag is emitted for invalid pairs.
+        """
+        root: Path = app.config["PAIRS_ROOT"]
+        pairs_out = []
+        for nnn in sorted(_known_pairs_set()):
+            fm_path = root / nnn / "call_fm.json"
+            try:
+                patch = json.loads(fm_path.read_text(encoding="utf-8"))
+                valid = True
+            except Exception:
+                patch = None
+                valid = False
+            pairs_out.append({"nnn": nnn, "patch": patch, "valid": valid})
+        return render_template(
+            "corpus.html",
+            pairs=pairs_out,
+            n_pairs=len(pairs_out),
+            target=30,
+        )
+
     return app
