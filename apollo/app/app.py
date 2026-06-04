@@ -534,6 +534,59 @@ def create_app(pairs_root: str = "data/pairs") -> Flask:
             "checkpoint": str(ckpt),
         })
 
+    # ---------------------------------------------------------------------- /models
+
+    @app.get("/models")
+    def models_list():
+        """Model version history: list runs, mark active, offer activate controls.
+
+        effective_active is the checkpoint basename that /generate would
+        actually use right now (pinned if ACTIVE is set + file exists, else
+        latest-by-mtime) — used in the template to render the active badge.
+        """
+        runs = registry.list_runs("models")
+        active = registry.get_active("models")
+        # Compute effective active for badge even when ACTIVE is not pinned.
+        latest = _latest_checkpoint()
+        effective_active = active or (latest.name if latest is not None else None)
+        return render_template(
+            "models.html",
+            runs=runs,
+            active=active,
+            effective_active=effective_active,
+        )
+
+    @app.post("/models/activate")
+    def models_activate():
+        """Pin a checkpoint as the active model for /generate.
+
+        Security (T-05-17 mitigation — membership guard, mirrors _validate_pair_nnn):
+          ``checkpoint`` from the request body is checked against the fixed set
+          {r["checkpoint"] for r in registry.list_runs(...)} BEFORE any
+          set_active or path construction.  An unregistered or traversal-ish
+          basename is rejected with 400 and ACTIVE is NOT written.
+
+        Supports {"checkpoint": "__latest__"} to clear the pin (back to latest).
+        """
+        data = request.get_json(silent=True) or {}
+        checkpoint = str(data.get("checkpoint", ""))
+
+        # Special keyword: clear pin → back to latest.
+        if checkpoint == "__latest__":
+            registry.clear_active("models")
+            return jsonify({"ok": True, "active": registry.get_active("models")})
+
+        # SECURITY: membership guard (T-05-17).
+        # Build the known set from the registry — never construct a filesystem
+        # path from the raw checkpoint value before this check.
+        known = {r["checkpoint"] for r in registry.list_runs("models")}
+        if checkpoint not in known:
+            return jsonify({"ok": False, "error": "Unknown checkpoint"}), 400
+
+        # Only after the membership check is the checkpoint written to ACTIVE.
+        registry.set_active("models", checkpoint)
+        return jsonify({"ok": True, "active": registry.get_active("models")})
+
     # ---------------------------------------------------------------------- /responses
 
     @app.get("/responses")

@@ -154,7 +154,7 @@ def test_train_starts_and_status(app_client, monkeypatch):
 
     start_called = []
 
-    def fake_start(self, pairs_root, epochs, output_dir):
+    def fake_start(self, pairs_root, epochs, output_dir, on_complete=None):
         start_called.append((pairs_root, epochs, output_dir))
         with self._lock:
             self.status = "running"
