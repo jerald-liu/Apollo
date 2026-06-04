@@ -6,18 +6,23 @@ Routes:
   GET  /                          dashboard (3-tile home)
   GET  /corpus                    corpus drill-in (pair list + upload UI)
   GET  /training                  training view (progress bar + loss curve)
+  GET  /generate                  generate view (patch editor + call→response flow)
   GET  /audio/<nnn>/<filename>    serve call.wav for a known pair
-  GET  /midi/<nnn>/<filename>     return note JSON for call.mid or response.mid
+  GET  /midi/<nnn>/<filename>     return note JSON for call.mid or response*.mid
   GET  /status                    JSON snapshot of TrainingJob state
   POST /ingest                    upload call.mid + call_fm.json; write pair dir + render call.wav
   POST /train                     start training subprocess
   GET  /settings                  return current settings JSON
   POST /settings                  update responses_dir and/or auto_retrain
+  GET  /presets                   list bundled preset names
+  GET  /presets/<name>            return a bundled preset JSON (traversal-safe)
+  POST /generate                  upload call.mid + call_fm; subprocess generate.py; copy response
+  GET  /responses                 list files in RESPONSES_DIR
 
 Security:
   T-05-01 (path traversal): _validate_pair_nnn rejects any <nnn> not in
     _known_pairs_set() with abort(404) BEFORE the nnn is used in a path.
-    Filename is allow-listed (/midi: call.mid|response.mid, /audio: call.wav).
+    Filename is allow-listed (/midi: call.mid|response.mid|response_NNN.mid, /audio: call.wav).
   T-05-02 (server binding): host is always 127.0.0.1 in __main__.py; debug=False.
   T-05-07 (unsafe file write): pair dir allocated server-side via _allocate_next_nnn;
     no client-controlled path reaches the filesystem.
@@ -25,11 +30,19 @@ Security:
     partial dir removed on failure.
   T-05-09 (command injection): TrainingJob.start builds argv from fixed list; no
     user string concatenated; no shell=True.
+  T-05-12 (path traversal): /presets/<name> allow-listed to [a-z_]+ only.
+  T-05-13 (manifest injection): /generate validates call_fm via load_manifest before
+    any write or subprocess.
+  T-05-14 (command injection): /generate subprocess uses a fixed argv list; no shell=True;
+    no user string in argv.
+  T-05-15 (path traversal): /midi response filename matched against anchored regex.
 """
 from __future__ import annotations
 
 import json
+import re
 import shutil
+import subprocess
 import tempfile
 import threading
 from pathlib import Path
@@ -43,6 +56,9 @@ from apollo.synth.manifest import load_manifest
 from apollo.synth.render import render
 from apollo.synth.spec import SR
 from apollo.app.jobs import TrainingJob
+
+# Anchored regex for response filenames (T-05-15: traversal-safe, no user string in path).
+_RESPONSE_FILENAME_RE = re.compile(r'^response_\d+\.mid$')
 
 
 def create_app(pairs_root: str = "data/pairs") -> Flask:
@@ -144,7 +160,9 @@ def create_app(pairs_root: str = "data/pairs") -> Flask:
     @app.get("/midi/<nnn>/<filename>")
     def midi_notes(nnn: str, filename: str):
         pair_path = _validate_pair_nnn(nnn)
-        if filename not in ("call.mid", "response.mid"):
+        # T-05-15: filename must be call.mid, response.mid, or response_NNN.mid
+        # (anchored regex — no traversal possible).
+        if filename not in ("call.mid", "response.mid") and not _RESPONSE_FILENAME_RE.match(filename):
             abort(400)
         mid_path = pair_path / filename
         if not mid_path.is_file():
@@ -321,5 +339,151 @@ def create_app(pairs_root: str = "data/pairs") -> Flask:
         if not started:
             return jsonify({"ok": False, "error": "Training already running"}), 409
         return jsonify({"ok": True})
+
+    # ---------------------------------------------------------------------- /generate page
+
+    @app.get("/generate")
+    def generate_page():
+        """Generate view: MIDI upload + patch editor + call→response flow."""
+        return render_template("generate.html")
+
+    # ---------------------------------------------------------------------- /presets
+
+    # T-05-12: name is allow-listed to [a-z_]+ only (charset check prevents traversal).
+    _PRESET_NAME_RE = re.compile(r'^[a-z_]+$')
+    _PRESETS_DIR = Path(__file__).parent / "presets"
+
+    @app.get("/presets")
+    def presets_list():
+        """List bundled preset names (stem only, no extension)."""
+        names = sorted(p.stem for p in _PRESETS_DIR.glob("*.json"))
+        return jsonify(names)
+
+    @app.get("/presets/<name>")
+    def presets_get(name: str):
+        """Return a bundled preset JSON file (traversal-safe).
+
+        T-05-12: name is allow-listed to [a-z_]+; path is built under the
+        package presets/ dir; file existence is checked.
+        """
+        if not _PRESET_NAME_RE.match(name):
+            abort(400)
+        path = _PRESETS_DIR / (name + ".json")
+        if not path.is_file():
+            abort(404)
+        return send_file(str(path), mimetype="application/json")
+
+    # ---------------------------------------------------------------------- /generate (POST)
+
+    def _latest_checkpoint() -> Path | None:
+        """Return the most-recently-modified .pt under models/, or None.
+
+        RESEARCH OQ2: checkpoint selection by max mtime — uses the most recent
+        checkpoint without requiring a manifest file.
+        """
+        candidates = list(Path("models").glob("*.pt")) if Path("models").is_dir() else []
+        if not candidates:
+            return None
+        return max(candidates, key=lambda p: p.stat().st_mtime)
+
+    @app.post("/generate")
+    def generate():
+        """Upload call.mid + call_fm (authored patch); subprocess generate.py; copy response.
+
+        Security:
+          T-05-13: load_manifest validates call_fm before any write or subprocess.
+          T-05-14: fixed argv list; no shell=True; no user string in argv.
+
+        Flow:
+          1. Validate manifest (load_manifest on temp → IngestError → 400).
+          2. Allocate pair dir; write call.mid + call_fm.json.
+          3. Resolve latest checkpoint (None → 400 + rmtree).
+          4. subprocess generate.py with FIXED argv (server-resolved paths).
+          5. Find newest response_*.mid in pair dir; copy to RESPONSES_DIR.
+          6. Return {ok, nnn, response, checkpoint}.
+        """
+        call_mid = request.files.get("call_mid")
+        call_fm = request.files.get("call_fm")
+
+        if call_mid is None or call_fm is None:
+            return jsonify({"ok": False, "error": "call.mid and call_fm are both required"}), 400
+
+        fm_bytes = call_fm.read()
+        mid_bytes = call_mid.read()
+
+        # 1. Validate manifest BEFORE allocating a dir (T-05-13).
+        tmp_fm = tempfile.NamedTemporaryFile(suffix=".json", delete=False)
+        try:
+            tmp_fm.write(fm_bytes)
+            tmp_fm.flush()
+            tmp_fm.close()
+            try:
+                load_manifest(tmp_fm.name, "(generate-upload)")
+            except IngestError as e:
+                return jsonify({"ok": False, "error": e.reason}), 400
+        finally:
+            Path(tmp_fm.name).unlink(missing_ok=True)
+
+        # 2. Allocate pair dir.
+        pair = _allocate_next_nnn()
+        try:
+            (pair / "call_fm.json").write_bytes(fm_bytes)
+            (pair / "call.mid").write_bytes(mid_bytes)
+
+            # 3. Resolve checkpoint.
+            ckpt = _latest_checkpoint()
+            if ckpt is None:
+                shutil.rmtree(pair)
+                return jsonify({
+                    "ok": False,
+                    "error": "No trained model yet. Add a few pairs and train first, then generate.",
+                }), 400
+
+            # 4. Fixed argv list — NO shell=True, NO user string in argv (T-05-14).
+            argv = [
+                "python", "-m", "apollo.scripts.generate",
+                str(ckpt.resolve()),
+                str((pair / "call.mid").resolve()),
+            ]
+            result = subprocess.run(argv, capture_output=True, text=True)
+            if result.returncode != 0:
+                shutil.rmtree(pair)
+                err_msg = result.stderr[-500:] if result.stderr else "generation failed"
+                return jsonify({"ok": False, "error": err_msg}), 500
+
+            # 5. Find newest response_*.mid in the pair dir.
+            response_files = sorted(pair.glob("response_*.mid"), key=lambda f: f.stat().st_mtime)
+            if not response_files:
+                shutil.rmtree(pair)
+                return jsonify({"ok": False, "error": "generate.py produced no response file"}), 500
+
+            newest_response = response_files[-1]
+            responses_dir: Path = app.config["RESPONSES_DIR"]
+            responses_dir.mkdir(parents=True, exist_ok=True)
+            copied_name = f"{pair.name}_{newest_response.name}"
+            shutil.copy2(str(newest_response), str(responses_dir / copied_name))
+
+        except Exception:
+            if pair.exists():
+                shutil.rmtree(pair)
+            raise
+
+        return jsonify({
+            "ok": True,
+            "nnn": pair.name,
+            "response": copied_name,
+            "checkpoint": str(ckpt),
+        })
+
+    # ---------------------------------------------------------------------- /responses
+
+    @app.get("/responses")
+    def responses_list():
+        """List files in RESPONSES_DIR (D-12 configurable store)."""
+        responses_dir: Path = app.config["RESPONSES_DIR"]
+        if not responses_dir.is_dir():
+            return jsonify({"ok": True, "responses": []})
+        names = sorted(f.name for f in responses_dir.iterdir() if f.is_file())
+        return jsonify({"ok": True, "responses": names})
 
     return app
