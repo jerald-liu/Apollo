@@ -1,0 +1,11 @@
+{
+  "spec_version": "1.1",
+  "algorithm": 2,
+  "gain": 0.8,
+  "operators": [
+    {"ratio": 1.0, "level": 0.9, "attack": 0.01, "decay": 0.1, "sustain": 0.7, "release": 0.2},
+    {"ratio": 2.0, "level": 0.6, "attack": 0.01, "decay": 0.1, "sustain": 0.6, "release": 0.2},
+    {"ratio": 4.0, "level": 0.5, "attack": 0.005, "decay": 0.08, "sustain": 0.3, "release": 0.1}
+  ],
+  "lfo": {"rate": 5.0, "depth": 0.6, "wave": 0, "target": 1}
+}
