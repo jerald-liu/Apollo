@@ -28,3 +28,6 @@ exclude = ["tests*", "deprecated*", "data*", "artifacts*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+markers = [
+    "slow: marks tests that run the real DawDreamer render (deselect with -m 'not slow')",
+]
