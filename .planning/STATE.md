@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 05-03 (ingest route + training view + corpus upload UI)
-last_updated: "2026-06-03T00:00:00.000Z"
-last_activity: 2026-06-03
+stopped_at: Completed 05-04 (patch editor + generate flow + presets + tests)
+last_updated: "2026-06-04T00:00:00.000Z"
+last_activity: 2026-06-04
 progress:
   total_phases: 10
   completed_phases: 6
@@ -63,6 +63,7 @@ Do NOT run /gsd-complete-milestone until EVAL-05 is satisfied.
 | Phase 05 P01 | 20m | 3 tasks | 9 files |
 | Phase 05 P02 | ~4m | 3 tasks | 4 files |
 | Phase 05 P03 | ~5m | 3 tasks | 6 files |
+| Phase 05 P04 | ~6m | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -126,6 +127,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 05-03: render() called with in-memory FmParams+notes (not render_call_wav); avoids re-reading just-written files
 - [Phase ?]: 05-03: threading.Timer 3.0s debounce for auto-retrain; _debounce dict avoids closure assignment issues
 - [Phase ?]: 05-03: drawLossCurve strokes train_loss solid #6D28D9, held_loss dashed #15803D on Canvas 2D
+- [Phase ?]: 05-04: lfo key omitted entirely when editor LFO checkbox is unchecked (absent = v1.0-identical render per spec.py)
+- [Phase ?]: 05-04: _latest_checkpoint uses max(mtime) over models/*.pt (RESEARCH OQ2); response_\d+\.mid allow-list uses module-level anchored regex _RESPONSE_FILENAME_RE
+- [Phase ?]: 05-04: /generate subprocess argv is fixed list ['python', '-m', 'apollo.scripts.generate', ckpt, call.mid] — no shell=True, no user strings (T-05-14)
 
 ### Pending Todos
 
@@ -151,12 +155,12 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-03T00:00:00.000Z
-Stopped at: Completed 05-03 (ingest route + training view + corpus upload UI)
+Last session: 2026-06-04T04:49:00.000Z
+Stopped at: Completed 05-04 (patch editor + generate flow + presets + tests)
 
 Resume:
 
-- Continue Phase 5 with `/gsd-execute-phase 5` (plan 04: generate flow + patch editor)
+- Continue Phase 5 with `/gsd-execute-phase 5` (plan 05: model version-history + rollback)
 - Or `/gsd-progress` for a full status overview
 - Working branch: `gsd/phase-5-local-app-browser-synth`
 
