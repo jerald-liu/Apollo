@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: verifying
-stopped_at: Completed 05-04 (patch editor + generate flow + presets + tests)
-last_updated: "2026-06-04T00:00:00.000Z"
+stopped_at: Completed 05-05 (model version-history + rollback — registry + /models + activate)
+last_updated: "2026-06-04T05:00:00.000Z"
 last_activity: 2026-06-04
 progress:
   total_phases: 10
   completed_phases: 6
   total_plans: 28
-  completed_plans: 26
-  percent: 93
+  completed_plans: 27
+  percent: 96
 ---
 
 # Project State
@@ -64,6 +64,7 @@ Do NOT run /gsd-complete-milestone until EVAL-05 is satisfied.
 | Phase 05 P02 | ~4m | 3 tasks | 4 files |
 | Phase 05 P03 | ~5m | 3 tasks | 6 files |
 | Phase 05 P04 | ~6m | 3 tasks | 8 files |
+| Phase 05 P05 | ~6m | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -130,6 +131,10 @@ Recent decisions affecting current work:
 - [Phase ?]: 05-04: lfo key omitted entirely when editor LFO checkbox is unchecked (absent = v1.0-identical render per spec.py)
 - [Phase ?]: 05-04: _latest_checkpoint uses max(mtime) over models/*.pt (RESEARCH OQ2); response_\d+\.mid allow-list uses module-level anchored regex _RESPONSE_FILENAME_RE
 - [Phase ?]: 05-04: /generate subprocess argv is fixed list ['python', '-m', 'apollo.scripts.generate', ckpt, call.mid] — no shell=True, no user strings (T-05-14)
+- [Phase ?]: 05-05: registry is app-layer only; train.py/generate.py UNCHANGED; CLI training produces checkpoints but not registry rows (accepted v1 limitation)
+- [Phase ?]: 05-05: _active_checkpoint: pin wins if file exists, stale pin falls to _latest_checkpoint, ACTIVE-unset == latest-by-mtime (D-06)
+- [Phase ?]: 05-05: corpus_hash is content-flag only (SEED-011 defers snapshotting); POST /models/activate uses fixed-set membership guard (T-05-17, mirrors _validate_pair_nnn)
+- [Phase ?]: 05-05: append_run never moves ACTIVE; pin survives retrains until user re-activates (D-06)
 
 ### Pending Todos
 
@@ -155,13 +160,12 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-04T04:49:00.000Z
-Stopped at: Completed 05-04 (patch editor + generate flow + presets + tests)
+Last session: 2026-06-04T05:00:00.000Z
+Stopped at: Completed 05-05 (model version-history + rollback — registry + /models + activate)
 
 Resume:
 
-- Continue Phase 5 with `/gsd-execute-phase 5` (plan 05: model version-history + rollback)
-- Or `/gsd-progress` for a full status overview
+- Phase 5 complete (all 5 plans executed). Run `/gsd-progress` for a full status overview.
 - Working branch: `gsd/phase-5-local-app-browser-synth`
 
 Mock UAT fixture on disk: `data/pairs/000..019` (5 held-out: 006, 009, 010, 012, 019) + `eval/scores.jsonl` partially filled. Delete before authoring real corpus.

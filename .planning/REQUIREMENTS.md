@@ -74,8 +74,8 @@ Authored 2026-06-02 at plan time (candidate APP-* from ROADMAP §Phase 5). Each 
 - [ ] **APP-11**: Corpus pair audition: each pair's `call.mid` is auditionable in the corpus list via the same MIDI-to-JSON + browser synth. *(SC#3; D-16)*
 - [x] **APP-12**: Configurable response storage: an in-app setting persists the response output directory (default `data/responses/`); responses are listed and auditionable in-app. *(SC#6; D-12)*
 - [ ] **APP-13**: Bundled FM presets: ≥3 starter `call_fm.json` presets covering different algorithms/timbres, loadable in the patch editor as starting points. *(SC#4; D-18)*
-- [ ] **APP-14**: Training run registry: every completed run is recorded in an append-only `models/runs.jsonl` with checkpoint basename, timestamp, iteration, corpus pair count + content hash, and train/held losses; the history is listable (`registry.list_runs` + `GET /models`). Written by the app layer at training-completion (not by `train.py`); CLI-only training does not populate the registry in v1. The `corpus_hash` is a one-way content flag ("trained on a different corpus than you have now"), not a corpus snapshot — full corpus snapshotting is deferred to SEED-011. *(SC#8; D-05, D-10; precedent: `eval/runs.jsonl`)*
-- [ ] **APP-15**: Model version-history & rollback UI: the app lists run history at `GET /models`, marks the active model, and lets the user activate (pin) any prior checkpoint for generation via `POST /models/activate` (registry-membership-guarded, mirroring the `_validate_nnn` pattern). `/generate` resolves the checkpoint via `_active_checkpoint()` (pinned `models/ACTIVE` if present, else newest-by-mtime); a pin survives subsequent auto/manual retrains until the user re-pins or returns to latest. *(SC#8; D-06)*
+- [x] **APP-14**: Training run registry: every completed run is recorded in an append-only `models/runs.jsonl` with checkpoint basename, timestamp, iteration, corpus pair count + content hash, and train/held losses; the history is listable (`registry.list_runs` + `GET /models`). Written by the app layer at training-completion (not by `train.py`); CLI-only training does not populate the registry in v1. The `corpus_hash` is a one-way content flag ("trained on a different corpus than you have now"), not a corpus snapshot — full corpus snapshotting is deferred to SEED-011. *(SC#8; D-05, D-10; precedent: `eval/runs.jsonl`)*
+- [x] **APP-15**: Model version-history & rollback UI: the app lists run history at `GET /models`, marks the active model, and lets the user activate (pin) any prior checkpoint for generation via `POST /models/activate` (registry-membership-guarded, mirroring the `_validate_nnn` pattern). `/generate` resolves the checkpoint via `_active_checkpoint()` (pinned `models/ACTIVE` if present, else newest-by-mtime); a pin survives subsequent auto/manual retrains until the user re-pins or returns to latest. *(SC#8; D-06)*
 
 ## v2 Requirements
 
@@ -165,8 +165,8 @@ Deferred to a later milestone. Tracked here so they don't get lost.
 | APP-11 | Phase 5: Local App & In-Browser Synth | Planned (05-02) |
 | APP-12 | Phase 5: Local App & In-Browser Synth | Implemented (05-03) |
 | APP-13 | Phase 5: Local App & In-Browser Synth | Planned (05-04) |
-| APP-14 | Phase 5: Local App & In-Browser Synth | Planned (05-05) |
-| APP-15 | Phase 5: Local App & In-Browser Synth | Planned (05-05) |
+| APP-14 | Phase 5: Local App & In-Browser Synth | Implemented (05-05) |
+| APP-15 | Phase 5: Local App & In-Browser Synth | Implemented (05-05) |
 
 **Coverage:**
 - v1 requirements: 44 total (29 original + SYNTH-01 + DATA-06 already counted; +15 APP)

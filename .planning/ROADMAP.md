@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Model & Training** - Mel encoder, transformer, masked loss, smoke train, checkpoints
 - [x] **Phase 3: Corpus & Inference** - Author ≥30 pairs, generate.py, sampling controls (code shipped; corpus authoring pending)
 - [x] **Phase 4: Evaluation Loop** - Scoring rubric, grading workflow, iteration tracking, ship gate
-- [ ] **Phase 5: Local App & In-Browser Synth** - Local-only user app: drag-drop pairs, in-browser FM synth, train triggers, call→response flow, model version-history + rollback
+- [x] **Phase 5: Local App & In-Browser Synth** - Local-only user app: drag-drop pairs, in-browser FM synth, train triggers, call→response flow, model version-history + rollback
 - [x] **Phase 6: Synth-Independent Corpus Rendering** - Single source-of-truth FM spec + headless Python/Faust 3-op renderer that produces `call.wav` deterministically with no Ableton (prerequisite for corpus authoring; Phase 5's browser synth consumes the same spec)
 - [x] **Phase 7: Synth Automation (LFO)** - Add a deterministic per-patch LFO to the owned FM synth (FM spec → v1.1, backward-compatible), so a call's timbre/pitch can evolve over a note; mirrored by Phase 5's browser synth (promoted from backlog 999.2)
 
@@ -101,7 +101,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 05-02-PLAN.md — Browser 3-op v1.1 Web Audio FM synth + LFO + corpus drill-in audition via /midi note JSON (APP-05, APP-10, APP-11)
 - [x] 05-03-PLAN.md — Drag-drop ingest (load_manifest+load_notes, in-process call.wav render) + manual/debounced-auto train subprocess + live progress/loss curve + configurable response store (APP-03, APP-07, APP-08, APP-12)
 - [x] 05-04-PLAN.md — FM patch editor (spec-locked + live preview) + call→response generate flow + 3 bundled presets (APP-04, APP-06, APP-09, APP-13)
-- [ ] 05-05-PLAN.md — Model version-history + rollback: app-layer run registry (models/runs.jsonl + corpus_hash) + models/ACTIVE pin + _active_checkpoint() /generate swap + /models view & activate route (APP-14, APP-15)
+- [x] 05-05-PLAN.md — Model version-history + rollback: app-layer run registry (models/runs.jsonl + corpus_hash) + models/ACTIVE pin + _active_checkpoint() /generate swap + /models view & activate route (APP-14, APP-15)
 
 ### Phase 6: Synth-Independent Corpus Rendering
 **Goal**: Replace the manual Ableton/Operator `call.wav` bounce with an **owned FM synth rendered headlessly in Python**. Define a single source-of-truth FM **spec** (parameter schema + algorithm set + envelope semantics), implement a deterministic **3-operator** Faust renderer (via DawDreamer) that turns a per-pair FM-param manifest + `call.mid` into `call.wav`, and wire it so the **same engine renders inference-time calls** — eliminating Ableton from both training and serving with no domain gap. Operator's *sound* is explicitly not cloned (see `.planning/notes/synth-independence-decision.md`); only a controllable FM family is provided.
@@ -151,7 +151,7 @@ Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel*
 | 2. Model & Training | 5/5 | Complete | 2026-05-20 |
 | 3. Corpus & Inference | 0/3 | Not started | - |
 | 4. Evaluation Loop | 0/TBD | Not started | - |
-| 5. Local App & In-Browser Synth | 3/5 | In Progress|  |
+| 5. Local App & In-Browser Synth | 5/5 | Complete | 2026-06-04 |
 | 6. Synth-Independent Corpus Rendering | 3/3 | Complete | 2026-06-02 |
 | 7. Synth Automation (LFO) | 3/3 | Complete | 2026-06-02 |
 
