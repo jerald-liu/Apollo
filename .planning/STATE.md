@@ -2,17 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: code_complete_corpus_pending
-stopped_at: All 4 phases executed & verified (Phase 04 UAT 12/12 pass). Ship gate blocked on human corpus authoring (DATA-05) + iteration loop (EVAL-05).
-last_updated: "2026-05-31T00:00:00Z"
-last_activity: 2026-05-31 -- Reconciled stale STATE; deleted mock UAT fixtures (data/pairs/000..019, eval/scores.jsonl, eval/runs.jsonl, render manifest, UAT checkpoint) ahead of real corpus authoring
+status: phase_05_human_uat
+stopped_at: Phase 5 (Local App & In-Browser Synth) CODE COMPLETE — 5/5 plans executed (05-01 scaffold → 05-02 browser FM synth → 05-03 ingest+training → 05-04 patch editor+generate → 05-05 model rollback). Verifier: 15/15 must-haves verified, status=human_needed (6 browser/audio items in 05-HUMAN-UAT.md — inherently manual). APP-01..APP-15 all done; SC#1..SC#8 satisfied in code. 42 Phase-5 app tests pass; full fast suite green except one KNOWN-FLAKY pre-existing Phase-7 synth test (test_lfo_pitch_depth0_matches_static — flagged for separate fix, not a Phase-5 regression). On branch gsd/phase-5-local-app-browser-synth (stacked on feat/owned-fm-synth, itself on main; Phases 6/7 + this app NOT yet merged to main). Awaiting human UAT: launch `.venv/bin/python -m apollo.app` and verify the 6 items, then /gsd-verify-work 5 or approve.
+last_updated: "2026-06-04T05:30:00.000Z"
+last_activity: 2026-06-04
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 17
-  completed_plans: 17
+  total_phases: 7
+  completed_phases: 6
+  total_plans: 29
+  completed_plans: 29
   percent: 100
-  note: percent is code-side only; v1 ship gate (DATA-05 ≥30 pairs, EVAL-05 two consecutive improving iterations) is unmet
 ---
 
 # Project State
@@ -22,20 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-19)
 
 **Core value:** Given a short MIDI call played through an Operator preset, the model produces a response that feels like the user responding to themselves — and the active-learning loop demonstrably improves it over consecutive iterations.
-**Current focus:** Phase 04 — evaluation-loop (executed; corpus authoring still required for v1 ship gate)
+**Current focus:** Phase 5 — Local App & In-Browser Synth (code complete; awaiting human browser UAT)
 
 ## Current Position
 
-Phase: 04 (evaluation-loop) — Executed & verified (UAT 12/12)
-Plan: 4 of 4 (all complete)
-Status: All 4 phases code-complete — rubric, eval library, CLIs, grading UI shipped; 159/159 tests passing. Mock UAT fixtures deleted 2026-05-31.
-Last activity: 2026-05-31
+Phase: 05 (local-app-browser-synth) — Code complete, verifier status=human_needed
+Plan: 5 of 5 (all executed & spot-checked)
+Status: Awaiting human UAT (6 browser/audio items in 05-HUMAN-UAT.md). Launch: `.venv/bin/python -m apollo.app`
+Branch: gsd/phase-5-local-app-browser-synth (stacked on feat/owned-fm-synth → main; Phases 6/7 + app not yet merged to main)
+Last activity: 2026-06-04
 
 Progress: [██████████] 100% code-side — but v1 is NOT shippable yet.
 Open ship-gate dependencies (both require the human-in-the-loop, no GSD coding command):
+
 - DATA-05: author ≥30 call/response pairs in Ableton (data/pairs/), each with call.wav bounce
 - First real training run (train.py) + first eval iteration (generate → blind-grade in Flask UI)
 - EVAL-05: two consecutive iteration rounds must both improve mean held-out call-response-fit score
+
 Do NOT run /gsd-complete-milestone until EVAL-05 is satisfied.
 
 ## Performance Metrics
@@ -59,6 +61,11 @@ Do NOT run /gsd-complete-milestone until EVAL-05 is satisfied.
 - Trend: 02-02 was very fast — exact architecture spec from RESEARCH.md, one minor test fix (source-code check narrowed to nn.* prefix).
 
 *Updated after each plan completion*
+| Phase 05 P01 | 20m | 3 tasks | 9 files |
+| Phase 05 P02 | ~4m | 3 tasks | 4 files |
+| Phase 05 P03 | ~5m | 3 tasks | 6 files |
+| Phase 05 P04 | ~6m | 3 tasks | 8 files |
+| Phase 05 P05 | ~6m | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -97,6 +104,38 @@ Recent decisions affecting current work:
 - 02-05: load_checkpoint uses weights_only=False (D-24, trusted-local-only, documented in module docstring)
 - 02-05: mel_encoder_state_dict saved as separate top-level key (D-23) via model.mel_enc.state_dict() — preserves Phase 3 independent loading option
 - 02-05: Phase 2 closed: type_accuracy=1.0000 (gate >0.95), wall_clock=1.88s (budget 120s), checkpoint=3.7MB
+- 06-01: A4 CLEARED — dawdreamer==0.8.3 + torch 2.12.0 import cleanly in one .venv (arm64/Py3.11); no venv isolation needed for 06-02/06-03
+- 06-01: FM spec is the versioned single source of truth (SPEC_VERSION=1.0); engine consts SR=44100/BLOCK=512/NUM_VOICES=8/TARGET_PEAK=0.89 live in spec.py (determinism-critical)
+- 06-01: 3 fixed algorithms — STACK(3→2→1), PARALLEL_MODS((2+3)→1), CARRIER_PAIR(3→1 + op2 carrier); all 3 dsp_string templates verified to compile in DawDreamer
+- 06-01: Per-op slider naming = op{i}_ratio/level/attack/decay/sustain/release (i 1-based); render.py resolves names→indices at runtime via get_parameters_description() (no hardcoded indices — spike landmine)
+- 06-01: Mono Faust output (single _); manifest validator rejects bools + NaN/Inf in numeric fields (T-06-01); ranges mirror Faust hslider ranges
+- 06-02: ADSR is compiled as numeric literals inside en.adsr(...) — NOT runtime-settable sliders; only op{i}_ratio/level are runtime params (render.py sets only those by index). ADSR still takes effect (baked from manifest at compile time). Corrects the 06-01 slider-contract claim.
+- 06-02: Unmangled slider name is in the DawDreamer description `label` field; `name` holds the mangled /Polyphonic/Voices/dawdreamer/<slider> path. Index map matches on label (trailing-path fallback).
+- 06-02: render_call_wav(manifest_path, mid_path, *, pair_path, call_bpm, notes=None) is the SINGLE shared render path — generate.py (06-03) must call it with already-parsed call_notes + estimate_tempo() bpm so MIDI is parsed once and corpus/inference renders are bit-identical.
+- 06-02: render_corpus enumerates pairs by call_fm.json+call.mid presence (NOT discover_pairs, which requires call.wav to pre-exist) — call.wav is a derived artifact.
+- 06-02: Determinism confirmed np.array_equal True; peak after normalization = 0.89 (== TARGET_PEAK); timbre across contrasting presets cos 0.874 / L2 792 (matches spike 0.85/783)
+- 06-03: Option A (render-only) — generate.py REMOVED the call.wav positional entirely (no --call-wav override); inference always renders call.wav from <pair_dir>/call_fm.json via the shared render_call_wav. Single inference code path = cleanest train/serve parity guarantee (T-06-12); no real caller passed a wav.
+- 06-03: Single-parse pitfall avoided — call_bpm (estimate_tempo) + call_notes (load_notes) computed once before render; render_call_wav called with call_bpm=call_bpm AND notes=call_notes so the call MIDI is parsed exactly once, shared by render + tokenize.
+- 06-03: Rendered audio array -> NamedTemporaryFile .wav at spec.SR -> frozen MelExtractor by path; mel (1,1,96,128) and all downstream sampling/decode/output-naming unchanged. IngestError (bad call_fm.json/MIDI) exits 1.
+- 06-03: CORPUS-CONVENTIONS.md de-Ableton'd (authored = call.mid + call_fm.json + response.mid; call.wav derived/gitignored; render_corpus step + full call_fm.json schema documented; call_fm.json vs eval/render_manifest.py distinction noted; venv/bin -> .venv/bin). REQUIREMENTS DATA-01/02 marked superseded-by-DATA-06; DATA-06 done.
+- [Phase ?]: _known_pairs_set checks call.mid+call_fm.json only (NOT discover_pairs) so pairs are enumerable before call.wav is rendered
+- [Phase ?]: 05-01: host=127.0.0.1 in __main__.py only; create_app factory never binds (T-05-02)
+- [Phase ?]: 05-01: TrainingJob uses Popen+daemon thread+line iteration; never communicate() (RESEARCH Pitfall 2)
+- [Phase ?]: 05-01: spec_constants.js BOUNDS copied verbatim from manifest.py; dual client+server validation
+- [Phase ?]: 05-02: synth.js hand-rolled Web Audio FM engine; no Tone.js; op_level*freq modulator amplitude (DX-style index); new OscillatorNode per note for LFO phase reset
+- [Phase ?]: 05-02: attachLfo tremolo uses ConstantSource (DC offset) + scaled GainNode to drive carrier gainNode.gain; avoids AudioParam collision
+- [Phase ?]: 05-02: /corpus iterates _known_pairs_set() only (never user-supplied nnn); patch embedded via |tojson in script[type=application/json] (T-05-04, T-05-05)
+- [Phase ?]: 05-03: _allocate_next_nnn lock-guards find-max+mkdir (T-05-07 race); partial dirs removed via shutil.rmtree on IngestError (Pitfall 5)
+- [Phase ?]: 05-03: render() called with in-memory FmParams+notes (not render_call_wav); avoids re-reading just-written files
+- [Phase ?]: 05-03: threading.Timer 3.0s debounce for auto-retrain; _debounce dict avoids closure assignment issues
+- [Phase ?]: 05-03: drawLossCurve strokes train_loss solid #6D28D9, held_loss dashed #15803D on Canvas 2D
+- [Phase ?]: 05-04: lfo key omitted entirely when editor LFO checkbox is unchecked (absent = v1.0-identical render per spec.py)
+- [Phase ?]: 05-04: _latest_checkpoint uses max(mtime) over models/*.pt (RESEARCH OQ2); response_\d+\.mid allow-list uses module-level anchored regex _RESPONSE_FILENAME_RE
+- [Phase ?]: 05-04: /generate subprocess argv is fixed list ['python', '-m', 'apollo.scripts.generate', ckpt, call.mid] — no shell=True, no user strings (T-05-14)
+- [Phase ?]: 05-05: registry is app-layer only; train.py/generate.py UNCHANGED; CLI training produces checkpoints but not registry rows (accepted v1 limitation)
+- [Phase ?]: 05-05: _active_checkpoint: pin wins if file exists, stale pin falls to _latest_checkpoint, ACTIVE-unset == latest-by-mtime (D-06)
+- [Phase ?]: 05-05: corpus_hash is content-flag only (SEED-011 defers snapshotting); POST /models/activate uses fixed-set membership guard (T-05-17, mirrors _validate_pair_nnn)
+- [Phase ?]: 05-05: append_run never moves ACTIVE; pin survives retrains until user re-activates (D-06)
 
 ### Pending Todos
 
@@ -108,6 +147,8 @@ None yet.
 
 ### Roadmap Evolution
 
+- 2026-06-02: Phase 7 added — Synth Automation (LFO). Promotes the call-side half of backlog 999.2: a deterministic per-patch LFO on the owned FM synth (FM spec → v1.1, backward-compatible with v1.0 manifests), mirrored by Phase 5's browser synth. New requirement SYNTH-01. Lets a call's timbre/pitch evolve over a note (the rhythmic/timbral motion FM is known for) — the expression mechanism a future response-side model (EXPR-02 / 999.2b) would learn to answer. Also fixed WR-01 (silent renders no longer amplified to full-scale noise; 177 tests). Not yet planned — run /gsd-plan-phase 7 (or /gsd-discuss-phase 7 first).
+- 2026-06-02: Phase 6 added & planned — Synth-Independent Corpus Rendering. Drops Ableton/Operator: an owned headless Python FM synth (DawDreamer + Faust, 3-op) renders `call.wav` deterministically from a per-pair FM-param manifest, feeding the unchanged MelExtractor (COND-01). New requirement DATA-06; supersedes the manual-bounce premise of DATA-01/02. Prerequisite for DATA-05 corpus authoring. Defines the single FM spec that Phase 5's browser synth will consume. Backed by /gsd-explore decision (.planning/notes/synth-independence-decision.md) + spikes 001/002 (packaged as the spike-findings-apollo skill). Deferred: full 4-op/11-algorithm engine → SEED-009.
 - 2026-06-01: Phase 5 added — Local App & In-Browser Synth. Purely local user-facing app: drag-drop pair ingest, corpus-growth flow, in-browser Operator-style FM synth (Web Audio, removes manual Ableton bounce), manual + auto-retrain triggers, configurable response storage, call→response flow. New requirements (candidate APP-*) to be authored at plan time.
 
 ## Deferred Items
@@ -120,13 +161,12 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-23T16:00:00Z
-Stopped at: Phase 04 UAT paused after test 9/12. Two real bugs found and fixed inline (PR #17 commit 99d8af9); one cosmetic issue still open (reveal aside newlines). Tests 10–12 require setup (a real checkpoint + response_001.mid in each held-out pair) — full instructions in `.planning/phases/04-evaluation-loop/04-UAT.md` §Resume Notes.
+Last session: 2026-06-04T05:00:00.000Z
+Stopped at: Completed 05-05 (model version-history + rollback — registry + /models + activate)
 
 Resume:
-- `/gsd-verify-work 4` to continue UAT from test 10
-- Or `/gsd-progress` for a full status overview
-- Working branch: `phase-04-fix-grading-ui` (PR #17, stacked on #16)
-- Open cosmetic UAT issue: `.mono` CSS needs `white-space: pre-wrap` for reveal aside newlines (apollo/eval/web/static/style.css)
+
+- Phase 5 complete (all 5 plans executed). Run `/gsd-progress` for a full status overview.
+- Working branch: `gsd/phase-5-local-app-browser-synth`
 
 Mock UAT fixture on disk: `data/pairs/000..019` (5 held-out: 006, 009, 010, 012, 019) + `eval/scores.jsonl` partially filled. Delete before authoring real corpus.

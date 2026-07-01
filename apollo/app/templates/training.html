@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Training{% endblock %}
+
+{% block content %}
+<h1 class="heading">Training</h1>
+
+<section class="card">
+  <h2>Train model</h2>
+  <p class="muted">Each run trains from scratch on your full corpus (D-05). About 300 epochs — watch it learn.</p>
+  <button id="train-btn" class="primary">Train model</button>
+  <label style="display:block;margin-top:var(--md)">
+    <input type="checkbox" id="auto-retrain" {% if auto_retrain %}checked{% endif %}>
+    Re-train automatically after each new pair
+  </label>
+</section>
+
+<div id="training-progress" class="hidden">
+  <p id="train-status" class="mono"></p>
+  <div class="progress-bar">
+    <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+  </div>
+  <div class="loss-chart-wrap">
+    <canvas id="loss-chart" width="600" height="200"></canvas>
+  </div>
+</div>
+
+<section class="card" style="margin-top:var(--lg)">
+  <h2>Storage</h2>
+  <label>Save generated responses to:
+    <input type="text" id="responses-dir" value="{{ responses_dir }}" style="width:100%;margin-top:var(--xs)">
+  </label>
+  <button id="save-settings" class="secondary" style="margin-top:var(--sm)">Save</button>
+  <span id="settings-saved" class="muted hidden" style="margin-left:var(--sm)">Saved.</span>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='spec_constants.js') }}"></script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+{% endblock %}

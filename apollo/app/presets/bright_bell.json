@@ -1,0 +1,10 @@
+{
+  "spec_version": "1.1",
+  "algorithm": 0,
+  "gain": 0.85,
+  "operators": [
+    {"ratio": 1.0, "level": 0.9, "attack": 0.005, "decay": 0.4, "sustain": 0.2, "release": 0.3},
+    {"ratio": 3.5, "level": 0.6, "attack": 0.005, "decay": 0.3, "sustain": 0.1, "release": 0.2},
+    {"ratio": 7.0, "level": 0.4, "attack": 0.005, "decay": 0.2, "sustain": 0.0, "release": 0.1}
+  ]
+}

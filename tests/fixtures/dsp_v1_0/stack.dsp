@@ -1,0 +1,20 @@
+import("stdfaust.lib");
+freq = hslider("freq", 440, 20, 20000, 0.01);   // MIDI-owned
+gain = hslider("gain", 0.5, 0, 1, 0.01);        // MIDI-owned
+gate = button("gate");                           // MIDI-owned
+op1_ratio = hslider("op1_ratio", 1.000000, 0.5, 12, 0.01);
+op1_level = hslider("op1_level", 0.800000, 0, 1, 0.01);
+op1_env = en.adsr(0.005000, 0.100000, 0.600000, 0.200000, gate);
+op1 = os.osc(freq * op1_ratio) * op1_env;
+op2_ratio = hslider("op2_ratio", 1.000000, 0.5, 12, 0.01);
+op2_level = hslider("op2_level", 0.800000, 0, 1, 0.01);
+op2_env = en.adsr(0.005000, 0.100000, 0.600000, 0.200000, gate);
+op2 = os.osc(freq * op2_ratio) * op2_env;
+op3_ratio = hslider("op3_ratio", 1.000000, 0.5, 12, 0.01);
+op3_level = hslider("op3_level", 0.800000, 0, 1, 0.01);
+op3_env = en.adsr(0.005000, 0.100000, 0.600000, 0.200000, gate);
+op3 = os.osc(freq * op3_ratio) * op3_env;
+mod3 = op3 * op3_level * freq;
+mod2 = os.osc(freq * op2_ratio + mod3) * op2_env * op2_level * freq;
+car  = os.osc(freq * op1_ratio + mod2) * op1_env * op1_level;
+process = car * gain;

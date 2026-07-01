@@ -16,7 +16,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Model & Training** - Mel encoder, transformer, masked loss, smoke train, checkpoints
 - [x] **Phase 3: Corpus & Inference** - Author ≥30 pairs, generate.py, sampling controls (code shipped; corpus authoring pending)
 - [x] **Phase 4: Evaluation Loop** - Scoring rubric, grading workflow, iteration tracking, ship gate
-- [ ] **Phase 5: Local App & In-Browser Synth** - Local-only user app: drag-drop pairs, in-browser FM synth, train triggers, call→response flow
+- [x] **Phase 5: Local App & In-Browser Synth** - Local-only user app: drag-drop pairs, in-browser FM synth, train triggers, call→response flow, model version-history + rollback
+- [x] **Phase 6: Synth-Independent Corpus Rendering** - Single source-of-truth FM spec + headless Python/Faust 3-op renderer that produces `call.wav` deterministically with no Ableton (prerequisite for corpus authoring; Phase 5's browser synth consumes the same spec)
+- [x] **Phase 7: Synth Automation (LFO)** - Add a deterministic per-patch LFO to the owned FM synth (FM spec → v1.1, backward-compatible), so a call's timbre/pitch can evolve over a note; mirrored by Phase 5's browser synth (promoted from backlog 999.2)
 
 ## Phase Details
 
@@ -82,7 +84,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Goal**: A purely local, user-facing app that lets a user build a corpus by drag-and-drop, render call/response audio in-browser (no Ableton required), trigger training, and upload a call to get a generated response back — closing the whole loop in one app. **Primary purpose: a public demonstration front-end** that shows Apollo training and generating locally to anyone, regardless of whether they own Ableton.
 **Depends on**: Phase 2 (model) + Phase 3 *code* (`train.py`, `generate.py`) — both shipped. Does **not** depend on corpus completion or the Phase 4 ship gate.
 **Parallelizable**: Yes. This phase runs as a parallel workstream alongside ongoing corpus authoring / model tuning (Phase 3 corpus work, Phase 4 iterations). It is unblocked now and demos against whatever checkpoint currently exists.
-**Requirements**: TBD (new requirements to be authored at plan time — candidate APP-01..NN)
+**Requirements**: APP-01, APP-02, APP-03, APP-04, APP-05, APP-06, APP-07, APP-08, APP-09, APP-10, APP-11, APP-12, APP-13, APP-14, APP-15 (authored 2026-06-02 at plan time; APP-14/APP-15 added 2026-06-02 for model version-history + rollback; see REQUIREMENTS.md §Local App)
 **Success Criteria** (what must be TRUE):
   1. **Local-only.** The app runs entirely on the user's machine (local server + browser, or fully offline). No data leaves the device; no cloud calls required to author, train, or infer.
   2. **Drag-and-drop pair ingest.** A user can drag MIDI (and/or play/record) call+response into the app and it lands as a valid `data/pairs/NNN/` folder, validated against `CORPUS-CONVENTIONS.md` with clear inline errors.
@@ -91,13 +93,57 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. **Training triggers.** A manual "Train" button kicks off `train.py`; a setting toggles auto-retrain-on-every-pair-upload. Training status/progress is surfaced in the UI and never blocks the authoring flow.
   6. **Configurable response storage.** The user can configure where generated responses are written (a chosen local directory), and produced responses are listed/auditionable in-app.
   7. **Call→response flow.** A user uploads (or plays) a call, the app renders its audio via the in-browser synth, runs inference, and returns a playable `response.mid` (auditioned in-app via the same synth).
+  8. **Model version-history & rollback.** Each training run is preserved and listed with its provenance (timestamp, corpus size, loss); the user can audition past models and roll back generation to any prior checkpoint, and a rollback persists across later retrains.
 **Research note**: In-browser Operator alternative — Web Audio API `OscillatorNode`×4 wired per Operator's algorithm set + `GainNode` ADSR is the faithful, dependency-light approach; Tone.js (`FMSynth`) is convenient but only 2-operator. Faust or Rust→WASM are heavier options if performance/algorithm fidelity demands it.
-**Plans**: TBD
+**Cross-phase note (added 2026-06-02)**: Phase 6 owns the **single source-of-truth FM spec** (param schema + algorithm set + envelope semantics). Phase 5's in-browser synth must implement *that* spec so app-rendered and corpus-rendered `call.wav` stay sonically matched (train/serve consistency). Reconcile op count: v1 spec is **3-op** (per `synth-independence-decision`); Phase 5 SC#4's 4-op language is OVERRIDDEN by D-20 → target the shared 3-op v1.1 spec. **LFO note (added 2026-06-02)**: Phase 7 extends that shared spec to **v1.1** with an optional `lfo` block; Phase 5's browser synth also mirrors the LFO (waveform/target enums + the tremolo/vibrato formulas documented in `CORPUS-CONVENTIONS.md`). **Render-parity note**: SC#4/SC#7's "in-browser synth renders call.wav" is OVERRIDDEN by D-11/D-15 — canonical `call.wav` is always server-rendered via `apollo.synth.render_call_wav`; the browser synth is audition/preview only. **Version-history note (added 2026-06-02)**: SC#8 (APP-14/APP-15) is built on the immutable, never-overwritten checkpoint history (`models/run-{iteration}-{timestamp}.pt`, D-10). The run registry (`models/runs.jsonl`) is written by the **app layer** at training completion, not by `train.py`; `corpus_hash` flags corpus drift but does not snapshot the corpus (full snapshotting deferred to SEED-011).
+**Plans**: 5 plans
+- [x] 05-01-PLAN.md — Flask scaffold (`python -m apollo.app`, 127.0.0.1) + dashboard + CSS tokens + spec_constants.js + TrainingJob + /audio,/midi,/status routes (APP-01, APP-02)
+- [x] 05-02-PLAN.md — Browser 3-op v1.1 Web Audio FM synth + LFO + corpus drill-in audition via /midi note JSON (APP-05, APP-10, APP-11)
+- [x] 05-03-PLAN.md — Drag-drop ingest (load_manifest+load_notes, in-process call.wav render) + manual/debounced-auto train subprocess + live progress/loss curve + configurable response store (APP-03, APP-07, APP-08, APP-12)
+- [x] 05-04-PLAN.md — FM patch editor (spec-locked + live preview) + call→response generate flow + 3 bundled presets (APP-04, APP-06, APP-09, APP-13)
+- [x] 05-05-PLAN.md — Model version-history + rollback: app-layer run registry (models/runs.jsonl + corpus_hash) + models/ACTIVE pin + _active_checkpoint() /generate swap + /models view & activate route (APP-14, APP-15)
+
+### Phase 6: Synth-Independent Corpus Rendering
+**Goal**: Replace the manual Ableton/Operator `call.wav` bounce with an **owned FM synth rendered headlessly in Python**. Define a single source-of-truth FM **spec** (parameter schema + algorithm set + envelope semantics), implement a deterministic **3-operator** Faust renderer (via DawDreamer) that turns a per-pair FM-param manifest + `call.mid` into `call.wav`, and wire it so the **same engine renders inference-time calls** — eliminating Ableton from both training and serving with no domain gap. Operator's *sound* is explicitly not cloned (see `.planning/notes/synth-independence-decision.md`); only a controllable FM family is provided.
+**Depends on**: Phase 1 (COND-01 mel contract — already shipped, consumes `call.wav` unchanged). No dependency on Phase 4/5.
+**Blocks**: DATA-05 (real corpus authoring) — pairs can't be authored without a way to render `call.wav`. Sequence before corpus authoring resumes.
+**Relationship to Phase 5**: Phase 6 defines the shared FM spec; Phase 5's browser synth (SC#4) is retargeted to consume it so both renderers produce matching audio. The two engines are validated against each other.
+**Requirements**: DATA-06 (new). Candidate additional reqs (author at plan time): per-pair FM-param manifest format; renderer determinism guarantee; headroom/normalization before PCM write.
+**Success Criteria** (what must be TRUE):
+  1. **No Ableton.** A pair's `call.wav` is produced entirely in Python from `call.mid` + an FM-param manifest; Ableton/Operator are not in the loop for training or inference.
+  2. **Single FM spec.** Param schema + algorithm set + envelope semantics live in one place, versioned, consumed by the Python renderer (and, downstream, the Phase 5 browser synth).
+  3. **Deterministic.** Re-rendering the same manifest + MIDI is bit-identical (reproducible training data).
+  4. **Drop-in conditioning.** Rendered audio feeds the existing `MelExtractor` (COND-01) unchanged to the `(96,128)` contract; no pipeline change.
+  5. **Hand-authorable.** Per-pair timbre is a small, documented FM-param manifest (JSON/code) a human authors by hand — no synth UI required for v1.
+  6. **Train/serve parity.** Inference-time call rendering uses the same engine + manifest format as corpus rendering.
+**Research note**: Validated by spikes 001 (`dawdreamer` arm64 wheel, deterministic Faust FM render) and 002 (FM audio → exact COND-01 mel, timbre-discriminable). Build gotchas captured in the `spike-findings-apollo` skill: poly Faust params via integer index not path; clip/headroom before PCM; benign `undefined symbol: effect` warning.
+**Plans**: 3 plans
+- [x] 06-01-PLAN.md — Add dawdreamer dep (verify single-venv coexistence) + FM spec source-of-truth (spec.py) + manifest validator (manifest.py) (DATA-06)
+- [x] 06-02-PLAN.md — Deterministic 3-op DawDreamer/Faust renderer (render.py) + render_corpus CLI + determinism/mel/timbre/parity tests (DATA-06)
+- [x] 06-03-PLAN.md — generate.py train/serve parity wiring (render from call_fm.json) + de-Ableton CORPUS-CONVENTIONS/REQUIREMENTS reconcile + gitignore (DATA-06)
+
+### Phase 7: Synth Automation (LFO)
+**Goal**: Add deterministic **time-varying modulation** (an LFO) to the owned FM synth, bumping the FM **spec to v1.1**, so a call's timbre/pitch can evolve over a note — the rhythmic/timbral motion FM is known for, which the static v1.0 patch cannot express. The LFO is authored as an **optional** block in the per-pair `call_fm.json`, rendered by the existing DawDreamer/Faust path, mirrored by Phase 5's browser synth, and fully **backward-compatible** (a v1.0 manifest with no LFO renders bit-identically). This promotes the **call-side** half of backlog 999.2: it provides the expression mechanism that a future response-side model (EXPR-02 / 999.2b) would learn to answer.
+**Depends on**: Phase 6 (FM spec + deterministic renderer + manifest validator). No dependency on Phase 3/4/5.
+**Relationship to Phase 5**: Extends the shared FM spec to v1.1; Phase 5's browser synth consumes the same LFO definition so both renderers still match.
+**Requirements**: SYNTH-01 (new, promoted from 999.2). Candidate additional reqs (author at plan time): LFO param schema + ranges; spec-version backward-compat policy (accept v1.0 and v1.1); determinism of LFO phase (fixed start phase).
+**Success Criteria** (what must be TRUE):
+  1. **Time-varying.** A patch with an LFO renders audio whose mel frames vary across time in a way a static-only render does not (measurable intra-render variation).
+  2. **Versioned + backward-compatible.** `SPEC_VERSION` is bumped to `1.1`; a v1.0 manifest (no `lfo` block) renders **bit-identically** to the Phase 6 output, and `load_manifest` accepts both versions.
+  3. **Deterministic.** Re-rendering the same v1.1 manifest + MIDI is bit-identical (LFO phase starts deterministically).
+  4. **Single source of truth.** The LFO schema (rate, depth, waveform, target) lives in the versioned `spec.py` and is documented for the Phase 5 browser synth.
+  5. **Drop-in conditioning.** Rendered audio still feeds the existing `MelExtractor` (COND-01) unchanged to the `(96,128)` contract.
+  6. **Hand-authorable.** The LFO is a small, optional `lfo` block in `call_fm.json`, documented in `CORPUS-CONVENTIONS.md`.
+**Minimal scope (lock exact values in discuss-phase)**: one global LFO per patch; waveform ∈ {sine, triangle, square}; rate in Hz (e.g. 0.05–20); depth [0,1]; target a small fixed set (e.g. operator level for tremolo/timbre, and/or pitch for vibrato). Note `call.mid` is short (0.5–1.5 s) — at low rates the LFO contributes a partial sweep, which is the intended expressive motion.
+**Plans**: 3 plans
+- [x] 07-01-PLAN.md — spec.py → v1.1 (LfoWave/LfoTarget/LfoParams + optional FmParams.lfo + numeric-only dsp_string branch) + manifest.py ({1.0,1.1} accept, lfo-requires-1.1, fail-loud lfo validation) + render.py (set lfo sliders by runtime index, guarded) (SYNTH-01)
+- [x] 07-02-PLAN.md — LFO tests: bit-identity (no-lfo + depth-0), determinism, 6 Hz mel time-variation, (96,128)/no-clip, v1.1 acceptance + lfo-requires-1.1 + range/enum/NaN validation (SYNTH-01)
+- [x] 07-03-PLAN.md — Document the optional lfo block in CORPUS-CONVENTIONS.md (JSON example + field table + {1.0,1.1} rule + tremolo/vibrato parity math for Phase 5) (SYNTH-01)
 
 ## Progress
 
 **Execution Order:**
-Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel** — it depends only on shipped code (Phase 2 model + Phase 3 CLIs), not on corpus completion, so it can be built as a separate workstream while corpus tuning continues.
+Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel** — it depends only on shipped code (Phase 2 model + Phase 3 CLIs), not on corpus completion, so it can be built as a separate workstream while corpus tuning continues. **Phase 6 is a prerequisite for DATA-05** (real corpus authoring) — it must land before pair authoring resumes, since `call.wav` can no longer come from Ableton. Phase 6 also defines the FM spec that Phase 5's browser synth consumes. **Phase 7 (LFO)** extends that spec to v1.1; it depends only on Phase 6 and is otherwise independent.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -105,7 +151,9 @@ Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel*
 | 2. Model & Training | 5/5 | Complete | 2026-05-20 |
 | 3. Corpus & Inference | 0/3 | Not started | - |
 | 4. Evaluation Loop | 0/TBD | Not started | - |
-| 5. Local App & In-Browser Synth | 0/TBD | Not started | - |
+| 5. Local App & In-Browser Synth | 5/5 | Complete | 2026-06-04 |
+| 6. Synth-Independent Corpus Rendering | 3/3 | Complete | 2026-06-02 |
+| 7. Synth Automation (LFO) | 3/3 | Complete | 2026-06-02 |
 
 ## Backlog
 
@@ -115,10 +163,12 @@ Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel*
 **Motivation:** Apollo's preset-as-transformation approach (999.1) learns parameter mutations within Operator's schema. Extending this to other instruments requires either (a) manual ontology mapping — research each instrument's manual, define parameter analogs to Operator, translate the learned transformation into the target dialect — or (b) a learned cross-synth timbral embedding where audio bridges parameter spaces across instruments. The latter may be a genuinely new field: no existing system handles arbitrary synth plugin parameter mapping at the semantic level.
 **Prerequisites:** 999.1 (FM patch generation head) complete; Operator parameter schema validated; `.adg` corpus capture workflow established.
 **Requirements:** TBD
-**Plans:** 0 plans
+**Plans:** 1/5 plans executed
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
-### Phase 999.2: Synthesis-Level Rhythmic Response (BACKLOG)
+### Phase 999.2: Synthesis-Level Rhythmic Response (BACKLOG — partially promoted)
+
+> **Call-side promoted to Phase 7 (Synth Automation / LFO), 2026-06-02.** The LFO expression *mechanism* (the synth being able to produce LFO-driven rhythmic/timbral motion in the first place) is now Phase 7 / SYNTH-01. What remains in backlog here is the **response-side** half: the model answering with synthesis-parameter suggestions, or CC/mod-wheel tokens (EXPR-02) that proxy synthesis-level rhythm. Re-scope this entry once Phase 7 lands.
 
 **Goal:** Close the asymmetry between call and response rhythmic channels. In v1, calls can carry timbral rhythm via LFO/envelope (a filter LFO on a held note creates a perceived pulse), but the model can only answer with MIDI note events. A future milestone should either (a) extend the response channel to include synthesis parameter suggestions (LFO rate, envelope shape) or (b) augment the tokenizer with CC/mod-wheel tokens that can proxy synthesis-level rhythm.
 **Motivation:** Operator FM patches frequently use LFOs for rhythmic expression. Constraining corpus authoring to note-event rhythm (the v1 workaround) limits musical range and is unnatural for FM sound design.
@@ -135,3 +185,4 @@ Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel*
 **Requirements:** TBD
 **Plans:** 0 plans
 - [ ] TBD (promote with /gsd-review-backlog when ready)
+</content>

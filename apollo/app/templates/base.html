@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Apollo · {% block title %}{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="column" style="padding-bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: var(--md);">
+    <span class="trust-badge">
+      <span class="glyph accent">◉</span>
+      Runs on your machine — nothing is uploaded
+    </span>
+    <nav style="font-size: 14px; display: flex; gap: var(--md);">
+      <a class="action secondary" href="/">Dashboard</a>
+      <a class="action secondary" href="/corpus">Corpus</a>
+      <a class="action secondary" href="/training">Training</a>
+      <a class="action secondary" href="/generate">Generate</a>
+    </nav>
+  </header>
+  <main class="column">
+    {% block content %}{% endblock %}
+  </main>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

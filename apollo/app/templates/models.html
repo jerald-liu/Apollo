@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Models{% endblock %}
+
+{% block content %}
+<h1 class="heading" style="margin-bottom: var(--lg);">Model history</h1>
+
+{% if not runs %}
+<p class="muted">No training runs recorded yet. Train a model to start your version history.</p>
+{% else %}
+<ul class="worklist" style="list-style: none; padding: 0; margin: 0;">
+  {% for run in runs %}
+  <li class="row" style="display: flex; align-items: baseline; gap: var(--md); padding: var(--sm) 0; border-bottom: 1px solid var(--surface);">
+    <span class="pair-id mono" style="min-width: 220px;">{{ run.checkpoint }}</span>
+    <span class="muted" style="flex: 1; font-size: 13px;">
+      {{ run.timestamp }}
+      &nbsp;·&nbsp; iter {{ run.iteration }}
+      &nbsp;·&nbsp; {{ run.corpus_pair_count }} pairs
+      &nbsp;·&nbsp; held {% if run.held_loss is not none %}{{ '%.4f' | format(run.held_loss) }}{% else %}—{% endif %}
+    </span>
+    {% if run.checkpoint == effective_active %}
+      <span class="glyph accent" data-active style="font-size: 13px;">active</span>
+    {% else %}
+      <button class="action secondary use-model" data-checkpoint="{{ run.checkpoint }}" style="font-size: 13px;">Use this one</button>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+
+<div style="margin-top: var(--lg); display: flex; gap: var(--md); align-items: center;">
+  <button id="use-latest" class="action secondary" style="font-size: 13px;">Use latest</button>
+  <span class="muted" style="font-size: 13px;">Clears the pin — /generate will always use the newest checkpoint.</span>
+</div>
+{% endif %}
+
+<div style="margin-top: var(--xl);">
+  <a class="action secondary" href="/">← Dashboard</a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  // Wire "Use this one" buttons and "Use latest".
+  function activate(checkpoint) {
+    fetch('/models/activate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ checkpoint: checkpoint }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.ok) {
+          location.reload();
+        } else {
+          alert(d.error || 'Activation failed.');
+        }
+      })
+      .catch(function () {
+        alert('Network error — could not activate checkpoint.');
+      });
+  }
+
+  document.querySelectorAll('.use-model').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      activate(btn.dataset.checkpoint);
+    });
+  });
+
+  var useLatestBtn = document.getElementById('use-latest');
+  if (useLatestBtn) {
+    useLatestBtn.addEventListener('click', function () {
+      activate('__latest__');
+    });
+  }
+})();
+</script>
+{% endblock %}

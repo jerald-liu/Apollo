@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Corpus{% endblock %}
+
+{% block content %}
+<h1 class="heading">Corpus</h1>
+
+<section id="upload-pair" class="card">
+  <h2>Add a pair</h2>
+  <label>Call MIDI (.mid): <input type="file" id="call-mid-input" accept=".mid"></label>
+  <label>Call patch (call_fm.json): <input type="file" id="call-fm-input" accept=".json,application/json"></label>
+  <label>Response MIDI (optional): <input type="file" id="response-mid-input" accept=".mid"></label>
+  <button id="add-pair-btn" class="primary">Add pair</button>
+</section>
+
+{% if n_pairs == 0 %}
+  <section class="empty">
+    <h2>No pairs yet</h2>
+    <p>Drag in a call + response, or play them on the synth. Apollo needs about 30 pairs to start learning your style — add your first one to begin.</p>
+  </section>
+{% else %}
+  <p class="progress">{{ n_pairs }} of {{ target }} pairs — keep going</p>
+  <ul class="worklist">
+    {% for p in pairs %}
+      <li class="row" data-nnn="{{ p.nnn }}">
+        <span class="pair-id">{{ p.nnn }}</span>
+        {% if p.valid %}
+          <button class="action secondary play-call" data-nnn="{{ p.nnn }}">&#9654; Play call</button>
+          <script type="application/json" id="patch-{{ p.nnn }}">{{ p.patch | tojson }}</script>
+        {% else %}
+          <span class="error">invalid call_fm.json</span>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='spec_constants.js') }}"></script>
+<script src="{{ url_for('static', filename='synth.js') }}"></script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+{% endblock %}

@@ -2,6 +2,8 @@
 
 ## What This Is
 
+> **On-device, style-preserving musical phrase generator.**
+
 Apollo is a generative call-and-response model for Ableton **Operator** (FM synth). You play a short MIDI phrase routed through an Operator preset; the model returns a complementary MIDI response in your own authored style. The corpus is hand-curated by the user — paired MIDI tracks (call + response) authored in Ableton — and the model learns the user's call→response intuition implicitly.
 
 ## Core Value

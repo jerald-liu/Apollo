@@ -2,6 +2,8 @@
 
 ## What This Is
 
+> **On-device, style-preserving musical phrase generator.**
+
 Apollo v2.0 — **Call-and-Response v1**. A generative model that takes a short MIDI phrase (call) routed through an Ableton Operator preset and emits a complementary MIDI response. Trained from scratch on a corpus the user hand-authors in Ableton (paired MIDI tracks, both running Operator), conditioned on the rendered audio of the call to capture timbre context.
 
 Authoritative project context: [`.planning/PROJECT.md`](.planning/PROJECT.md).
@@ -73,3 +75,7 @@ This repo uses Graphite (`gt`) stacked branches. Invoke stack operations implici
 Persistent memory for this project lives in `~/.claude/projects/-Users-jerald-Projects-apollo/memory/`:
 - `user_profile.md` — collaboration style (design-first, deep ML, prefers honest answers)
 - `corpus_direction.md` — call-and-response v2.0 direction (this milestone)
+
+## Spike Findings
+
+- **Spike findings for Apollo** (synth-independent rendering: DawDreamer+Faust FM, mel-conditioning patterns, gotchas) → `Skill("spike-findings-apollo")`

@@ -7,11 +7,12 @@
 
 ### Corpus (DATA)
 
-- [x] **DATA-01**: User can author and export call/response pairs in Ableton with both tracks running Operator (potentially different presets per pair)
-- [x] **DATA-02**: Each pair lives at `data/pairs/NNN/` with three files: `call.mid`, `call.wav` (manual Ableton bounce), `response.mid` (NNN zero-padded, sequential)
+- [x] **DATA-01**: User can author and export call/response pairs in Ableton with both tracks running Operator (potentially different presets per pair) — *SUPERSEDED by DATA-06: the Ableton/Operator authoring premise is replaced by the hand-authored FM-manifest workflow (`call_fm.json`); pairs are no longer authored in Ableton. See `.planning/notes/synth-independence-decision.md`.*
+- [x] **DATA-02**: Each pair lives at `data/pairs/NNN/` (NNN zero-padded, sequential). Authored files: `call.mid`, `call_fm.json` (hand-authored FM-parameter manifest), `response.mid`. `call.wav` is a **derived** render (no longer a manual Ableton bounce) — *SUPERSEDED by DATA-06; the manual-bounce premise is replaced by deterministic rendering from `call_fm.json`.*
 - [x] **DATA-03**: An ingestion pipeline reads `data/pairs/*/` and tokenizes pairs into training tensors (MIDI tokens + mel features per pair)
 - [x] **DATA-04**: The pipeline reserves 20% of pairs as a held-out evaluation split, deterministically (same split every run)
 - [ ] **DATA-05**: Corpus reaches ≥30 authored pairs before first real training run
+- [x] **DATA-06**: Apollo renders a pair's `call.wav` **deterministically** from a per-pair FM parameter manifest using a headless, **no-Ableton** FM synth (DawDreamer + Faust; 3-operator for v1), producing audio that feeds COND-01 unchanged. The same engine renders inference-time calls so training and serving share one renderer (no domain gap). *Supersedes the manual-Ableton-bounce premise of DATA-01/DATA-02; see `.planning/notes/synth-independence-decision.md`.*
 
 ### Tokenizer (TOK)
 
@@ -52,6 +53,30 @@
 - [x] **EVAL-04**: A tracking surface (script or doc) shows score-per-iteration deltas across consecutive training runs
 - [ ] **EVAL-05**: v1 ships only when two consecutive iteration rounds both improve mean held-out call-response-fit score *(blocked on real corpus iterations — see DATA-05)*
 
+### Synthesis (SYNTH)
+
+- [x] **SYNTH-01**: The owned FM synth supports an optional per-patch **LFO** (rate, depth, waveform, target) authored in `call_fm.json`, rendered **deterministically** by the shared engine and documented for the Phase 5 browser synth. The FM spec is versioned to **v1.1**; a v1.0 manifest (no `lfo` block) renders **bit-identically** to the Phase 6 output (no corpus invalidation) and the loader accepts both versions. Rendered audio still feeds `MelExtractor` (COND-01) unchanged. *(Promotes the call-side expression mechanism of backlog 999.2 — the LFO-driven rhythmic/timbral motion FM is known for.)*
+
+### Local App (APP) — Phase 5
+
+Authored 2026-06-02 at plan time (candidate APP-* from ROADMAP §Phase 5). Each maps to ≥1 Phase 5 success criterion (SC#1–SC#8). The synth targets the shared 3-op v1.1 FM spec (D-20); the in-browser synth is audition/preview only (D-15) — canonical `call.wav` is always server-rendered (D-11).
+
+- [x] **APP-01**: `apollo/app/` Flask app launches with `python -m apollo.app`, binds `127.0.0.1` (never `0.0.0.0`, `debug=False`), opens the browser to the dashboard. *(SC#1; D-01, D-04)*
+- [x] **APP-02**: Dashboard shows three equal-weight tiles — Corpus (pair count at Display size + progress vs 30), Training (status + CTA), Generate (CTA + recent responses) — with a persistent local-only trust badge. *(SC#1, SC#3; UI-SPEC Layout)*
+- [x] **APP-03**: Corpus drag-drop ingest: upload `call.mid` + `call_fm.json`, validated server-side via `apollo.synth.load_manifest` + `apollo.ingest.load_notes` (same errors as the CLI), written to `data/pairs/NNN/` with `call.wav` rendered in-process; invalid input returns the IngestError reason and writes no orphan dir. *(SC#2; D-09, D-13, D-14)*
+- [x] **APP-04**: FM patch editor: algorithm selector + per-operator ratio/level/ADSR + optional collapsible LFO section, all client-validated against `spec_constants.js` BOUNDS; saves a `load_manifest`-valid `call_fm.json`. *(SC#4, SC#7; D-18, D-19, D-20)*
+- [x] **APP-05**: Browser FM synth: hand-rolled 3-op v1.1 Web Audio graph (no Tone.js), per-algorithm topology + `op_level*freq` mod scaling from `spec.py`, LFO tremolo/vibrato per `CORPUS-CONVENTIONS.md` formulas. Audition only — never canonical. *(SC#4; D-15, D-16, D-19, D-20)*
+- [x] **APP-06**: Patch-editor live preview: editing any control immediately previews a test note through the browser synth. *(SC#4; D-16, D-18)*
+- [x] **APP-07**: Training triggers: manual "Train model" button + auto-retrain-on-upload toggle with server-side debounce (one run per bulk drop); `POST /train` subprocesses `apollo.scripts.train` (full retrain from scratch). *(SC#5; D-02, D-03, D-05, D-06)*
+- [x] **APP-08**: Live training visibility: progress bar (epoch/total) + loss-over-epochs canvas curve (train + held), via ~1s polling of `GET /status`. *(SC#5; D-07, D-08)*
+- [x] **APP-09**: Call→response flow: upload `call.mid` + author patch → `POST /generate` subprocesses `apollo.scripts.generate` → `response.mid` written to the configurable store and auditioned through the call's own patch (D-17). *(SC#7; D-02, D-12, D-17)*
+- [x] **APP-10**: Response audition: server exposes `GET /midi/<nnn>/<file>` returning note JSON; the browser plays call/response MIDI through the same FM synth (no client MIDI parser). *(SC#7; D-16, D-17)*
+- [x] **APP-11**: Corpus pair audition: each pair's `call.mid` is auditionable in the corpus list via the same MIDI-to-JSON + browser synth. *(SC#3; D-16)*
+- [x] **APP-12**: Configurable response storage: an in-app setting persists the response output directory (default `data/responses/`); responses are listed and auditionable in-app. *(SC#6; D-12)*
+- [x] **APP-13**: Bundled FM presets: ≥3 starter `call_fm.json` presets covering different algorithms/timbres, loadable in the patch editor as starting points. *(SC#4; D-18)*
+- [x] **APP-14**: Training run registry: every completed run is recorded in an append-only `models/runs.jsonl` with checkpoint basename, timestamp, iteration, corpus pair count + content hash, and train/held losses; the history is listable (`registry.list_runs` + `GET /models`). Written by the app layer at training-completion (not by `train.py`); CLI-only training does not populate the registry in v1. The `corpus_hash` is a one-way content flag ("trained on a different corpus than you have now"), not a corpus snapshot — full corpus snapshotting is deferred to SEED-011. *(SC#8; D-05, D-10; precedent: `eval/runs.jsonl`)*
+- [x] **APP-15**: Model version-history & rollback UI: the app lists run history at `GET /models`, marks the active model, and lets the user activate (pin) any prior checkpoint for generation via `POST /models/activate` (registry-membership-guarded, mirroring the `_validate_nnn` pattern). `/generate` resolves the checkpoint via `_active_checkpoint()` (pinned `models/ACTIVE` if present, else newest-by-mtime); a pin survives subsequent auto/manual retrains until the user re-pins or returns to latest. *(SC#8; D-06)*
+
 ## v2 Requirements
 
 Deferred to a later milestone. Tracked here so they don't get lost.
@@ -90,16 +115,19 @@ Deferred to a later milestone. Tracked here so they don't get lost.
 | Cloud / Modal training | Model + corpus are small enough to train locally on MPS |
 | Pretrained mel encoders (e.g. AudioMAE, CLAP) | First version trains the mel encoder jointly so it specializes to the Operator-FM spectral family on this corpus |
 | Multi-instrument training (e.g. piano + bass + drums) | v1 is solo Operator only; multi-track ensemble is a separate problem class |
+| Full corpus snapshotting / checkpoint→corpus reproducibility | Deferred to SEED-011; APP-14's `corpus_hash` only flags corpus drift, it does not snapshot the corpus that produced a checkpoint |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-01 | Phase 1: Tokenizer & Ingest | Done (01-05) |
-| DATA-02 | Phase 1: Tokenizer & Ingest | Done (01-04) |
+| DATA-01 | Phase 1: Tokenizer & Ingest | Done (01-05) — superseded by DATA-06 (Phase 6) |
+| DATA-02 | Phase 1: Tokenizer & Ingest | Done (01-04) — superseded by DATA-06 (Phase 6) |
 | DATA-03 | Phase 1: Tokenizer & Ingest | Done (01-04) |
 | DATA-04 | Phase 1: Tokenizer & Ingest | Done (01-04) |
 | DATA-05 | Phase 3: Corpus & Inference | Pending (real corpus authoring) |
+| DATA-06 | Phase 6: Synth-Independent Corpus Rendering | Done (06-01 spec/manifest, 06-02 renderer/CLI, 06-03 inference parity + doc reconciliation) |
+| SYNTH-01 | Phase 7: Synth Automation (LFO) | Complete (2026-06-02 — v1.1 LFO spec, validation, render, tests, doc; verified 6/6) |
 | TOK-01 | Phase 1: Tokenizer & Ingest | Done (01-02) |
 | TOK-02 | Phase 1: Tokenizer & Ingest | Done (01-02) |
 | TOK-03 | Phase 1: Tokenizer & Ingest | Done (01-01) |
@@ -124,12 +152,28 @@ Deferred to a later milestone. Tracked here so they don't get lost.
 | EVAL-03 | Phase 4: Evaluation Loop | Done (04-02) |
 | EVAL-04 | Phase 4: Evaluation Loop | Done (04-03) |
 | EVAL-05 | Phase 4: Evaluation Loop | Pending (real corpus iterations) |
+| APP-01 | Phase 5: Local App & In-Browser Synth | Done (05-01) |
+| APP-02 | Phase 5: Local App & In-Browser Synth | Done (05-01) |
+| APP-03 | Phase 5: Local App & In-Browser Synth | Done (05-03) |
+| APP-04 | Phase 5: Local App & In-Browser Synth | Done (05-04) |
+| APP-05 | Phase 5: Local App & In-Browser Synth | Done (05-02) |
+| APP-06 | Phase 5: Local App & In-Browser Synth | Done (05-04) |
+| APP-07 | Phase 5: Local App & In-Browser Synth | Done (05-03) |
+| APP-08 | Phase 5: Local App & In-Browser Synth | Done (05-03) |
+| APP-09 | Phase 5: Local App & In-Browser Synth | Done (05-04) |
+| APP-10 | Phase 5: Local App & In-Browser Synth | Done (05-02) |
+| APP-11 | Phase 5: Local App & In-Browser Synth | Done (05-02) |
+| APP-12 | Phase 5: Local App & In-Browser Synth | Done (05-03) |
+| APP-13 | Phase 5: Local App & In-Browser Synth | Done (05-04) |
+| APP-14 | Phase 5: Local App & In-Browser Synth | Done (05-05) |
+| APP-15 | Phase 5: Local App & In-Browser Synth | Done (05-05) |
 
 **Coverage:**
-- v1 requirements: 29 total
-- Mapped to phases: 29
+- v1 requirements: 44 total (29 original + SYNTH-01 + DATA-06 already counted; +15 APP)
+- Mapped to phases: 44
 - Unmapped: 0 ✓
+- Phase 5 (APP-01..APP-15): all 15 mapped across plans 05-01..05-05; every SC#1–SC#8 covered.
 
 ---
 *Requirements defined: 2026-05-19*
-*Last updated: 2026-05-19 after roadmap creation*
+</content>

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Generate{% endblock %}
+
+{% block content %}
+<h1 class="heading">Generate a response</h1>
+<p class="muted">Upload a call, author a patch, and let Apollo play back.</p>
+
+<section class="card">
+  <h2>1 — Upload call MIDI</h2>
+  <label>
+    Call MIDI file (.mid)
+    <input type="file" id="call-mid-input" accept=".mid" style="display:block;margin-top:var(--xs)">
+  </label>
+</section>
+
+<section class="card" style="margin-top:var(--md)">
+  <h2>2 — Author a patch</h2>
+  <div class="editor-toolbar" style="display:flex;gap:var(--sm);align-items:center;margin-bottom:var(--sm)">
+    <label for="preset-select">Start from preset:</label>
+    <select id="preset-select">
+      <option value="">— choose —</option>
+    </select>
+    <button id="preview-note-btn" class="secondary">Preview note</button>
+  </div>
+  <div id="patch-editor"></div>
+</section>
+
+<section class="card" style="margin-top:var(--md)">
+  <h2>3 — Generate</h2>
+  <button id="generate-btn" class="primary">Generate response</button>
+  <p id="generate-status" class="mono muted" style="margin-top:var(--xs)"></p>
+</section>
+
+<section class="card" style="margin-top:var(--md)">
+  <h2>Responses</h2>
+  <p id="responses-empty" class="muted">
+    No responses generated yet — upload or play a call, then hit Generate response to hear what Apollo plays back.
+  </p>
+  <ul id="responses-list" style="list-style:none;padding:0;margin:0"></ul>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='spec_constants.js') }}"></script>
+<script src="{{ url_for('static', filename='synth.js') }}"></script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+<script src="{{ url_for('static', filename='editor.js') }}"></script>
+{% endblock %}
