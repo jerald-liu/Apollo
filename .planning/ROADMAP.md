@@ -1,8 +1,10 @@
-# Roadmap: Apollo v2.0 — Call-and-Response v1
+# Roadmap: Apollo — Call-and-Response (v2.0 shipped · v3.0 in progress)
 
 ## Overview
 
 Four phases take Apollo from an empty repo to a demonstrably improving active-learning loop. Phase 1 builds the symbolic pipeline — tokenizer, data ingest, mel extraction, and error handling — so that any pair folder can be converted to tensors. Phase 2 adds the model and trains it on mock data to confirm the architecture is wired correctly before a single real pair is authored. Phase 3 is the human work: authoring ≥30 Ableton pairs and standing up inference so generated responses can actually be heard. Phase 4 closes the loop — scoring rubric, per-iteration tracking, and the ship gate that defines "done."
+
+**Milestone v3.0 (Phases 8–10)** replaces the owned Faust 3-op renderer (Phase 6) and the v1.1 Faust LFO (Phase 7) with the vendored `fm4synth` Rust engine (4 operators, 4×4 mod matrix + self-feedback, up to 3 LFOs) as Apollo's canonical render engine, and reworks the Phase 5 local app onto that 4-op model — adding a 2-bar sequencer + call/response MIDI staging so the initial bassline corpus can be authored end-to-end with no Ableton. Phase 8 swaps the engine (the foundation), Phase 9 adds the sequencer and MIDI staging/export, and Phase 10 reworks the authoring app and lands the save-pair flow.
 
 ## Phases
 
@@ -17,8 +19,14 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Corpus & Inference** - Author ≥30 pairs, generate.py, sampling controls (code shipped; corpus authoring pending)
 - [x] **Phase 4: Evaluation Loop** - Scoring rubric, grading workflow, iteration tracking, ship gate
 - [x] **Phase 5: Local App & In-Browser Synth** - Local-only user app: drag-drop pairs, in-browser FM synth, train triggers, call→response flow, model version-history + rollback
-- [x] **Phase 6: Synth-Independent Corpus Rendering** - Single source-of-truth FM spec + headless Python/Faust 3-op renderer that produces `call.wav` deterministically with no Ableton (prerequisite for corpus authoring; Phase 5's browser synth consumes the same spec)
-- [x] **Phase 7: Synth Automation (LFO)** - Add a deterministic per-patch LFO to the owned FM synth (FM spec → v1.1, backward-compatible), so a call's timbre/pitch can evolve over a note; mirrored by Phase 5's browser synth (promoted from backlog 999.2)
+- [x] **Phase 6: Synth-Independent Corpus Rendering** - Single source-of-truth FM spec + headless Python/Faust 3-op renderer that produces `call.wav` deterministically with no Ableton (prerequisite for corpus authoring; Phase 5's browser synth consumes the same spec) — **SUPERSEDED by v3.0 Phase 8** (Faust/DawDreamer renderer replaced by the vendored `fm4synth` Rust engine)
+- [x] **Phase 7: Synth Automation (LFO)** - Add a deterministic per-patch LFO to the owned FM synth (FM spec → v1.1, backward-compatible), so a call's timbre/pitch can evolve over a note; mirrored by Phase 5's browser synth (promoted from backlog 999.2) — **SUPERSEDED by v3.0 Phase 8** (the v1.1 Faust LFO is subsumed by `fm4synth`'s native multi-LFO model)
+
+### Milestone v3.0 — fm4synth canonical synth + local corpus-authoring app
+
+- [ ] **Phase 8: Canonical Engine Swap (fm4synth)** - Vendor the `fm4synth` Rust engine, bump the canonical FM spec to v2.0 (4-op + 4×4 matrix + multi-LFO), rewrite the `call_fm.json` loader/validators, render `call.wav` by subprocessing the Rust CLI, and remove the Faust/DawDreamer path
+- [ ] **Phase 9: 2-Bar Sequencer & MIDI Staging** - A 2-bar quantized piano-roll to stage separate call and response monophonic patterns, export each to `load_notes`-valid `.mid`, and audition them in-browser
+- [ ] **Phase 10: Authoring App Rework & Save-Pair** - Retarget the app's FM patch editor + browser preview to the 4-op `fm4synth` model, wire the "Save pair" flow (staged sequences + patch → `data/pairs/NNN/` + server-rendered `call.wav`), and keep the existing corpus/train/generate/registry flows working against the new engine
 
 ## Phase Details
 
@@ -96,14 +104,18 @@ Decimal phases appear between their surrounding integers in numeric order.
   8. **Model version-history & rollback.** Each training run is preserved and listed with its provenance (timestamp, corpus size, loss); the user can audition past models and roll back generation to any prior checkpoint, and a rollback persists across later retrains.
 **Research note**: In-browser Operator alternative — Web Audio API `OscillatorNode`×4 wired per Operator's algorithm set + `GainNode` ADSR is the faithful, dependency-light approach; Tone.js (`FMSynth`) is convenient but only 2-operator. Faust or Rust→WASM are heavier options if performance/algorithm fidelity demands it.
 **Cross-phase note (added 2026-06-02)**: Phase 6 owns the **single source-of-truth FM spec** (param schema + algorithm set + envelope semantics). Phase 5's in-browser synth must implement *that* spec so app-rendered and corpus-rendered `call.wav` stay sonically matched (train/serve consistency). Reconcile op count: v1 spec is **3-op** (per `synth-independence-decision`); Phase 5 SC#4's 4-op language is OVERRIDDEN by D-20 → target the shared 3-op v1.1 spec. **LFO note (added 2026-06-02)**: Phase 7 extends that shared spec to **v1.1** with an optional `lfo` block; Phase 5's browser synth also mirrors the LFO (waveform/target enums + the tremolo/vibrato formulas documented in `CORPUS-CONVENTIONS.md`). **Render-parity note**: SC#4/SC#7's "in-browser synth renders call.wav" is OVERRIDDEN by D-11/D-15 — canonical `call.wav` is always server-rendered via `apollo.synth.render_call_wav`; the browser synth is audition/preview only. **Version-history note (added 2026-06-02)**: SC#8 (APP-14/APP-15) is built on the immutable, never-overwritten checkpoint history (`models/run-{iteration}-{timestamp}.pt`, D-10). The run registry (`models/runs.jsonl`) is written by the **app layer** at training completion, not by `train.py`; `corpus_hash` flags corpus drift but does not snapshot the corpus (full snapshotting deferred to SEED-011).
+**v3.0 note (added 2026-06-02)**: SC#4/SC#7's browser-synth op count and the 3-op v1.1 spec target are OVERRIDDEN by v3.0 — Phase 10 retargets the app's editor + browser preview to the 4-op `fm4synth` model (v2.0 spec), and the canonical `call.wav` is server-rendered by the vendored Rust engine (Phase 8). The Phase 5 train / generate / model-registry flows are retained and continue to work against the new engine (APP-19).
 **Plans**: 5 plans
 - [x] 05-01-PLAN.md — Flask scaffold (`python -m apollo.app`, 127.0.0.1) + dashboard + CSS tokens + spec_constants.js + TrainingJob + /audio,/midi,/status routes (APP-01, APP-02)
 - [x] 05-02-PLAN.md — Browser 3-op v1.1 Web Audio FM synth + LFO + corpus drill-in audition via /midi note JSON (APP-05, APP-10, APP-11)
 - [x] 05-03-PLAN.md — Drag-drop ingest (load_manifest+load_notes, in-process call.wav render) + manual/debounced-auto train subprocess + live progress/loss curve + configurable response store (APP-03, APP-07, APP-08, APP-12)
 - [x] 05-04-PLAN.md — FM patch editor (spec-locked + live preview) + call→response generate flow + 3 bundled presets (APP-04, APP-06, APP-09, APP-13)
 - [x] 05-05-PLAN.md — Model version-history + rollback: app-layer run registry (models/runs.jsonl + corpus_hash) + models/ACTIVE pin + _active_checkpoint() /generate swap + /models view & activate route (APP-14, APP-15)
+**UI hint**: yes
 
 ### Phase 6: Synth-Independent Corpus Rendering
+> **SUPERSEDED by v3.0 Phase 8** — the Faust/DawDreamer 3-op renderer is replaced by the vendored `fm4synth` Rust engine. The single-source-of-truth FM spec concept survives (bumped to v2.0 = the 4-op `fm4synth` model); the DawDreamer/Faust implementation is removed (FM4-06). Retained here as history.
+
 **Goal**: Replace the manual Ableton/Operator `call.wav` bounce with an **owned FM synth rendered headlessly in Python**. Define a single source-of-truth FM **spec** (parameter schema + algorithm set + envelope semantics), implement a deterministic **3-operator** Faust renderer (via DawDreamer) that turns a per-pair FM-param manifest + `call.mid` into `call.wav`, and wire it so the **same engine renders inference-time calls** — eliminating Ableton from both training and serving with no domain gap. Operator's *sound* is explicitly not cloned (see `.planning/notes/synth-independence-decision.md`); only a controllable FM family is provided.
 **Depends on**: Phase 1 (COND-01 mel contract — already shipped, consumes `call.wav` unchanged). No dependency on Phase 4/5.
 **Blocks**: DATA-05 (real corpus authoring) — pairs can't be authored without a way to render `call.wav`. Sequence before corpus authoring resumes.
@@ -123,6 +135,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 06-03-PLAN.md — generate.py train/serve parity wiring (render from call_fm.json) + de-Ableton CORPUS-CONVENTIONS/REQUIREMENTS reconcile + gitignore (DATA-06)
 
 ### Phase 7: Synth Automation (LFO)
+> **SUPERSEDED by v3.0 Phase 8** — the v1.1 Faust LFO is subsumed by `fm4synth`'s native multi-LFO model (up to 3 LFOs in the v2.0 spec). The one known-flaky Phase-7 test (`test_lfo_pitch_depth0_matches_static`) is moot once the Faust LFO path is removed (FM4-06). Retained here as history.
+
 **Goal**: Add deterministic **time-varying modulation** (an LFO) to the owned FM synth, bumping the FM **spec to v1.1**, so a call's timbre/pitch can evolve over a note — the rhythmic/timbral motion FM is known for, which the static v1.0 patch cannot express. The LFO is authored as an **optional** block in the per-pair `call_fm.json`, rendered by the existing DawDreamer/Faust path, mirrored by Phase 5's browser synth, and fully **backward-compatible** (a v1.0 manifest with no LFO renders bit-identically). This promotes the **call-side** half of backlog 999.2: it provides the expression mechanism that a future response-side model (EXPR-02 / 999.2b) would learn to answer.
 **Depends on**: Phase 6 (FM spec + deterministic renderer + manifest validator). No dependency on Phase 3/4/5.
 **Relationship to Phase 5**: Extends the shared FM spec to v1.1; Phase 5's browser synth consumes the same LFO definition so both renderers still match.
@@ -140,10 +154,50 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 07-02-PLAN.md — LFO tests: bit-identity (no-lfo + depth-0), determinism, 6 Hz mel time-variation, (96,128)/no-clip, v1.1 acceptance + lfo-requires-1.1 + range/enum/NaN validation (SYNTH-01)
 - [x] 07-03-PLAN.md — Document the optional lfo block in CORPUS-CONVENTIONS.md (JSON example + field table + {1.0,1.1} rule + tremolo/vibrato parity math for Phase 5) (SYNTH-01)
 
+### Phase 8: Canonical Engine Swap (fm4synth)
+**Goal**: The vendored `fm4synth` Rust engine becomes Apollo's single canonical render engine. The FM spec is bumped to **v2.0** (4 operators + arbitrary 4×4 mod matrix + self-feedback + `master_gain` + up to 3 LFOs), `call_fm.json` adopts that patch shape with a rewritten loader/validator, `render_call_wav` produces `call.wav` by subprocessing the Rust CLI via a MIDI+patch → `score.json` adapter, and the Faust/DawDreamer + v1.1-LFO path is removed — so every corpus and inference `call.wav` is uniformly `fm4synth`-rendered.
+**Depends on**: v2.0 shipped code (Phase 1 COND-01 mel contract consumes `call.wav` unchanged; Phase 6 `render_call_wav` call sites in ingest/generate; Phase 6/7 `apollo/synth` are the code being replaced). Playground source: `/Users/jerald/Projects/playground/fm4synth`.
+**Blocks**: Phase 9, Phase 10, and DATA-05 real corpus authoring — no pair can be authored or rendered until the canonical engine is in place.
+**Requirements**: FM4-01, FM4-02, FM4-03, FM4-04, FM4-05, FM4-06, FM4-07
+**Success Criteria** (what must be TRUE):
+  1. `fm4synth` is vendored into Apollo and builds to a working render binary via a documented step that runs locally and in CI.
+  2. A v2.0 `call_fm.json` (4 ops + 4×4 matrix + LFOs + `master_gain`) loads and validates; a malformed patch (out-of-bounds, bad enum, NaN/Inf) is rejected with a clear `IngestError(pair_path, reason)`.
+  3. `render_call_wav(manifest, mid, …)` produces a normalized mono `call.wav` (Apollo `TARGET_PEAK` + duration cap) by subprocessing the Rust CLI, and it feeds the unchanged `MelExtractor` to the `(96,128)` contract.
+  4. Re-rendering the same (manifest, MIDI) is bit-identical, and the same engine renders both corpus-authoring and inference calls.
+  5. The Faust/DawDreamer 3-op renderer and v1.1 Faust LFO are gone; `apollo/synth` exposes one `fm4synth`-backed engine and every render/ingest/generate call site uses it.
+  6. `CORPUS-CONVENTIONS.md` + `render_corpus.py` are updated to the v2.0 manifest, and any prior Faust-trained checkpoint is documented as void (retrain from scratch).
+**Plans**: TBD
+
+### Phase 9: 2-Bar Sequencer & MIDI Staging
+**Goal**: The app gains a 2-bar quantized piano-roll where the user places monophonic notes on a 16th-note grid (120 BPM) within the tokenizer's limits, stages a **call** pattern and a **response** pattern as two independently-editable sequences, exports each to a valid `.mid`, and auditions both in-browser — so call/response MIDI can be authored with no external DAW.
+**Depends on**: Phase 8 (canonical engine + v2.0 spec; the browser audition synth mirrors the 4-op `fm4synth` model). Consumes the shipped `apollo.ingest.load_notes` contract.
+**Requirements**: SEQ-01, SEQ-02, SEQ-03, SEQ-04
+**Success Criteria** (what must be TRUE):
+  1. The user can place, move, and delete monophonic notes on a 2-bar 16th-note grid, with the editor enforcing the tokenizer's pitch range (C2–C5), gesture length, and note-count limits.
+  2. Call and response are staged as two separate sequences the user can edit independently and switch between.
+  3. Each staged pattern exports to a monophonic 120 BPM `.mid` that passes `apollo.ingest.load_notes` with no error.
+  4. Either staged pattern can be auditioned in-browser through the 4-op `fm4synth` JS engine (audition-only — never the canonical `call.wav`).
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 10: Authoring App Rework & Save-Pair
+**Goal**: The Phase 5 app is reworked onto the 4-op model end-to-end: the FM patch editor and browser preview synth are retargeted to `fm4synth` (reusing `fm4synth-ui`'s editor/matrix/LFO controls), a "Save pair" flow writes `data/pairs/NNN/{call.mid, response.mid, call_fm.json}` from the staged sequences + authored patch and server-renders `call.wav` via `fm4synth`, and the corpus dashboard + existing train/generate/model-registry flows keep working against the new engine — so the user can author the initial bassline corpus with no Ableton.
+**Depends on**: Phase 8 (canonical engine + v2.0 loader + server render) and Phase 9 (staged call/response sequences feeding Save-pair). Builds on the retained Phase 5 app surface.
+**Requirements**: APP-16, APP-17, APP-18, APP-19
+**Success Criteria** (what must be TRUE):
+  1. The in-app patch editor edits a full 4-op `fm4synth` patch (4 operators + 4×4 matrix + up to 3 LFOs) and saves a v2.0-valid `call_fm.json`.
+  2. The browser preview synth mirrors the 4-op `fm4synth` engine for live audition (audition-only), replacing the 3-op Web Audio synth.
+  3. "Save pair" writes `data/pairs/NNN/{call.mid, response.mid, call_fm.json}` from the staged sequences + patch, server-renders `call.wav` via `fm4synth`, and surfaces validation errors inline (no orphan directory on failure).
+  4. The corpus dashboard lists authored pairs with call/response audition and validates via the v2.0 manifest + `load_notes`; the existing train / generate / model-registry flows still work against the new engine.
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
 **Execution Order:**
 Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel** — it depends only on shipped code (Phase 2 model + Phase 3 CLIs), not on corpus completion, so it can be built as a separate workstream while corpus tuning continues. **Phase 6 is a prerequisite for DATA-05** (real corpus authoring) — it must land before pair authoring resumes, since `call.wav` can no longer come from Ableton. Phase 6 also defines the FM spec that Phase 5's browser synth consumes. **Phase 7 (LFO)** extends that spec to v1.1; it depends only on Phase 6 and is otherwise independent.
+
+**Milestone v3.0 (Phases 8–10)** executes in strict order: **Phase 8** (canonical engine swap) is the foundation and blocks everything else — it replaces Phases 6/7 and gates real corpus authoring (DATA-05). **Phase 9** (sequencer + staging) depends on Phase 8's v2.0 spec + browser audition model. **Phase 10** (app rework + save-pair) depends on both — the retargeted editor/preview (Phase 8 spec) plus the staged call/response sequences (Phase 9) feed the Save-pair flow.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -152,8 +206,11 @@ Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel*
 | 3. Corpus & Inference | 0/3 | Not started | - |
 | 4. Evaluation Loop | 0/TBD | Not started | - |
 | 5. Local App & In-Browser Synth | 5/5 | Complete | 2026-06-04 |
-| 6. Synth-Independent Corpus Rendering | 3/3 | Complete | 2026-06-02 |
-| 7. Synth Automation (LFO) | 3/3 | Complete | 2026-06-02 |
+| 6. Synth-Independent Corpus Rendering | 3/3 | Complete (superseded by Phase 8) | 2026-06-02 |
+| 7. Synth Automation (LFO) | 3/3 | Complete (superseded by Phase 8) | 2026-06-02 |
+| 8. Canonical Engine Swap (fm4synth) | 0/TBD | Not started | - |
+| 9. 2-Bar Sequencer & MIDI Staging | 0/TBD | Not started | - |
+| 10. Authoring App Rework & Save-Pair | 0/TBD | Not started | - |
 
 ## Backlog
 
@@ -185,4 +242,3 @@ Phases 1 → 2 → 3 → 4 execute in numeric order. **Phase 5 runs in parallel*
 **Requirements:** TBD
 **Plans:** 0 plans
 - [ ] TBD (promote with /gsd-review-backlog when ready)
-</content>

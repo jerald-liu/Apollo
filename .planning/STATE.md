@@ -2,40 +2,43 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: fm4synth canonical synth + local corpus-authoring app
-status: defining_roadmap
-stopped_at: Milestone v3.0 started. v2.0 (Phases 1–7) shipped and merged to main (PR #23). Requirements defined (FM4-01..07, SEQ-01..04, APP-16..19). Awaiting roadmap (Phase 8+).
+status: roadmap_ready
+stopped_at: v3.0 roadmap created (Phases 8–10). v2.0 (Phases 1–7) shipped and merged to main (PR #23). Next — /gsd-discuss-phase 8 or /gsd-plan-phase 8.
 last_updated: "2026-06-02T00:00:00.000Z"
-last_activity: 2026-06-02 — v3.0 milestone kickoff (fm4synth canonical engine + authoring app)
+last_activity: 2026-06-02 — v3.0 roadmap created (Phase 8 engine swap → Phase 9 sequencer → Phase 10 app rework)
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
   percent: 0
-  note: v2.0 shipped code-complete (Phases 1–7). v3.0 roadmap being created.
+  note: v2.0 shipped code-complete (Phases 1–7). v3.0 = Phases 8–10, roadmap ready, no plans written yet.
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-19)
+See: .planning/PROJECT.md (updated 2026-06-02)
 
-**Core value:** Given a short MIDI call played through an Operator preset, the model produces a response that feels like the user responding to themselves — and the active-learning loop demonstrably improves it over consecutive iterations.
-**Current focus:** Phase 5 — Local App & In-Browser Synth (code complete; awaiting human browser UAT)
+**Core value:** Given a short MIDI call played through an FM patch, the model produces a response that feels like the user responding to themselves — and the active-learning loop demonstrably improves it over consecutive iterations.
+**Current focus:** Phase 8 — Canonical Engine Swap (fm4synth): vendor the Rust engine, bump the FM spec to v2.0, rewrite the loader/validator, subprocess-render `call.wav`, remove the Faust path.
 
 ## Current Position
 
 Milestone: v3.0 — fm4synth canonical synth + local corpus-authoring app
-Phase: Not started (defining roadmap) — continues numbering at Phase 8
-Status: Requirements defined (FM4-01..07, SEQ-01..04, APP-16..19). Roadmap being created.
-Branch: gsd/v3.0-fm4synth (off main; main now contains merged Phases 1–7)
+Phase: 8 of 10 (v3.0 spans Phases 8–10; continues numbering from v2.0's Phase 7)
+Status: Roadmap ready — Phases 8–10 defined, no plans written yet.
+Branch: gsd/phase-5-local-app-browser-synth (current working branch; start a v3.0/Phase-8 branch before planning)
 Last activity: 2026-06-02
 
 Carried context:
 - v2.0 (Phases 1–7) shipped code-complete + merged to main (PR #23). Ship gate (EVAL-05: two consecutive improving held-out iterations) still unmet — depends on an authored corpus, which v3.0's authoring app exists to produce.
-- v3.0 supersedes Phase 6 (Faust renderer) + Phase 7 (Faust LFO) with the fm4synth engine, and reworks the Phase 5 app onto the 4-op model.
-- Deferred from Phase 5: 6 browser/audio human-UAT items (05-HUMAN-UAT.md) were never run; moot for the parts v3.0 reworks, revisit for anything retained. One known-flaky Phase-7 test (test_lfo_pitch_depth0_matches_static) is superseded when the Faust LFO is removed (FM4-06).
+- v3.0 roadmap (Phases 8–10): Phase 8 = canonical engine swap (FM4-01..07); Phase 9 = 2-bar sequencer + MIDI staging (SEQ-01..04); Phase 10 = app rework + save-pair (APP-16..19). Strict order — 8 blocks 9 and 10; 10 depends on both.
+- v3.0 supersedes Phase 6 (Faust renderer) + Phase 7 (Faust LFO) — implementation removed in Phase 8 (FM4-06). Canonical FM spec bumped to v2.0 = fm4synth's full 4-op + 4×4 matrix + multi-LFO model.
+- Locked decisions (do NOT re-open): integration = vendor fm4synth + subprocess its Rust CLI via a MIDI+patch→score.json adapter (not a Python port, not WASM); browser synth is audition-only, canonical call.wav always server-rendered by Rust; corpus must be uniformly fm4synth-rendered — any Faust-trained checkpoint is void (retrain from scratch, acceptable since no corpus authored yet).
+- Playground source: `/Users/jerald/Projects/playground/fm4synth` (Rust) + `fm4synth-ui` (Node+WebAudio).
+- Deferred from Phase 5: 6 browser/audio human-UAT items (05-HUMAN-UAT.md) never run; moot for the parts v3.0 reworks (Phase 10), revisit for anything retained. One known-flaky Phase-7 test (test_lfo_pitch_depth0_matches_static) is superseded once the Faust LFO is removed (FM4-06).
 
 Do NOT run /gsd-complete-milestone until EVAL-05 is satisfied.
 
@@ -135,6 +138,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 05-05: _active_checkpoint: pin wins if file exists, stale pin falls to _latest_checkpoint, ACTIVE-unset == latest-by-mtime (D-06)
 - [Phase ?]: 05-05: corpus_hash is content-flag only (SEED-011 defers snapshotting); POST /models/activate uses fixed-set membership guard (T-05-17, mirrors _validate_pair_nnn)
 - [Phase ?]: 05-05: append_run never moves ACTIVE; pin survives retrains until user re-activates (D-06)
+- v3.0 (locked at milestone kickoff): integration = vendor fm4synth + subprocess Rust CLI via MIDI+patch→score.json adapter (NOT a Python port, NOT WASM); canonical FM spec → v2.0 (fm4synth's full 4-op + 4×4 matrix + multi-LFO, no trim); browser synth audition-only, canonical call.wav ALWAYS server-rendered by Rust; corpus uniformly fm4synth-rendered, any Faust-trained checkpoint void (retrain from scratch — acceptable, no corpus authored yet).
 
 ### Pending Todos
 
@@ -146,9 +150,10 @@ None yet.
 
 ### Roadmap Evolution
 
-- 2026-06-02: Phase 7 added — Synth Automation (LFO). Promotes the call-side half of backlog 999.2: a deterministic per-patch LFO on the owned FM synth (FM spec → v1.1, backward-compatible with v1.0 manifests), mirrored by Phase 5's browser synth. New requirement SYNTH-01. Lets a call's timbre/pitch evolve over a note (the rhythmic/timbral motion FM is known for) — the expression mechanism a future response-side model (EXPR-02 / 999.2b) would learn to answer. Also fixed WR-01 (silent renders no longer amplified to full-scale noise; 177 tests). Not yet planned — run /gsd-plan-phase 7 (or /gsd-discuss-phase 7 first).
-- 2026-06-02: Phase 6 added & planned — Synth-Independent Corpus Rendering. Drops Ableton/Operator: an owned headless Python FM synth (DawDreamer + Faust, 3-op) renders `call.wav` deterministically from a per-pair FM-param manifest, feeding the unchanged MelExtractor (COND-01). New requirement DATA-06; supersedes the manual-bounce premise of DATA-01/02. Prerequisite for DATA-05 corpus authoring. Defines the single FM spec that Phase 5's browser synth will consume. Backed by /gsd-explore decision (.planning/notes/synth-independence-decision.md) + spikes 001/002 (packaged as the spike-findings-apollo skill). Deferred: full 4-op/11-algorithm engine → SEED-009.
-- 2026-06-01: Phase 5 added — Local App & In-Browser Synth. Purely local user-facing app: drag-drop pair ingest, corpus-growth flow, in-browser Operator-style FM synth (Web Audio, removes manual Ableton bounce), manual + auto-retrain triggers, configurable response storage, call→response flow. New requirements (candidate APP-*) to be authored at plan time.
+- 2026-06-02: **v3.0 roadmap created — Phases 8–10.** Milestone v3.0 (fm4synth canonical synth + local corpus-authoring app) continues numbering from v2.0's Phase 7. Phase 8 (Canonical Engine Swap): vendor `fm4synth` Rust engine, bump FM spec → v2.0 (4-op + 4×4 matrix + multi-LFO), rewrite `call_fm.json` loader/validator, subprocess-render `call.wav` via a MIDI+patch→score.json adapter, remove the Faust/DawDreamer + v1.1-LFO path (FM4-01..07). Phase 9 (2-Bar Sequencer & MIDI Staging): 2-bar quantized piano-roll, separate call/response staging, `load_notes`-valid `.mid` export, in-browser audition (SEQ-01..04). Phase 10 (Authoring App Rework & Save-Pair): retarget app editor + browser preview to 4-op fm4synth, Save-pair flow (staged sequences + patch → `data/pairs/NNN/` + server-rendered `call.wav`), keep corpus/train/generate/registry flows working (APP-16..19). Strict order: 8 → 9 → 10 (8 blocks both; 10 depends on both). Supersedes Phase 6 (Faust renderer) + Phase 7 (Faust LFO) — implementation removed in Phase 8. Coverage: 15/15 v3.0 reqs mapped, 0 unmapped, none duplicated.
+- 2026-06-02: Phase 7 added — Synth Automation (LFO). Promotes the call-side half of backlog 999.2: a deterministic per-patch LFO on the owned FM synth (FM spec → v1.1, backward-compatible with v1.0 manifests), mirrored by Phase 5's browser synth. New requirement SYNTH-01. Lets a call's timbre/pitch evolve over a note (the rhythmic/timbral motion FM is known for) — the expression mechanism a future response-side model (EXPR-02 / 999.2b) would learn to answer. Also fixed WR-01 (silent renders no longer amplified to full-scale noise; 177 tests). *(v3.0 supersedes: the v1.1 Faust LFO is subsumed by fm4synth's native multi-LFO model — implementation removed in Phase 8.)*
+- 2026-06-02: Phase 6 added & planned — Synth-Independent Corpus Rendering. Drops Ableton/Operator: an owned headless Python FM synth (DawDreamer + Faust, 3-op) renders `call.wav` deterministically from a per-pair FM-param manifest, feeding the unchanged MelExtractor (COND-01). New requirement DATA-06; supersedes the manual-bounce premise of DATA-01/02. Prerequisite for DATA-05 corpus authoring. Defines the single FM spec that Phase 5's browser synth consumes. Backed by /gsd-explore decision (.planning/notes/synth-independence-decision.md) + spikes 001/002 (packaged as the spike-findings-apollo skill). Deferred: full 4-op/11-algorithm engine → SEED-009. *(v3.0 supersedes: the Faust/DawDreamer renderer is replaced by the vendored fm4synth Rust engine — removed in Phase 8; the single-source-of-truth spec concept survives, bumped to v2.0.)*
+- 2026-06-01: Phase 5 added — Local App & In-Browser Synth. Purely local user-facing app: drag-drop pair ingest, corpus-growth flow, in-browser Operator-style FM synth (Web Audio, removes manual Ableton bounce), manual + auto-retrain triggers, configurable response storage, call→response flow. New requirements (candidate APP-*) to be authored at plan time. *(v3.0 reworks: Phase 10 retargets the editor + browser preview to the 4-op fm4synth model and adds the sequencer-fed Save-pair flow.)*
 
 ## Deferred Items
 
@@ -160,12 +165,12 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-04T05:00:00.000Z
-Stopped at: Completed 05-05 (model version-history + rollback — registry + /models + activate)
+Last session: 2026-06-02T00:00:00.000Z
+Stopped at: v3.0 roadmap created (Phases 8–10). ROADMAP.md, REQUIREMENTS.md traceability, and STATE.md updated.
 
 Resume:
 
-- Phase 5 complete (all 5 plans executed). Run `/gsd-progress` for a full status overview.
-- Working branch: `gsd/phase-5-local-app-browser-synth`
+- v3.0 roadmap ready. Next: `/gsd-discuss-phase 8` (recommended) or `/gsd-plan-phase 8` to start the canonical engine swap. Run `/gsd-progress` for a full status overview.
+- Start a v3.0 / Phase-8 branch before planning (current branch is `gsd/phase-5-local-app-browser-synth`; v2.0 is merged to main).
 
-Mock UAT fixture on disk: `data/pairs/000..019` (5 held-out: 006, 009, 010, 012, 019) + `eval/scores.jsonl` partially filled. Delete before authoring real corpus.
+Mock UAT fixture on disk: `data/pairs/000..019` (5 held-out: 006, 009, 010, 012, 019) + `eval/scores.jsonl` partially filled. Delete before authoring real corpus (note: these are Faust-era renders — void under the fm4synth engine swap).
