@@ -1,17 +1,18 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
-milestone_name: milestone
-status: phase_05_human_uat
-stopped_at: Phase 5 (Local App & In-Browser Synth) CODE COMPLETE — 5/5 plans executed (05-01 scaffold → 05-02 browser FM synth → 05-03 ingest+training → 05-04 patch editor+generate → 05-05 model rollback). Verifier: 15/15 must-haves verified, status=human_needed (6 browser/audio items in 05-HUMAN-UAT.md — inherently manual). APP-01..APP-15 all done; SC#1..SC#8 satisfied in code. 42 Phase-5 app tests pass; full fast suite green except one KNOWN-FLAKY pre-existing Phase-7 synth test (test_lfo_pitch_depth0_matches_static — flagged for separate fix, not a Phase-5 regression). On branch gsd/phase-5-local-app-browser-synth (stacked on feat/owned-fm-synth, itself on main; Phases 6/7 + this app NOT yet merged to main). Awaiting human UAT: launch `.venv/bin/python -m apollo.app` and verify the 6 items, then /gsd-verify-work 5 or approve.
-last_updated: "2026-06-04T05:30:00.000Z"
-last_activity: 2026-06-04
+milestone: v3.0
+milestone_name: fm4synth canonical synth + local corpus-authoring app
+status: defining_roadmap
+stopped_at: Milestone v3.0 started. v2.0 (Phases 1–7) shipped and merged to main (PR #23). Requirements defined (FM4-01..07, SEQ-01..04, APP-16..19). Awaiting roadmap (Phase 8+).
+last_updated: "2026-06-02T00:00:00.000Z"
+last_activity: 2026-06-02 — v3.0 milestone kickoff (fm4synth canonical engine + authoring app)
 progress:
-  total_phases: 7
-  completed_phases: 6
-  total_plans: 29
-  completed_plans: 29
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
+  note: v2.0 shipped code-complete (Phases 1–7). v3.0 roadmap being created.
 ---
 
 # Project State
@@ -25,18 +26,16 @@ See: .planning/PROJECT.md (updated 2026-05-19)
 
 ## Current Position
 
-Phase: 05 (local-app-browser-synth) — Code complete, verifier status=human_needed
-Plan: 5 of 5 (all executed & spot-checked)
-Status: Awaiting human UAT (6 browser/audio items in 05-HUMAN-UAT.md). Launch: `.venv/bin/python -m apollo.app`
-Branch: gsd/phase-5-local-app-browser-synth (stacked on feat/owned-fm-synth → main; Phases 6/7 + app not yet merged to main)
-Last activity: 2026-06-04
+Milestone: v3.0 — fm4synth canonical synth + local corpus-authoring app
+Phase: Not started (defining roadmap) — continues numbering at Phase 8
+Status: Requirements defined (FM4-01..07, SEQ-01..04, APP-16..19). Roadmap being created.
+Branch: gsd/v3.0-fm4synth (off main; main now contains merged Phases 1–7)
+Last activity: 2026-06-02
 
-Progress: [██████████] 100% code-side — but v1 is NOT shippable yet.
-Open ship-gate dependencies (both require the human-in-the-loop, no GSD coding command):
-
-- DATA-05: author ≥30 call/response pairs in Ableton (data/pairs/), each with call.wav bounce
-- First real training run (train.py) + first eval iteration (generate → blind-grade in Flask UI)
-- EVAL-05: two consecutive iteration rounds must both improve mean held-out call-response-fit score
+Carried context:
+- v2.0 (Phases 1–7) shipped code-complete + merged to main (PR #23). Ship gate (EVAL-05: two consecutive improving held-out iterations) still unmet — depends on an authored corpus, which v3.0's authoring app exists to produce.
+- v3.0 supersedes Phase 6 (Faust renderer) + Phase 7 (Faust LFO) with the fm4synth engine, and reworks the Phase 5 app onto the 4-op model.
+- Deferred from Phase 5: 6 browser/audio human-UAT items (05-HUMAN-UAT.md) were never run; moot for the parts v3.0 reworks, revisit for anything retained. One known-flaky Phase-7 test (test_lfo_pitch_depth0_matches_static) is superseded when the Faust LFO is removed (FM4-06).
 
 Do NOT run /gsd-complete-milestone until EVAL-05 is satisfied.
 

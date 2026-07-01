@@ -77,6 +77,34 @@ Authored 2026-06-02 at plan time (candidate APP-* from ROADMAP §Phase 5). Each 
 - [x] **APP-14**: Training run registry: every completed run is recorded in an append-only `models/runs.jsonl` with checkpoint basename, timestamp, iteration, corpus pair count + content hash, and train/held losses; the history is listable (`registry.list_runs` + `GET /models`). Written by the app layer at training-completion (not by `train.py`); CLI-only training does not populate the registry in v1. The `corpus_hash` is a one-way content flag ("trained on a different corpus than you have now"), not a corpus snapshot — full corpus snapshotting is deferred to SEED-011. *(SC#8; D-05, D-10; precedent: `eval/runs.jsonl`)*
 - [x] **APP-15**: Model version-history & rollback UI: the app lists run history at `GET /models`, marks the active model, and lets the user activate (pin) any prior checkpoint for generation via `POST /models/activate` (registry-membership-guarded, mirroring the `_validate_nnn` pattern). `/generate` resolves the checkpoint via `_active_checkpoint()` (pinned `models/ACTIVE` if present, else newest-by-mtime); a pin survives subsequent auto/manual retrains until the user re-pins or returns to latest. *(SC#8; D-06)*
 
+## v3.0 Requirements — fm4synth canonical synth + local corpus-authoring app
+
+New requirements for milestone v3.0. Supersede the Faust-based SYNTH-01 (Phase 7) and rework the Phase 5 APP surface onto the 4-op `fm4synth` model. Phases 8+.
+
+### Canonical Engine (FM4)
+
+- [ ] **FM4-01**: The `fm4synth` Rust engine is vendored into Apollo with a documented, reproducible build step that works locally and in CI (produces the render binary).
+- [ ] **FM4-02**: The canonical FM spec is bumped to **v2.0** = `fm4synth`'s model — 4 operators (per-op ratio / detune / level / ADSR), an arbitrary 4×4 modulation matrix + output vector + self-feedback, `master_gain`, and up to 3 LFOs (rate / depth / wave ∈ {sine, triangle, saw, square, S&H} / target).
+- [ ] **FM4-03**: `call_fm.json` adopts the v2.0 patch shape (`{ops[4], matrix{mod,output}, lfos[], master_gain}`); the loader + validators are rewritten to parse and bounds/enum-check it, rejecting NaN/Inf and raising `IngestError(pair_path, reason)` with a clear message.
+- [ ] **FM4-04**: `render_call_wav(manifest, mid, …)` produces `call.wav` by converting the pair's MIDI + patch into a `fm4synth` `score.json` and subprocessing the vendored Rust CLI; output is normalized to Apollo's conventions (mono, `TARGET_PEAK`, duration cap) and drop-in for `MelExtractor`.
+- [ ] **FM4-05**: Rendering is deterministic and audio-parity-preserving — identical (manifest, MIDI) yields identical audio, and the **same** engine renders both corpus-authoring and inference `call.wav`.
+- [ ] **FM4-06**: The Faust/DawDreamer 3-op renderer (Phase 6) and v1.1 Faust LFO (Phase 7) are removed; `apollo/synth` exposes a single canonical `fm4synth`-backed engine, and all render/ingest/generate call sites are updated to it.
+- [ ] **FM4-07**: `CORPUS-CONVENTIONS.md` and `render_corpus.py` are updated to the v2.0 manifest; the corpus must be uniformly `fm4synth`-rendered (no legacy Faust/Ableton mix), and any prior Faust-trained checkpoint is documented as void (retrain from scratch).
+
+### Sequencer & MIDI Staging (SEQ)
+
+- [ ] **SEQ-01**: The app provides a 2-bar quantized sequencer / piano-roll for placing monophonic notes on a grid (16th-note quantization at 120 BPM), constrained to the tokenizer's limits (C2–C5, gesture length, note count).
+- [ ] **SEQ-02**: The user stages a **call** pattern and a **response** pattern as two separate, independently-editable sequences.
+- [ ] **SEQ-03**: Each staged pattern exports to a valid `.mid` (monophonic, 120 BPM) that passes `apollo.ingest.load_notes` without error.
+- [ ] **SEQ-04**: Staged patterns are auditioned in-browser via the JS FM engine (audition-only — never the canonical `call.wav`).
+
+### Authoring App Rework (APP)
+
+- [ ] **APP-16**: The in-app FM patch editor is retargeted to the 4-op `fm4synth` model (4 operators + 4×4 matrix + up to 3 LFOs), reusing `fm4synth-ui`'s editor / matrix / LFO controls, and saves a v2.0-valid `call_fm.json`.
+- [ ] **APP-17**: The browser preview synth mirrors the 4-op `fm4synth` engine for live audition, replacing the 3-op Web Audio synth (audition-only).
+- [ ] **APP-18**: A "Save pair" flow writes `data/pairs/NNN/{call.mid, response.mid, call_fm.json}` from the staged sequences + authored patch, then server-renders `call.wav` via the `fm4synth` engine, surfacing validation errors inline.
+- [ ] **APP-19**: The corpus dashboard lists authored pairs with call/response audition and validates via the v2.0 manifest + `load_notes`; the existing Phase 5 train / generate / model-registry flows continue to work against the new engine.
+
 ## v2 Requirements
 
 Deferred to a later milestone. Tracked here so they don't get lost.

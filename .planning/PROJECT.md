@@ -4,11 +4,24 @@
 
 > **On-device, style-preserving musical phrase generator.**
 
-Apollo is a generative call-and-response model for Ableton **Operator** (FM synth). You play a short MIDI phrase routed through an Operator preset; the model returns a complementary MIDI response in your own authored style. The corpus is hand-curated by the user — paired MIDI tracks (call + response) authored in Ableton — and the model learns the user's call→response intuition implicitly.
+Apollo is a generative call-and-response model for an **owned FM synth** (originally modeled on Ableton Operator; as of v2.0 Phase 6, a headless FM engine Apollo controls directly — no Ableton required). You author a short MIDI phrase through an FM patch; the model returns a complementary MIDI response in your own authored style. The corpus is hand-curated by the user — paired MIDI patterns (call + response) — and the model learns the user's call→response intuition implicitly, conditioned on the call's rendered audio.
 
 ## Core Value
 
-Given a short MIDI call played through an Operator preset, the model produces a response that *feels like the user* responding to themselves. The active-learning loop (author → train → listen → identify gaps → author more) is the deliverable as much as any single trained model.
+Given a short MIDI call rendered through an FM patch, the model produces a response that *feels like the user* responding to themselves. The active-learning loop (author → train → listen → identify gaps → author more) is the deliverable as much as any single trained model.
+
+## Current Milestone: v3.0 — fm4synth canonical synth + local corpus-authoring app
+
+**Goal:** Adopt the playground `fm4synth` engine (Rust; 4 operators, arbitrary 4×4 mod matrix + self-feedback, up to 3 LFOs, per-op ratio/detune/level/ADSR) as Apollo's **canonical** render engine, superseding the owned Faust 3-op renderer (Phase 6/7), and build a local, public-demo authoring app to create call/response **bassline** pairs — so the initial corpus can be authored end-to-end without Ableton.
+
+**Target features:**
+- Vendor `fm4synth` into Apollo; canonical `call.wav` render path subprocesses its Rust CLI (via a MIDI+patch → `score.json` adapter). `SPEC_VERSION → 2.0`.
+- New canonical `call_fm.json` schema = `fm4synth`'s patch shape (`{ops[4], matrix{mod,output}, lfos[], master_gain}`), with rewritten loader/validators.
+- A 2-bar quantized sequencer/piano-roll to author + stage separate **call** and **response** MIDI patterns, with `.mid` export for both.
+- In-app 4-op FM patch editor (reusing `fm4synth-ui`), in-browser audition playback (audition-only; canonical audio always Rust-rendered server-side).
+- "Save pair" flow: writes `data/pairs/NNN/{call.mid, response.mid, call_fm.json}`, then server-renders `call.wav` via `fm4synth`.
+
+**Key context / consequences:** Supersedes Phase 6 (Faust renderer) and Phase 7 (Faust LFO); reworks Phase 5 app decisions (D-16/D-19/D-20) from the 3-op Faust model to 4-op `fm4synth`. Any Faust-trained mel encoder is void — retrain from scratch (acceptable: no corpus authored yet; corpus must be uniformly `fm4synth`-rendered, no legacy mix). Playground source: `/Users/jerald/Projects/playground/fm4synth` (Rust) + `fm4synth-ui` (Node+WebAudio). Continues phase numbering at **Phase 8**.
 
 ## Requirements
 
@@ -96,4 +109,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-19 after initialization*
+*Last updated: 2026-06-02 — started milestone v3.0 (fm4synth canonical synth + local corpus-authoring app)*
