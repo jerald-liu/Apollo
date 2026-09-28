@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Time Scale</title>
+    <style>
+      body { font: 13px -apple-system, "Segoe UI", sans-serif; margin: 0; padding: 14px 16px; background: #2a2a2a; color: #ddd; }
+      h1 { font-size: 13px; margin: 0 0 10px; font-weight: 600; }
+      .row { display: flex; align-items: center; gap: 10px; }
+      input[type=range] { flex: 1; }
+      output { width: 90px; text-align: right; font-variant-numeric: tabular-nums; }
+      .hint { color: #999; margin: 8px 0 14px; font-size: 12px; }
+      .buttons { display: flex; justify-content: flex-end; gap: 8px; }
+      button { padding: 4px 14px; }
+    </style>
+    <script>
+      function send(result) {
+        const message = { method: "close_and_send", params: [result] };
+        if (window.webkit?.messageHandlers?.live) window.webkit.messageHandlers.live.postMessage(message);
+        else if (window.chrome?.webview) window.chrome.webview.postMessage(message);
+      }
+      function update() {
+        const p = Number(document.getElementById("p").value);
+        const k = Math.pow(2, p / 50);
+        document.getElementById("out").textContent = (p > 0 ? "+" : "") + p + "%  ×" + k.toFixed(2);
+        document.getElementById("hint").textContent =
+          p < 0 ? "Tighter: shorter envelopes, faster LFOs."
+          : p > 0 ? "Looser: longer envelopes, slower LFOs."
+          : "No change.";
+      }
+    </script>
+  </head>
+  <body onload="update()">
+    <h1>Apollo TimeScale</h1>
+    <div class="row">
+      <input id="p" type="range" min="-50" max="50" step="1" value="0" oninput="update()" />
+      <output id="out"></output>
+    </div>
+    <div class="hint" id="hint"></div>
+    <div class="buttons">
+      <button onclick="send('')">Cancel</button>
+      <button onclick="send(JSON.stringify({ percent: Number(document.getElementById('p').value) }))">Apply</button>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,6 @@
+node_modules/
+dist/
+*.ablx
+.env
+# Ableton's SDK license forbids redistribution — copy the tarballs in locally.
+vendor/*.tgz
